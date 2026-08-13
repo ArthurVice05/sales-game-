@@ -1,0 +1,20 @@
+X [ERROR] Cannot read directory "../../..": Acesso negado.
+
+X [ERROR] Could not resolve "C:\\Users\\jpfma\\Downloads\\SALESGAMETUR\\sales-game-\\vite.config.js"
+
+[31mfailed to load config from C:\Users\jpfma\Downloads\SALESGAMETUR\sales-game-\vite.config.js[39m
+[31merror when starting dev server:
+Error: Build failed with 2 errors:
+error: Cannot read directory "../../..": Acesso negado.
+error: Could not resolve "C:\\Users\\jpfma\\Downloads\\SALESGAMETUR\\sales-game-\\vite.config.js"
+    at failureErrorWithLog (C:\Users\jpfma\Downloads\SALESGAMETUR\sales-game-\node_modules\esbuild\lib\main.js:1472:15)
+    at C:\Users\jpfma\Downloads\SALESGAMETUR\sales-game-\node_modules\esbuild\lib\main.js:945:25
+    at runOnEndCallbacks (C:\Users\jpfma\Downloads\SALESGAMETUR\sales-game-\node_modules\esbuild\lib\main.js:1315:45)
+    at buildResponseToResult (C:\Users\jpfma\Downloads\SALESGAMETUR\sales-game-\node_modules\esbuild\lib\main.js:943:7)
+    at C:\Users\jpfma\Downloads\SALESGAMETUR\sales-game-\node_modules\esbuild\lib\main.js:970:16
+    at responseCallbacks.<computed> (C:\Users\jpfma\Downloads\SALESGAMETUR\sales-game-\node_modules\esbuild\lib\main.js:622:9)
+    at handleIncomingPacket (C:\Users\jpfma\Downloads\SALESGAMETUR\sales-game-\node_modules\esbuild\lib\main.js:677:12)
+    at Socket.readFromStdout (C:\Users\jpfma\Downloads\SALESGAMETUR\sales-game-\node_modules\esbuild\lib\main.js:600:7)
+    at Socket.emit (node:events:508:20)
+    at addChunk (node:internal/streams/readable:564:12)[39m
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`

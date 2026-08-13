@@ -1,52 +1,50 @@
-/**
- * Script para executar testes de alternância de turnos
- * 
- * Este script verifica se o ambiente está configurado corretamente
- * e fornece instruções para executar os testes no navegador.
- */
+import { readFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-import { readFileSync } from 'fs'
-import { fileURLToPath } from 'url'
-import { dirname, join } from 'path'
+const projectRoot = join(dirname(fileURLToPath(import.meta.url)), '..')
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
-const projectRoot = join(__dirname, '..')
-
-console.log('🧪 Verificando ambiente para testes de alternância de turnos...\n')
-
-// Verificar se os arquivos de teste existem
-const testFiles = [
+const requiredBrowserTests = [
   'src/game/__tests__/turnAlternationTest.js',
   'src/game/__tests__/testControlPanel.js',
-  'src/game/__tests__/index.js'
+  'src/game/__tests__/index.js',
 ]
 
-console.log('📁 Verificando arquivos de teste:')
+console.log('Verificando arquivos de teste do jogo:')
 let allFilesExist = true
-testFiles.forEach(file => {
+for (const file of requiredBrowserTests) {
   try {
-    const filePath = join(projectRoot, file)
-    readFileSync(filePath, 'utf-8')
-    console.log(`  ✅ ${file}`)
-  } catch (error) {
-    console.log(`  ❌ ${file} - NÃO ENCONTRADO`)
+    readFileSync(join(projectRoot, file), 'utf8')
+    console.log(`  OK ${file}`)
+  } catch {
     allFilesExist = false
+    console.error(`  AUSENTE ${file}`)
   }
-})
-
-if (!allFilesExist) {
-  console.log('\n❌ Alguns arquivos de teste não foram encontrados!')
-  process.exit(1)
 }
 
-console.log('\n✅ Todos os arquivos de teste estão presentes!')
-console.log('\n📋 Próximos passos:')
-console.log('   1. Execute: npm run dev')
-console.log('   2. Abra o navegador em http://localhost:5173')
-console.log('   3. Abra o Console (F12)')
-console.log('   4. Execute: runAllTests()')
-console.log('   5. Ou execute: testTurnAlternation()')
-console.log('\n💡 Dica: Use test-runner.html para uma interface visual!')
+if (!allFilesExist) process.exit(1)
 
+const nodeSuites = [
+  'src/data/__tests__/board40Preview.test.mjs',
+  'src/game/__tests__/boardVisualCoordinates.test.mjs',
+  'src/game/__tests__/gameStats.test.mjs',
+  'src/game/__tests__/board40Integration.test.mjs',
+  'src/game/__tests__/boardLayoutStability.test.mjs',
+  'src/game/__tests__/responsiveLayout.test.mjs',
+]
 
+console.log('\nExecutando testes estruturais do tabuleiro:')
+const result = spawnSync(process.execPath, ['--test', ...nodeSuites], {
+  cwd: projectRoot,
+  stdio: 'inherit',
+})
+
+if (result.error) {
+  console.error(result.error)
+  process.exit(1)
+}
+if (result.status !== 0) process.exit(result.status || 1)
+
+console.log('\nTodos os testes de verificação passaram.')
+console.log('Validação manual adicional: npm run dev e runAllTests() no console do navegador.')

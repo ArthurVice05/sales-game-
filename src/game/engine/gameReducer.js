@@ -8,9 +8,10 @@
 // Nota: Nesta etapa inicial, implementamos apenas action: { type:'ROLL', steps:number }.
 // O objetivo é "copiar" o fluxo atual de alto nível (move -> tile -> eventos) de forma conservadora.
 
-import { computeMove } from '../domain/movement'
-import { getTileType, tileNeedsModal } from '../domain/tiles'
-import { canAct } from '../domain/locks'
+import { computeMove } from '../domain/movement.js'
+import { getTileType, tileNeedsModal } from '../domain/tiles.js'
+import { canAct } from '../domain/locks.js'
+import { getBoardDefinition, resolveBoardVersion } from '../../data/boardVersions.js'
 
 const forwardDist = (from, to, len) => {
   const d = (to - from + len) % len
@@ -27,7 +28,9 @@ const crossedTile = (oldPos, newPos, tileIndex) => {
 export function reduceGame(state, action, ctx) {
   const s = state || {}
   const a = action || {}
-  const trackLen = Number(ctx?.trackLen || 0) || 55
+  const boardVersion = resolveBoardVersion(ctx?.boardVersion ?? s?.boardVersion)
+  const board = getBoardDefinition(boardVersion)
+  const trackLen = Number(ctx?.trackLen || 0) || board.trackLen
   const myUid = ctx?.myUid
 
   if (a.type !== 'ROLL') {
@@ -51,10 +54,10 @@ export function reduceGame(state, action, ctx) {
   const { newPos, crossedStart, lapCount } = computeMove({ pos: oldPos, steps, trackLen })
 
   const landedOneBased = newPos + 1
-  const tileType = getTileType(landedOneBased)
+  const tileType = getTileType(landedOneBased, boardVersion)
 
   const crossedRevenue = crossedTile(oldPos, newPos, 0) || crossedStart
-  const crossedExpenses = crossedTile(oldPos, newPos, 22)
+  const crossedExpenses = crossedTile(oldPos, newPos, board.expensesIndex)
 
   const nextPlayers = players.map((p, i) => (i === curIdx ? { ...p, pos: newPos } : p))
   const nextState = { ...s, players: nextPlayers }
@@ -62,7 +65,7 @@ export function reduceGame(state, action, ctx) {
   // Eventos: mantém a mesma ideia do useTurnEngine (sequenciar revenue/expenses/luck)
   const events = []
   if (crossedRevenue) events.push({ type: 'REVENUE', at: forwardDist(oldPos, 0, trackLen) })
-  if (crossedExpenses) events.push({ type: 'EXPENSES', at: forwardDist(oldPos, 22, trackLen) })
+  if (crossedExpenses) events.push({ type: 'EXPENSES', at: forwardDist(oldPos, board.expensesIndex, trackLen) })
   if (tileType === 'LUCK') events.push({ type: 'LUCK', at: steps })
 
   events.sort((a1, a2) => Number(a1.at || 0) - Number(a2.at || 0))

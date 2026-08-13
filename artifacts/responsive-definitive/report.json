@@ -1,0 +1,4072 @@
+{
+  "generatedAt": "2026-08-13T18:38:09.829Z",
+  "qaPrefix": "QA-LAYOUT-46262205",
+  "browser": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+  "overallPass": false,
+  "failures": [
+    {
+      "viewport": "360x800",
+      "criterio": "portraitLabelsNoOverflow",
+      "esperado": "0 rotulos transbordando",
+      "medido": "5"
+    },
+    {
+      "viewport": "390x844",
+      "criterio": "portraitLabelsNoOverflow",
+      "esperado": "0 rotulos transbordando",
+      "medido": "5"
+    },
+    {
+      "viewport": "394x858",
+      "criterio": "portraitLabelsNoOverflow",
+      "esperado": "0 rotulos transbordando",
+      "medido": "5"
+    },
+    {
+      "viewport": "430x932",
+      "criterio": "portraitLabelsNoOverflow",
+      "esperado": "0 rotulos transbordando",
+      "medido": "29"
+    },
+    {
+      "viewport": "768x1024",
+      "criterio": "portraitLabelsNoOverflow",
+      "esperado": "0 rotulos transbordando",
+      "medido": "1"
+    },
+    {
+      "viewport": "800x360",
+      "criterio": "sidebarNoScroll",
+      "esperado": "scrollHeight <= 301",
+      "medido": "535"
+    },
+    {
+      "viewport": "844x390",
+      "criterio": "sidebarNoScroll",
+      "esperado": "scrollHeight <= 331",
+      "medido": "542"
+    },
+    {
+      "viewport": "932x430",
+      "criterio": "sidebarNoScroll",
+      "esperado": "scrollHeight <= 371",
+      "medido": "554"
+    }
+  ],
+  "viewports": [
+    {
+      "viewport": "360x800",
+      "orientation": "portrait",
+      "board": "345.63x604.84",
+      "pass": false,
+      "checks": {
+        "boardRatio": {
+          "pass": true,
+          "expected": "0.5714 (+-0.01)",
+          "measured": "0.5714"
+        },
+        "documentOverflowX": {
+          "pass": true,
+          "expected": "0",
+          "measured": "0"
+        },
+        "tileCount": {
+          "pass": true,
+          "expected": "40",
+          "measured": "40"
+        },
+        "tokensInsideBoard": {
+          "pass": true,
+          "expected": "true",
+          "measured": "true"
+        },
+        "portraitLabelsVisible": {
+          "pass": true,
+          "expected": "40 rotulos visiveis",
+          "measured": "40"
+        },
+        "portraitLabelsNoOverflow": {
+          "pass": false,
+          "expected": "0 rotulos transbordando",
+          "measured": "5"
+        }
+      },
+      "failures": [
+        {
+          "viewport": "360x800",
+          "criterio": "portraitLabelsNoOverflow",
+          "esperado": "0 rotulos transbordando",
+          "medido": "5"
+        }
+      ]
+    },
+    {
+      "viewport": "390x844",
+      "orientation": "portrait",
+      "board": "374.41x655.20",
+      "pass": false,
+      "checks": {
+        "boardRatio": {
+          "pass": true,
+          "expected": "0.5714 (+-0.01)",
+          "measured": "0.5714"
+        },
+        "documentOverflowX": {
+          "pass": true,
+          "expected": "0",
+          "measured": "0"
+        },
+        "tileCount": {
+          "pass": true,
+          "expected": "40",
+          "measured": "40"
+        },
+        "tokensInsideBoard": {
+          "pass": true,
+          "expected": "true",
+          "measured": "true"
+        },
+        "portraitLabelsVisible": {
+          "pass": true,
+          "expected": "40 rotulos visiveis",
+          "measured": "40"
+        },
+        "portraitLabelsNoOverflow": {
+          "pass": false,
+          "expected": "0 rotulos transbordando",
+          "measured": "5"
+        }
+      },
+      "failures": [
+        {
+          "viewport": "390x844",
+          "criterio": "portraitLabelsNoOverflow",
+          "esperado": "0 rotulos transbordando",
+          "medido": "5"
+        }
+      ]
+    },
+    {
+      "viewport": "394x858",
+      "orientation": "portrait",
+      "board": "378.25x661.94",
+      "pass": false,
+      "checks": {
+        "boardRatio": {
+          "pass": true,
+          "expected": "0.5714 (+-0.01)",
+          "measured": "0.5714"
+        },
+        "documentOverflowX": {
+          "pass": true,
+          "expected": "0",
+          "measured": "0"
+        },
+        "tileCount": {
+          "pass": true,
+          "expected": "40",
+          "measured": "40"
+        },
+        "tokensInsideBoard": {
+          "pass": true,
+          "expected": "true",
+          "measured": "true"
+        },
+        "portraitLabelsVisible": {
+          "pass": true,
+          "expected": "40 rotulos visiveis",
+          "measured": "40"
+        },
+        "portraitLabelsNoOverflow": {
+          "pass": false,
+          "expected": "0 rotulos transbordando",
+          "measured": "5"
+        }
+      },
+      "failures": [
+        {
+          "viewport": "394x858",
+          "criterio": "portraitLabelsNoOverflow",
+          "esperado": "0 rotulos transbordando",
+          "medido": "5"
+        }
+      ]
+    },
+    {
+      "viewport": "430x932",
+      "orientation": "portrait",
+      "board": "412.81x722.42",
+      "pass": false,
+      "checks": {
+        "boardRatio": {
+          "pass": true,
+          "expected": "0.5714 (+-0.01)",
+          "measured": "0.5714"
+        },
+        "documentOverflowX": {
+          "pass": true,
+          "expected": "0",
+          "measured": "0"
+        },
+        "tileCount": {
+          "pass": true,
+          "expected": "40",
+          "measured": "40"
+        },
+        "tokensInsideBoard": {
+          "pass": true,
+          "expected": "true",
+          "measured": "true"
+        },
+        "portraitLabelsVisible": {
+          "pass": true,
+          "expected": "40 rotulos visiveis",
+          "measured": "40"
+        },
+        "portraitLabelsNoOverflow": {
+          "pass": false,
+          "expected": "0 rotulos transbordando",
+          "measured": "29"
+        }
+      },
+      "failures": [
+        {
+          "viewport": "430x932",
+          "criterio": "portraitLabelsNoOverflow",
+          "esperado": "0 rotulos transbordando",
+          "medido": "29"
+        }
+      ]
+    },
+    {
+      "viewport": "600x960",
+      "orientation": "portrait",
+      "board": "580.00x435.00",
+      "pass": true,
+      "checks": {
+        "boardRatio": {
+          "pass": true,
+          "expected": "1.3333 (+-0.01)",
+          "measured": "1.3333"
+        },
+        "documentOverflowX": {
+          "pass": true,
+          "expected": "0",
+          "measured": "0"
+        },
+        "tileCount": {
+          "pass": true,
+          "expected": "40",
+          "measured": "40"
+        },
+        "tokensInsideBoard": {
+          "pass": true,
+          "expected": "true",
+          "measured": "true"
+        },
+        "portraitLabelsVisible": {
+          "pass": true,
+          "expected": "40 rotulos visiveis",
+          "measured": "40"
+        },
+        "portraitLabelsNoOverflow": {
+          "pass": true,
+          "expected": "0 rotulos transbordando",
+          "measured": "0"
+        }
+      },
+      "failures": []
+    },
+    {
+      "viewport": "768x1024",
+      "orientation": "portrait",
+      "board": "733.00x549.75",
+      "pass": false,
+      "checks": {
+        "boardRatio": {
+          "pass": true,
+          "expected": "1.3333 (+-0.01)",
+          "measured": "1.3333"
+        },
+        "documentOverflowX": {
+          "pass": true,
+          "expected": "0",
+          "measured": "0"
+        },
+        "tileCount": {
+          "pass": true,
+          "expected": "40",
+          "measured": "40"
+        },
+        "tokensInsideBoard": {
+          "pass": true,
+          "expected": "true",
+          "measured": "true"
+        },
+        "portraitLabelsVisible": {
+          "pass": true,
+          "expected": "40 rotulos visiveis",
+          "measured": "40"
+        },
+        "portraitLabelsNoOverflow": {
+          "pass": false,
+          "expected": "0 rotulos transbordando",
+          "measured": "1"
+        }
+      },
+      "failures": [
+        {
+          "viewport": "768x1024",
+          "criterio": "portraitLabelsNoOverflow",
+          "esperado": "0 rotulos transbordando",
+          "medido": "1"
+        }
+      ]
+    },
+    {
+      "viewport": "800x360",
+      "orientation": "landscape",
+      "board": "400.00x300.00",
+      "pass": false,
+      "checks": {
+        "boardRatio": {
+          "pass": true,
+          "expected": "1.3333 (+-0.01)",
+          "measured": "1.3333"
+        },
+        "documentOverflowX": {
+          "pass": true,
+          "expected": "0",
+          "measured": "0"
+        },
+        "tileCount": {
+          "pass": true,
+          "expected": "40",
+          "measured": "40"
+        },
+        "tokensInsideBoard": {
+          "pass": true,
+          "expected": "true",
+          "measured": "true"
+        },
+        "viewportToBoard": {
+          "pass": true,
+          "expected": "8..16 px",
+          "measured": "8.00"
+        },
+        "boardToSidebar": {
+          "pass": true,
+          "expected": "8..16 px",
+          "measured": "8.00"
+        },
+        "sidebarNoScroll": {
+          "pass": false,
+          "expected": "scrollHeight <= 301",
+          "measured": "535"
+        },
+        "cardsNoScroll": {
+          "pass": true,
+          "expected": "0 cards com scroll",
+          "measured": "0"
+        }
+      },
+      "failures": [
+        {
+          "viewport": "800x360",
+          "criterio": "sidebarNoScroll",
+          "esperado": "scrollHeight <= 301",
+          "medido": "535"
+        }
+      ]
+    },
+    {
+      "viewport": "844x390",
+      "orientation": "landscape",
+      "board": "440.00x330.00",
+      "pass": false,
+      "checks": {
+        "boardRatio": {
+          "pass": true,
+          "expected": "1.3333 (+-0.01)",
+          "measured": "1.3333"
+        },
+        "documentOverflowX": {
+          "pass": true,
+          "expected": "0",
+          "measured": "0"
+        },
+        "tileCount": {
+          "pass": true,
+          "expected": "40",
+          "measured": "40"
+        },
+        "tokensInsideBoard": {
+          "pass": true,
+          "expected": "true",
+          "measured": "true"
+        },
+        "viewportToBoard": {
+          "pass": true,
+          "expected": "8..16 px",
+          "measured": "8.00"
+        },
+        "boardToSidebar": {
+          "pass": true,
+          "expected": "8..16 px",
+          "measured": "8.00"
+        },
+        "sidebarNoScroll": {
+          "pass": false,
+          "expected": "scrollHeight <= 331",
+          "measured": "542"
+        },
+        "cardsNoScroll": {
+          "pass": true,
+          "expected": "0 cards com scroll",
+          "measured": "0"
+        }
+      },
+      "failures": [
+        {
+          "viewport": "844x390",
+          "criterio": "sidebarNoScroll",
+          "esperado": "scrollHeight <= 331",
+          "medido": "542"
+        }
+      ]
+    },
+    {
+      "viewport": "932x430",
+      "orientation": "landscape",
+      "board": "489.52x367.13",
+      "pass": false,
+      "checks": {
+        "boardRatio": {
+          "pass": true,
+          "expected": "1.3333 (+-0.01)",
+          "measured": "1.3334"
+        },
+        "documentOverflowX": {
+          "pass": true,
+          "expected": "0",
+          "measured": "0"
+        },
+        "tileCount": {
+          "pass": true,
+          "expected": "40",
+          "measured": "40"
+        },
+        "tokensInsideBoard": {
+          "pass": true,
+          "expected": "true",
+          "measured": "true"
+        },
+        "viewportToBoard": {
+          "pass": true,
+          "expected": "8..16 px",
+          "measured": "8.00"
+        },
+        "boardToSidebar": {
+          "pass": true,
+          "expected": "8..16 px",
+          "measured": "8.00"
+        },
+        "sidebarNoScroll": {
+          "pass": false,
+          "expected": "scrollHeight <= 371",
+          "measured": "554"
+        },
+        "cardsNoScroll": {
+          "pass": true,
+          "expected": "0 cards com scroll",
+          "measured": "0"
+        }
+      },
+      "failures": [
+        {
+          "viewport": "932x430",
+          "criterio": "sidebarNoScroll",
+          "esperado": "scrollHeight <= 371",
+          "medido": "554"
+        }
+      ]
+    },
+    {
+      "viewport": "1024x768",
+      "orientation": "landscape",
+      "board": "641.94x481.45",
+      "pass": true,
+      "checks": {
+        "boardRatio": {
+          "pass": true,
+          "expected": "1.3333 (+-0.01)",
+          "measured": "1.3333"
+        },
+        "documentOverflowX": {
+          "pass": true,
+          "expected": "0",
+          "measured": "0"
+        },
+        "tileCount": {
+          "pass": true,
+          "expected": "40",
+          "measured": "40"
+        },
+        "tokensInsideBoard": {
+          "pass": true,
+          "expected": "true",
+          "measured": "true"
+        },
+        "viewportToBoard": {
+          "pass": true,
+          "expected": "8..16 px",
+          "measured": "8.00"
+        },
+        "boardToSidebar": {
+          "pass": true,
+          "expected": "8..16 px",
+          "measured": "8.00"
+        },
+        "sidebarNoScroll": {
+          "pass": true,
+          "expected": "scrollHeight <= 709",
+          "measured": "708"
+        },
+        "cardsNoScroll": {
+          "pass": true,
+          "expected": "0 cards com scroll",
+          "measured": "0"
+        }
+      },
+      "failures": []
+    },
+    {
+      "viewport": "1366x768",
+      "orientation": "landscape",
+      "board": "920.59x690.44",
+      "pass": true,
+      "checks": {
+        "boardRatio": {
+          "pass": true,
+          "expected": "1.3333 (+-0.01)",
+          "measured": "1.3333"
+        },
+        "documentOverflowX": {
+          "pass": true,
+          "expected": "0",
+          "measured": "0"
+        },
+        "tileCount": {
+          "pass": true,
+          "expected": "40",
+          "measured": "40"
+        },
+        "tokensInsideBoard": {
+          "pass": true,
+          "expected": "true",
+          "measured": "true"
+        },
+        "viewportToBoard": {
+          "pass": true,
+          "expected": "8..16 px",
+          "measured": "10.13"
+        },
+        "boardToSidebar": {
+          "pass": true,
+          "expected": "8..16 px",
+          "measured": "10.13"
+        },
+        "sidebarNoScroll": {
+          "pass": true,
+          "expected": "scrollHeight <= 705",
+          "measured": "704"
+        },
+        "cardsNoScroll": {
+          "pass": true,
+          "expected": "0 cards com scroll",
+          "measured": "0"
+        }
+      },
+      "failures": []
+    },
+    {
+      "viewport": "1440x1080",
+      "orientation": "landscape",
+      "board": "1034.55x775.91",
+      "pass": true,
+      "checks": {
+        "boardRatio": {
+          "pass": true,
+          "expected": "1.3333 (+-0.01)",
+          "measured": "1.3333"
+        },
+        "documentOverflowX": {
+          "pass": true,
+          "expected": "0",
+          "measured": "0"
+        },
+        "tileCount": {
+          "pass": true,
+          "expected": "40",
+          "measured": "40"
+        },
+        "tokensInsideBoard": {
+          "pass": true,
+          "expected": "true",
+          "measured": "true"
+        },
+        "viewportToBoard": {
+          "pass": true,
+          "expected": "8..16 px",
+          "measured": "11.39"
+        },
+        "boardToSidebar": {
+          "pass": true,
+          "expected": "8..16 px",
+          "measured": "11.39"
+        },
+        "sidebarNoScroll": {
+          "pass": true,
+          "expected": "scrollHeight <= 999",
+          "measured": "998"
+        },
+        "cardsNoScroll": {
+          "pass": true,
+          "expected": "0 cards com scroll",
+          "measured": "0"
+        }
+      },
+      "failures": []
+    },
+    {
+      "viewport": "1920x1080",
+      "orientation": "landscape",
+      "board": "1320.16x990.11",
+      "pass": true,
+      "checks": {
+        "boardRatio": {
+          "pass": true,
+          "expected": "1.3333 (+-0.01)",
+          "measured": "1.3333"
+        },
+        "documentOverflowX": {
+          "pass": true,
+          "expected": "0",
+          "measured": "0"
+        },
+        "tileCount": {
+          "pass": true,
+          "expected": "40",
+          "measured": "40"
+        },
+        "tokensInsideBoard": {
+          "pass": true,
+          "expected": "true",
+          "measured": "true"
+        },
+        "viewportToBoard": {
+          "pass": true,
+          "expected": "8..16 px",
+          "measured": "15.23"
+        },
+        "boardToSidebar": {
+          "pass": true,
+          "expected": "8..16 px",
+          "measured": "15.23"
+        },
+        "sidebarNoScroll": {
+          "pass": true,
+          "expected": "scrollHeight <= 991",
+          "measured": "990"
+        },
+        "cardsNoScroll": {
+          "pass": true,
+          "expected": "0 cards com scroll",
+          "measured": "0"
+        }
+      },
+      "failures": []
+    },
+    {
+      "viewport": "2560x1080",
+      "orientation": "landscape",
+      "board": "1318.13x988.59",
+      "pass": true,
+      "checks": {
+        "boardRatio": {
+          "pass": true,
+          "expected": "1.3333 (+-0.01)",
+          "measured": "1.3333"
+        },
+        "documentOverflowX": {
+          "pass": true,
+          "expected": "0",
+          "measured": "0"
+        },
+        "tileCount": {
+          "pass": true,
+          "expected": "40",
+          "measured": "40"
+        },
+        "tokensInsideBoard": {
+          "pass": true,
+          "expected": "true",
+          "measured": "true"
+        },
+        "viewportToBoard": {
+          "pass": true,
+          "expected": "8..16 px",
+          "measured": "16.00"
+        },
+        "boardToSidebar": {
+          "pass": true,
+          "expected": "8..16 px",
+          "measured": "16.00"
+        },
+        "sidebarNoScroll": {
+          "pass": true,
+          "expected": "scrollHeight <= 990",
+          "measured": "989"
+        },
+        "cardsNoScroll": {
+          "pass": true,
+          "expected": "0 cards com scroll",
+          "measured": "0"
+        }
+      },
+      "failures": []
+    },
+    {
+      "viewport": "2560x1440",
+      "orientation": "landscape",
+      "board": "1797.33x1347.98",
+      "pass": true,
+      "checks": {
+        "boardRatio": {
+          "pass": true,
+          "expected": "1.3333 (+-0.01)",
+          "measured": "1.3333"
+        },
+        "documentOverflowX": {
+          "pass": true,
+          "expected": "0",
+          "measured": "0"
+        },
+        "tileCount": {
+          "pass": true,
+          "expected": "40",
+          "measured": "40"
+        },
+        "tokensInsideBoard": {
+          "pass": true,
+          "expected": "true",
+          "measured": "true"
+        },
+        "viewportToBoard": {
+          "pass": true,
+          "expected": "8..16 px",
+          "measured": "16.00"
+        },
+        "boardToSidebar": {
+          "pass": true,
+          "expected": "8..16 px",
+          "measured": "16.00"
+        },
+        "sidebarNoScroll": {
+          "pass": true,
+          "expected": "scrollHeight <= 1349",
+          "measured": "1348"
+        },
+        "cardsNoScroll": {
+          "pass": true,
+          "expected": "0 cards com scroll",
+          "measured": "0"
+        }
+      },
+      "failures": []
+    }
+  ],
+  "stability": {
+    "pass": true,
+    "frames": [
+      {
+        "event": "idle",
+        "widthDelta": 0,
+        "heightDelta": 0,
+        "ratio": 1.333348420385625
+      },
+      {
+        "event": "RECUPERAÇÃO FINANCEIRA:indisponivel",
+        "widthDelta": 0,
+        "heightDelta": 0,
+        "ratio": 1.333348420385625,
+        "skipped": "Waiting for .sg-modal-backdrop"
+      },
+      {
+        "event": "DECLARAR FALÊNCIA:indisponivel",
+        "widthDelta": 0,
+        "heightDelta": 0,
+        "ratio": 1.333348420385625,
+        "skipped": "Waiting for .sg-modal-backdrop"
+      },
+      {
+        "event": "Como jogar:open",
+        "widthDelta": 0,
+        "heightDelta": 0,
+        "ratio": 1.333348420385625
+      },
+      {
+        "event": "Como jogar:closed",
+        "widthDelta": 0,
+        "heightDelta": 0,
+        "ratio": 1.333348420385625
+      }
+    ]
+  },
+  "rotation": {
+    "pass": true,
+    "checks": {
+      "samePlayer": {
+        "pass": true,
+        "expected": "👤 QA-LAYOUT-46262205-P1",
+        "measured": "👤 QA-LAYOUT-46262205-P1"
+      },
+      "sameRound": {
+        "pass": true,
+        "expected": "Rodada: 1/5",
+        "measured": "Rodada: 1/5"
+      },
+      "sameDice": {
+        "pass": true,
+        "expected": "Última rolagemAguardando o primeiro lançamentoO resultado aparecerá aqui para todos",
+        "measured": "Última rolagemAguardando o primeiro lançamentoO resultado aparecerá aqui para todos"
+      },
+      "sameTokens": {
+        "pass": true,
+        "expected": "[\"0\"]",
+        "measured": "[\"0\"]"
+      },
+      "boardNotRemounted": {
+        "pass": true,
+        "expected": "true",
+        "measured": "true"
+      },
+      "noBroadcastOnRotation": {
+        "pass": true,
+        "expected": "0",
+        "measured": "0"
+      },
+      "portraitRectIdentical": {
+        "pass": true,
+        "expected": "374.41x655.20",
+        "measured": "374.41x655.20"
+      }
+    }
+  },
+  "rawMeasurements": [
+    {
+      "label": "360x800",
+      "viewport": [
+        360,
+        800
+      ],
+      "documentOverflowX": 0,
+      "documentScrollWidthDelta": 0,
+      "documentOverflowY": 741,
+      "board": {
+        "left": 7.1875,
+        "top": 83.1875,
+        "right": 352.8125,
+        "bottom": 688.03125,
+        "width": 345.625,
+        "height": 604.84375
+      },
+      "boardRatio": 0.5714285714285714,
+      "stage": {
+        "left": 7.1875,
+        "top": 83.1875,
+        "right": 352.8125,
+        "bottom": 688.03125,
+        "width": 345.625,
+        "height": 604.84375
+      },
+      "sidebar": {
+        "left": 7.1875,
+        "top": 694.5,
+        "right": 352.8125,
+        "bottom": 1533.734375,
+        "width": 345.625,
+        "height": 839.234375,
+        "clientWidth": 346,
+        "scrollWidth": 346,
+        "clientHeight": 839,
+        "scrollHeight": 839
+      },
+      "sideContent": {
+        "left": 7.1875,
+        "top": 694.5,
+        "right": 352.8125,
+        "bottom": 1533.734375,
+        "width": 345.625,
+        "height": 839.234375,
+        "clientWidth": 346,
+        "scrollWidth": 346,
+        "clientHeight": 839,
+        "scrollHeight": 839
+      },
+      "gap": -345.625,
+      "tileCount": 40,
+      "labelCount": 40,
+      "tokenPositions": [
+        "0"
+      ],
+      "tokensInsideBoard": true,
+      "visibleLabelCount": 40,
+      "overflowingLabelCount": 5,
+      "overflowingLabels": [
+        {
+          "tile": "0",
+          "text": "INÍCIOFATURAMENTO",
+          "axis": "x",
+          "scrollWidth": 45,
+          "clientWidth": 40,
+          "scrollHeight": 12,
+          "clientHeight": 11
+        },
+        {
+          "tile": "5",
+          "text": "TREINAMENTO",
+          "axis": "x",
+          "scrollWidth": 44,
+          "clientWidth": 40,
+          "scrollHeight": 11,
+          "clientHeight": 11
+        },
+        {
+          "tile": "12",
+          "text": "TREINAMENTO",
+          "axis": "x",
+          "scrollWidth": 44,
+          "clientWidth": 40,
+          "scrollHeight": 11,
+          "clientHeight": 11
+        },
+        {
+          "tile": "18",
+          "text": "TREINAMENTO",
+          "axis": "x",
+          "scrollWidth": 44,
+          "clientWidth": 40,
+          "scrollHeight": 11,
+          "clientHeight": 11
+        },
+        {
+          "tile": "24",
+          "text": "DESPESASOPERACIONAIS",
+          "axis": "x",
+          "scrollWidth": 44,
+          "clientWidth": 40,
+          "scrollHeight": 12,
+          "clientHeight": 11
+        }
+      ],
+      "cards": [
+        {
+          "className": "controlsSticky",
+          "clientWidth": 346,
+          "scrollWidth": 346,
+          "clientHeight": 211,
+          "scrollHeight": 211
+        },
+        {
+          "className": "controls  ",
+          "clientWidth": 344,
+          "scrollWidth": 344,
+          "clientHeight": 102,
+          "scrollHeight": 102
+        },
+        {
+          "className": "hud",
+          "clientWidth": 346,
+          "scrollWidth": 346,
+          "clientHeight": 577,
+          "scrollHeight": 577
+        },
+        {
+          "className": "panel game-stats-card",
+          "clientWidth": 344,
+          "scrollWidth": 344,
+          "clientHeight": 469,
+          "scrollHeight": 469
+        },
+        {
+          "className": "score",
+          "clientWidth": 344,
+          "scrollWidth": 344,
+          "clientHeight": 100,
+          "scrollHeight": 100
+        },
+        {
+          "className": "auxiliaryActions",
+          "clientWidth": 346,
+          "scrollWidth": 346,
+          "clientHeight": 38,
+          "scrollHeight": 38
+        }
+      ],
+      "context": {
+        "playerName": "👤 QA-LAYOUT-46262205-P1",
+        "roundText": "Rodada: 1/5",
+        "diceText": "Última rolagemAguardando o primeiro lançamentoO resultado aparecerá aqui para todos",
+        "boardNodeIsSame": null,
+        "broadcastCount": null
+      }
+    },
+    {
+      "label": "390x844",
+      "viewport": [
+        390,
+        844
+      ],
+      "documentOverflowX": 0,
+      "documentScrollWidthDelta": 0,
+      "documentOverflowY": 758,
+      "board": {
+        "left": 7.796875,
+        "top": 83.796875,
+        "right": 382.203125,
+        "bottom": 739,
+        "width": 374.40625,
+        "height": 655.203125
+      },
+      "boardRatio": 0.5714353850189589,
+      "stage": {
+        "left": 7.796875,
+        "top": 83.796875,
+        "right": 382.203125,
+        "bottom": 739,
+        "width": 374.40625,
+        "height": 655.203125
+      },
+      "sidebar": {
+        "left": 7.796875,
+        "top": 746.015625,
+        "right": 382.203125,
+        "bottom": 1594.5,
+        "width": 374.40625,
+        "height": 848.484375,
+        "clientWidth": 374,
+        "scrollWidth": 374,
+        "clientHeight": 848,
+        "scrollHeight": 848
+      },
+      "sideContent": {
+        "left": 7.796875,
+        "top": 746.015625,
+        "right": 382.203125,
+        "bottom": 1594.5,
+        "width": 374.40625,
+        "height": 848.484375,
+        "clientWidth": 374,
+        "scrollWidth": 374,
+        "clientHeight": 848,
+        "scrollHeight": 848
+      },
+      "gap": -374.40625,
+      "tileCount": 40,
+      "labelCount": 40,
+      "tokenPositions": [
+        "0"
+      ],
+      "tokensInsideBoard": true,
+      "visibleLabelCount": 40,
+      "overflowingLabelCount": 5,
+      "overflowingLabels": [
+        {
+          "tile": "0",
+          "text": "INÍCIOFATURAMENTO",
+          "axis": "x",
+          "scrollWidth": 49,
+          "clientWidth": 43,
+          "scrollHeight": 13,
+          "clientHeight": 12
+        },
+        {
+          "tile": "5",
+          "text": "TREINAMENTO",
+          "axis": "x",
+          "scrollWidth": 47,
+          "clientWidth": 43,
+          "scrollHeight": 12,
+          "clientHeight": 12
+        },
+        {
+          "tile": "12",
+          "text": "TREINAMENTO",
+          "axis": "x",
+          "scrollWidth": 47,
+          "clientWidth": 43,
+          "scrollHeight": 12,
+          "clientHeight": 12
+        },
+        {
+          "tile": "18",
+          "text": "TREINAMENTO",
+          "axis": "x",
+          "scrollWidth": 47,
+          "clientWidth": 43,
+          "scrollHeight": 12,
+          "clientHeight": 12
+        },
+        {
+          "tile": "24",
+          "text": "DESPESASOPERACIONAIS",
+          "axis": "x",
+          "scrollWidth": 47,
+          "clientWidth": 43,
+          "scrollHeight": 13,
+          "clientHeight": 12
+        }
+      ],
+      "cards": [
+        {
+          "className": "controlsSticky",
+          "clientWidth": 374,
+          "scrollWidth": 374,
+          "clientHeight": 212,
+          "scrollHeight": 212
+        },
+        {
+          "className": "controls  ",
+          "clientWidth": 372,
+          "scrollWidth": 372,
+          "clientHeight": 102,
+          "scrollHeight": 102
+        },
+        {
+          "className": "hud",
+          "clientWidth": 374,
+          "scrollWidth": 374,
+          "clientHeight": 584,
+          "scrollHeight": 584
+        },
+        {
+          "className": "panel game-stats-card",
+          "clientWidth": 372,
+          "scrollWidth": 372,
+          "clientHeight": 475,
+          "scrollHeight": 475
+        },
+        {
+          "className": "score",
+          "clientWidth": 372,
+          "scrollWidth": 372,
+          "clientHeight": 101,
+          "scrollHeight": 101
+        },
+        {
+          "className": "auxiliaryActions",
+          "clientWidth": 374,
+          "scrollWidth": 374,
+          "clientHeight": 38,
+          "scrollHeight": 38
+        }
+      ],
+      "context": {
+        "playerName": "👤 QA-LAYOUT-46262205-P1",
+        "roundText": "Rodada: 1/5",
+        "diceText": "Última rolagemAguardando o primeiro lançamentoO resultado aparecerá aqui para todos",
+        "boardNodeIsSame": null,
+        "broadcastCount": null
+      }
+    },
+    {
+      "label": "394x858",
+      "viewport": [
+        394,
+        858
+      ],
+      "documentOverflowX": 0,
+      "documentScrollWidthDelta": 0,
+      "documentOverflowY": 750,
+      "board": {
+        "left": 7.875,
+        "top": 83.875,
+        "right": 386.125,
+        "bottom": 745.8125,
+        "width": 378.25,
+        "height": 661.9375
+      },
+      "boardRatio": 0.5714285714285714,
+      "stage": {
+        "left": 7.875,
+        "top": 83.875,
+        "right": 386.125,
+        "bottom": 745.8125,
+        "width": 378.25,
+        "height": 661.9375
+      },
+      "sidebar": {
+        "left": 7.875,
+        "top": 752.890625,
+        "right": 386.125,
+        "bottom": 1600.15625,
+        "width": 378.25,
+        "height": 847.265625,
+        "clientWidth": 378,
+        "scrollWidth": 378,
+        "clientHeight": 847,
+        "scrollHeight": 847
+      },
+      "sideContent": {
+        "left": 7.875,
+        "top": 752.890625,
+        "right": 386.125,
+        "bottom": 1600.15625,
+        "width": 378.25,
+        "height": 847.265625,
+        "clientWidth": 378,
+        "scrollWidth": 378,
+        "clientHeight": 847,
+        "scrollHeight": 847
+      },
+      "gap": -378.25,
+      "tileCount": 40,
+      "labelCount": 40,
+      "tokenPositions": [
+        "0"
+      ],
+      "tokensInsideBoard": true,
+      "visibleLabelCount": 40,
+      "overflowingLabelCount": 5,
+      "overflowingLabels": [
+        {
+          "tile": "0",
+          "text": "INÍCIOFATURAMENTO",
+          "axis": "x",
+          "scrollWidth": 49,
+          "clientWidth": 44,
+          "scrollHeight": 13,
+          "clientHeight": 12
+        },
+        {
+          "tile": "5",
+          "text": "TREINAMENTO",
+          "axis": "x",
+          "scrollWidth": 47,
+          "clientWidth": 44,
+          "scrollHeight": 12,
+          "clientHeight": 12
+        },
+        {
+          "tile": "12",
+          "text": "TREINAMENTO",
+          "axis": "x",
+          "scrollWidth": 47,
+          "clientWidth": 44,
+          "scrollHeight": 12,
+          "clientHeight": 12
+        },
+        {
+          "tile": "18",
+          "text": "TREINAMENTO",
+          "axis": "x",
+          "scrollWidth": 47,
+          "clientWidth": 44,
+          "scrollHeight": 12,
+          "clientHeight": 12
+        },
+        {
+          "tile": "24",
+          "text": "DESPESASOPERACIONAIS",
+          "axis": "x",
+          "scrollWidth": 48,
+          "clientWidth": 44,
+          "scrollHeight": 13,
+          "clientHeight": 12
+        }
+      ],
+      "cards": [
+        {
+          "className": "controlsSticky",
+          "clientWidth": 378,
+          "scrollWidth": 378,
+          "clientHeight": 208,
+          "scrollHeight": 208
+        },
+        {
+          "className": "controls  ",
+          "clientWidth": 376,
+          "scrollWidth": 376,
+          "clientHeight": 97,
+          "scrollHeight": 97
+        },
+        {
+          "className": "hud",
+          "clientWidth": 378,
+          "scrollWidth": 378,
+          "clientHeight": 586,
+          "scrollHeight": 586
+        },
+        {
+          "className": "panel game-stats-card",
+          "clientWidth": 376,
+          "scrollWidth": 376,
+          "clientHeight": 476,
+          "scrollHeight": 476
+        },
+        {
+          "className": "score",
+          "clientWidth": 376,
+          "scrollWidth": 376,
+          "clientHeight": 101,
+          "scrollHeight": 101
+        },
+        {
+          "className": "auxiliaryActions",
+          "clientWidth": 378,
+          "scrollWidth": 378,
+          "clientHeight": 39,
+          "scrollHeight": 39
+        }
+      ],
+      "context": {
+        "playerName": "👤 QA-LAYOUT-46262205-P1",
+        "roundText": "Rodada: 1/5",
+        "diceText": "Última rolagemAguardando o primeiro lançamentoO resultado aparecerá aqui para todos",
+        "boardNodeIsSame": null,
+        "broadcastCount": null
+      }
+    },
+    {
+      "label": "430x932",
+      "viewport": [
+        430,
+        932
+      ],
+      "documentOverflowX": 0,
+      "documentScrollWidthDelta": 0,
+      "documentOverflowY": 766,
+      "board": {
+        "left": 8.59375,
+        "top": 84.59375,
+        "right": 421.40625,
+        "bottom": 807.015625,
+        "width": 412.8125,
+        "height": 722.421875
+      },
+      "boardRatio": 0.5714285714285714,
+      "stage": {
+        "left": 8.59375,
+        "top": 84.59375,
+        "right": 421.40625,
+        "bottom": 807.015625,
+        "width": 412.8125,
+        "height": 722.421875
+      },
+      "sidebar": {
+        "left": 8.59375,
+        "top": 814.75,
+        "right": 421.40625,
+        "bottom": 1689.75,
+        "width": 412.8125,
+        "height": 875,
+        "clientWidth": 413,
+        "scrollWidth": 413,
+        "clientHeight": 875,
+        "scrollHeight": 875
+      },
+      "sideContent": {
+        "left": 8.59375,
+        "top": 814.75,
+        "right": 421.40625,
+        "bottom": 1689.75,
+        "width": 412.8125,
+        "height": 875,
+        "clientWidth": 413,
+        "scrollWidth": 413,
+        "clientHeight": 875,
+        "scrollHeight": 875
+      },
+      "gap": -412.8125,
+      "tileCount": 40,
+      "labelCount": 40,
+      "tokenPositions": [
+        "0"
+      ],
+      "tokensInsideBoard": true,
+      "visibleLabelCount": 40,
+      "overflowingLabelCount": 29,
+      "overflowingLabels": [
+        {
+          "tile": "0",
+          "text": "INÍCIOFATURAMENTO",
+          "axis": "x",
+          "scrollWidth": 54,
+          "clientWidth": 48,
+          "scrollHeight": 15,
+          "clientHeight": 13
+        },
+        {
+          "tile": "1",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "y",
+          "scrollWidth": 48,
+          "clientWidth": 48,
+          "scrollHeight": 15,
+          "clientHeight": 13
+        },
+        {
+          "tile": "4",
+          "text": "GESTORCOMERCIAL",
+          "axis": "y",
+          "scrollWidth": 48,
+          "clientWidth": 48,
+          "scrollHeight": 15,
+          "clientHeight": 13
+        },
+        {
+          "tile": "5",
+          "text": "TREINAMENTO",
+          "axis": "x",
+          "scrollWidth": 51,
+          "clientWidth": 48,
+          "scrollHeight": 13,
+          "clientHeight": 13
+        },
+        {
+          "tile": "6",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "y",
+          "scrollWidth": 48,
+          "clientWidth": 48,
+          "scrollHeight": 15,
+          "clientHeight": 13
+        },
+        {
+          "tile": "8",
+          "text": "DIREITODE COMPRA",
+          "axis": "y",
+          "scrollWidth": 48,
+          "clientWidth": 48,
+          "scrollHeight": 15,
+          "clientHeight": 13
+        },
+        {
+          "tile": "9",
+          "text": "SORTE &REVÉS",
+          "axis": "y",
+          "scrollWidth": 48,
+          "clientWidth": 48,
+          "scrollHeight": 15,
+          "clientHeight": 13
+        },
+        {
+          "tile": "11",
+          "text": "VENDEDORCOMUM",
+          "axis": "y",
+          "scrollWidth": 48,
+          "clientWidth": 48,
+          "scrollHeight": 15,
+          "clientHeight": 13
+        },
+        {
+          "tile": "12",
+          "text": "TREINAMENTO",
+          "axis": "x",
+          "scrollWidth": 51,
+          "clientWidth": 48,
+          "scrollHeight": 13,
+          "clientHeight": 13
+        },
+        {
+          "tile": "13",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "y",
+          "scrollWidth": 48,
+          "clientWidth": 48,
+          "scrollHeight": 15,
+          "clientHeight": 13
+        },
+        {
+          "tile": "16",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "y",
+          "scrollWidth": 48,
+          "clientWidth": 48,
+          "scrollHeight": 15,
+          "clientHeight": 13
+        },
+        {
+          "tile": "17",
+          "text": "VENDEDORCOMUM",
+          "axis": "y",
+          "scrollWidth": 48,
+          "clientWidth": 48,
+          "scrollHeight": 15,
+          "clientHeight": 13
+        },
+        {
+          "tile": "18",
+          "text": "TREINAMENTO",
+          "axis": "x",
+          "scrollWidth": 51,
+          "clientWidth": 48,
+          "scrollHeight": 13,
+          "clientHeight": 13
+        },
+        {
+          "tile": "19",
+          "text": "SORTE &REVÉS",
+          "axis": "y",
+          "scrollWidth": 48,
+          "clientWidth": 48,
+          "scrollHeight": 15,
+          "clientHeight": 13
+        },
+        {
+          "tile": "20",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "y",
+          "scrollWidth": 48,
+          "clientWidth": 48,
+          "scrollHeight": 15,
+          "clientHeight": 13
+        },
+        {
+          "tile": "21",
+          "text": "DIREITODE COMPRA",
+          "axis": "y",
+          "scrollWidth": 48,
+          "clientWidth": 48,
+          "scrollHeight": 15,
+          "clientHeight": 13
+        },
+        {
+          "tile": "23",
+          "text": "GESTORCOMERCIAL",
+          "axis": "y",
+          "scrollWidth": 48,
+          "clientWidth": 48,
+          "scrollHeight": 15,
+          "clientHeight": 13
+        },
+        {
+          "tile": "24",
+          "text": "DESPESASOPERACIONAIS",
+          "axis": "x",
+          "scrollWidth": 52,
+          "clientWidth": 48,
+          "scrollHeight": 15,
+          "clientHeight": 13
+        },
+        {
+          "tile": "25",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "y",
+          "scrollWidth": 48,
+          "clientWidth": 48,
+          "scrollHeight": 15,
+          "clientHeight": 13
+        },
+        {
+          "tile": "27",
+          "text": "DIREITODE COMPRA",
+          "axis": "y",
+          "scrollWidth": 48,
+          "clientWidth": 48,
+          "scrollHeight": 15,
+          "clientHeight": 13
+        },
+        {
+          "tile": "29",
+          "text": "SORTE &REVÉS",
+          "axis": "y",
+          "scrollWidth": 48,
+          "clientWidth": 48,
+          "scrollHeight": 15,
+          "clientHeight": 13
+        },
+        {
+          "tile": "30",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "y",
+          "scrollWidth": 48,
+          "clientWidth": 48,
+          "scrollHeight": 15,
+          "clientHeight": 13
+        },
+        {
+          "tile": "32",
+          "text": "VENDEDORCOMUM",
+          "axis": "y",
+          "scrollWidth": 48,
+          "clientWidth": 48,
+          "scrollHeight": 15,
+          "clientHeight": 13
+        },
+        {
+          "tile": "33",
+          "text": "GESTORCOMERCIAL",
+          "axis": "y",
+          "scrollWidth": 48,
+          "clientWidth": 48,
+          "scrollHeight": 15,
+          "clientHeight": 13
+        },
+        {
+          "tile": "34",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "y",
+          "scrollWidth": 48,
+          "clientWidth": 48,
+          "scrollHeight": 15,
+          "clientHeight": 13
+        },
+        {
+          "tile": "35",
+          "text": "MIX DEPRODUTOS",
+          "axis": "y",
+          "scrollWidth": 48,
+          "clientWidth": 48,
+          "scrollHeight": 15,
+          "clientHeight": 13
+        },
+        {
+          "tile": "37",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "y",
+          "scrollWidth": 48,
+          "clientWidth": 48,
+          "scrollHeight": 15,
+          "clientHeight": 13
+        },
+        {
+          "tile": "38",
+          "text": "MIX DEPRODUTOS",
+          "axis": "y",
+          "scrollWidth": 48,
+          "clientWidth": 48,
+          "scrollHeight": 15,
+          "clientHeight": 13
+        },
+        {
+          "tile": "39",
+          "text": "SORTE &REVÉS",
+          "axis": "y",
+          "scrollWidth": 48,
+          "clientWidth": 48,
+          "scrollHeight": 15,
+          "clientHeight": 13
+        }
+      ],
+      "cards": [
+        {
+          "className": "controlsSticky",
+          "clientWidth": 413,
+          "scrollWidth": 413,
+          "clientHeight": 219,
+          "scrollHeight": 219
+        },
+        {
+          "className": "controls  ",
+          "clientWidth": 411,
+          "scrollWidth": 411,
+          "clientHeight": 103,
+          "scrollHeight": 103
+        },
+        {
+          "className": "hud",
+          "clientWidth": 413,
+          "scrollWidth": 413,
+          "clientHeight": 598,
+          "scrollHeight": 598
+        },
+        {
+          "className": "panel game-stats-card",
+          "clientWidth": 411,
+          "scrollWidth": 411,
+          "clientHeight": 486,
+          "scrollHeight": 486
+        },
+        {
+          "className": "score",
+          "clientWidth": 411,
+          "scrollWidth": 411,
+          "clientHeight": 103,
+          "scrollHeight": 103
+        },
+        {
+          "className": "auxiliaryActions",
+          "clientWidth": 413,
+          "scrollWidth": 413,
+          "clientHeight": 42,
+          "scrollHeight": 42
+        }
+      ],
+      "context": {
+        "playerName": "👤 QA-LAYOUT-46262205-P1",
+        "roundText": "Rodada: 1/5",
+        "diceText": "Última rolagemAguardando o primeiro lançamentoO resultado aparecerá aqui para todos",
+        "boardNodeIsSame": null,
+        "broadcastCount": null
+      }
+    },
+    {
+      "label": "600x960",
+      "viewport": [
+        600,
+        960
+      ],
+      "documentOverflowX": 0,
+      "documentScrollWidthDelta": 0,
+      "documentOverflowY": 441,
+      "board": {
+        "left": 10,
+        "top": 86,
+        "right": 590,
+        "bottom": 521,
+        "width": 580,
+        "height": 435
+      },
+      "boardRatio": 1.3333333333333333,
+      "stage": {
+        "left": 10,
+        "top": 86,
+        "right": 590,
+        "bottom": 521,
+        "width": 580,
+        "height": 435
+      },
+      "sidebar": {
+        "left": 10,
+        "top": 531,
+        "right": 590,
+        "bottom": 1391.328125,
+        "width": 580,
+        "height": 860.328125,
+        "clientWidth": 580,
+        "scrollWidth": 580,
+        "clientHeight": 860,
+        "scrollHeight": 860
+      },
+      "sideContent": {
+        "left": 10,
+        "top": 531,
+        "right": 590,
+        "bottom": 1391.328125,
+        "width": 580,
+        "height": 860.328125,
+        "clientWidth": 580,
+        "scrollWidth": 580,
+        "clientHeight": 860,
+        "scrollHeight": 860
+      },
+      "gap": -580,
+      "tileCount": 40,
+      "labelCount": 40,
+      "tokenPositions": [
+        "0"
+      ],
+      "tokensInsideBoard": true,
+      "visibleLabelCount": 40,
+      "overflowingLabelCount": 0,
+      "overflowingLabels": [],
+      "cards": [
+        {
+          "className": "controlsSticky",
+          "clientWidth": 580,
+          "scrollWidth": 580,
+          "clientHeight": 222,
+          "scrollHeight": 222
+        },
+        {
+          "className": "controls  ",
+          "clientWidth": 578,
+          "scrollWidth": 578,
+          "clientHeight": 103,
+          "scrollHeight": 103
+        },
+        {
+          "className": "hud",
+          "clientWidth": 580,
+          "scrollWidth": 580,
+          "clientHeight": 576,
+          "scrollHeight": 576
+        },
+        {
+          "className": "panel game-stats-card",
+          "clientWidth": 578,
+          "scrollWidth": 578,
+          "clientHeight": 490,
+          "scrollHeight": 490
+        },
+        {
+          "className": "score",
+          "clientWidth": 578,
+          "scrollWidth": 578,
+          "clientHeight": 76,
+          "scrollHeight": 76
+        },
+        {
+          "className": "auxiliaryActions",
+          "clientWidth": 580,
+          "scrollWidth": 580,
+          "clientHeight": 43,
+          "scrollHeight": 43
+        }
+      ],
+      "context": {
+        "playerName": "👤 QA-LAYOUT-46262205-P1",
+        "roundText": "Rodada: 1/5",
+        "diceText": "Última rolagemAguardando o primeiro lançamentoO resultado aparecerá aqui para todos",
+        "boardNodeIsSame": null,
+        "broadcastCount": null
+      }
+    },
+    {
+      "label": "768x1024",
+      "viewport": [
+        768,
+        1024
+      ],
+      "documentOverflowX": 0,
+      "documentScrollWidthDelta": 0,
+      "documentOverflowY": 424,
+      "board": {
+        "left": 10,
+        "top": 86,
+        "right": 743,
+        "bottom": 635.75,
+        "width": 733,
+        "height": 549.75
+      },
+      "boardRatio": 1.3333333333333333,
+      "stage": {
+        "left": 10,
+        "top": 86,
+        "right": 743,
+        "bottom": 635.75,
+        "width": 733,
+        "height": 549.75
+      },
+      "sidebar": {
+        "left": 10,
+        "top": 645.75,
+        "right": 743,
+        "bottom": 1437.859375,
+        "width": 733,
+        "height": 792.109375,
+        "clientWidth": 733,
+        "scrollWidth": 733,
+        "clientHeight": 792,
+        "scrollHeight": 792
+      },
+      "sideContent": {
+        "left": 10,
+        "top": 645.75,
+        "right": 743,
+        "bottom": 1437.859375,
+        "width": 733,
+        "height": 792.109375,
+        "clientWidth": 733,
+        "scrollWidth": 733,
+        "clientHeight": 792,
+        "scrollHeight": 792
+      },
+      "gap": -733,
+      "tileCount": 40,
+      "labelCount": 40,
+      "tokenPositions": [
+        "0"
+      ],
+      "tokensInsideBoard": true,
+      "visibleLabelCount": 40,
+      "overflowingLabelCount": 1,
+      "overflowingLabels": [
+        {
+          "tile": "0",
+          "text": "INÍCIOFATURAMENTO",
+          "axis": "x",
+          "scrollWidth": 55,
+          "clientWidth": 52,
+          "scrollHeight": 16,
+          "clientHeight": 15
+        }
+      ],
+      "cards": [
+        {
+          "className": "controlsSticky",
+          "clientWidth": 733,
+          "scrollWidth": 733,
+          "clientHeight": 233,
+          "scrollHeight": 233
+        },
+        {
+          "className": "controls  ",
+          "clientWidth": 731,
+          "scrollWidth": 731,
+          "clientHeight": 110,
+          "scrollHeight": 110
+        },
+        {
+          "className": "hud",
+          "clientWidth": 733,
+          "scrollWidth": 733,
+          "clientHeight": 493,
+          "scrollHeight": 493
+        },
+        {
+          "className": "panel game-stats-card",
+          "clientWidth": 362,
+          "scrollWidth": 362,
+          "clientHeight": 491,
+          "scrollHeight": 491
+        },
+        {
+          "className": "score",
+          "clientWidth": 362,
+          "scrollWidth": 362,
+          "clientHeight": 491,
+          "scrollHeight": 491
+        },
+        {
+          "className": "auxiliaryActions",
+          "clientWidth": 733,
+          "scrollWidth": 733,
+          "clientHeight": 46,
+          "scrollHeight": 46
+        }
+      ],
+      "context": {
+        "playerName": "👤 QA-LAYOUT-46262205-P1",
+        "roundText": "Rodada: 1/5",
+        "diceText": "Última rolagemAguardando o primeiro lançamentoO resultado aparecerá aqui para todos",
+        "boardNodeIsSame": null,
+        "broadcastCount": null
+      }
+    },
+    {
+      "label": "800x360",
+      "viewport": [
+        800,
+        360
+      ],
+      "documentOverflowX": 0,
+      "documentScrollWidthDelta": -15,
+      "documentOverflowY": 0,
+      "board": {
+        "left": 8,
+        "top": 52,
+        "right": 408,
+        "bottom": 352,
+        "width": 400,
+        "height": 300
+      },
+      "boardRatio": 1.3333333333333333,
+      "stage": {
+        "left": 8,
+        "top": 52,
+        "right": 408,
+        "bottom": 352,
+        "width": 400,
+        "height": 300
+      },
+      "sidebar": {
+        "left": 416,
+        "top": 52,
+        "right": 777,
+        "bottom": 352,
+        "width": 361,
+        "height": 300,
+        "clientWidth": 361,
+        "scrollWidth": 361,
+        "clientHeight": 300,
+        "scrollHeight": 535
+      },
+      "sideContent": {
+        "left": 416,
+        "top": 52,
+        "right": 777,
+        "bottom": 586.59375,
+        "width": 361,
+        "height": 534.59375,
+        "clientWidth": 361,
+        "scrollWidth": 361,
+        "clientHeight": 535,
+        "scrollHeight": 535
+      },
+      "gap": 8,
+      "tileCount": 40,
+      "labelCount": 40,
+      "tokenPositions": [
+        "0"
+      ],
+      "tokensInsideBoard": true,
+      "visibleLabelCount": 40,
+      "overflowingLabelCount": 28,
+      "overflowingLabels": [
+        {
+          "tile": "0",
+          "text": "INÍCIOFATURAMENTO",
+          "axis": "x",
+          "scrollWidth": 38,
+          "clientWidth": 27,
+          "scrollHeight": 10,
+          "clientHeight": 9
+        },
+        {
+          "tile": "1",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "x",
+          "scrollWidth": 31,
+          "clientWidth": 27,
+          "scrollHeight": 10,
+          "clientHeight": 9
+        },
+        {
+          "tile": "3",
+          "text": "INSIDE SALES",
+          "axis": "x",
+          "scrollWidth": 33,
+          "clientWidth": 27,
+          "scrollHeight": 9,
+          "clientHeight": 9
+        },
+        {
+          "tile": "4",
+          "text": "GESTORCOMERCIAL",
+          "axis": "x",
+          "scrollWidth": 29,
+          "clientWidth": 27,
+          "scrollHeight": 10,
+          "clientHeight": 9
+        },
+        {
+          "tile": "5",
+          "text": "TREINAMENTO",
+          "axis": "x",
+          "scrollWidth": 36,
+          "clientWidth": 27,
+          "scrollHeight": 9,
+          "clientHeight": 9
+        },
+        {
+          "tile": "6",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "x",
+          "scrollWidth": 31,
+          "clientWidth": 27,
+          "scrollHeight": 10,
+          "clientHeight": 9
+        },
+        {
+          "tile": "7",
+          "text": "FIELD SALES",
+          "axis": "x",
+          "scrollWidth": 29,
+          "clientWidth": 27,
+          "scrollHeight": 9,
+          "clientHeight": 9
+        },
+        {
+          "tile": "8",
+          "text": "DIREITODE COMPRA",
+          "axis": "x",
+          "scrollWidth": 30,
+          "clientWidth": 27,
+          "scrollHeight": 10,
+          "clientHeight": 9
+        },
+        {
+          "tile": "10",
+          "text": "INSIDE SALES",
+          "axis": "x",
+          "scrollWidth": 33,
+          "clientWidth": 27,
+          "scrollHeight": 9,
+          "clientHeight": 9
+        },
+        {
+          "tile": "12",
+          "text": "TREINAMENTO",
+          "axis": "x",
+          "scrollWidth": 36,
+          "clientWidth": 27,
+          "scrollHeight": 9,
+          "clientHeight": 9
+        },
+        {
+          "tile": "13",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "x",
+          "scrollWidth": 31,
+          "clientWidth": 27,
+          "scrollHeight": 10,
+          "clientHeight": 9
+        },
+        {
+          "tile": "15",
+          "text": "FIELD SALES",
+          "axis": "x",
+          "scrollWidth": 29,
+          "clientWidth": 27,
+          "scrollHeight": 9,
+          "clientHeight": 9
+        },
+        {
+          "tile": "16",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "x",
+          "scrollWidth": 31,
+          "clientWidth": 27,
+          "scrollHeight": 10,
+          "clientHeight": 9
+        },
+        {
+          "tile": "18",
+          "text": "TREINAMENTO",
+          "axis": "x",
+          "scrollWidth": 36,
+          "clientWidth": 27,
+          "scrollHeight": 9,
+          "clientHeight": 9
+        },
+        {
+          "tile": "20",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "x",
+          "scrollWidth": 31,
+          "clientWidth": 27,
+          "scrollHeight": 10,
+          "clientHeight": 9
+        },
+        {
+          "tile": "21",
+          "text": "DIREITODE COMPRA",
+          "axis": "x",
+          "scrollWidth": 30,
+          "clientWidth": 27,
+          "scrollHeight": 10,
+          "clientHeight": 9
+        },
+        {
+          "tile": "22",
+          "text": "INSIDE SALES",
+          "axis": "x",
+          "scrollWidth": 33,
+          "clientWidth": 27,
+          "scrollHeight": 9,
+          "clientHeight": 9
+        },
+        {
+          "tile": "23",
+          "text": "GESTORCOMERCIAL",
+          "axis": "x",
+          "scrollWidth": 29,
+          "clientWidth": 27,
+          "scrollHeight": 10,
+          "clientHeight": 9
+        },
+        {
+          "tile": "24",
+          "text": "DESPESASOPERACIONAIS",
+          "axis": "x",
+          "scrollWidth": 37,
+          "clientWidth": 27,
+          "scrollHeight": 10,
+          "clientHeight": 9
+        },
+        {
+          "tile": "25",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "x",
+          "scrollWidth": 31,
+          "clientWidth": 27,
+          "scrollHeight": 10,
+          "clientHeight": 9
+        },
+        {
+          "tile": "27",
+          "text": "DIREITODE COMPRA",
+          "axis": "x",
+          "scrollWidth": 30,
+          "clientWidth": 27,
+          "scrollHeight": 10,
+          "clientHeight": 9
+        },
+        {
+          "tile": "28",
+          "text": "FIELD SALES",
+          "axis": "x",
+          "scrollWidth": 29,
+          "clientWidth": 27,
+          "scrollHeight": 9,
+          "clientHeight": 9
+        },
+        {
+          "tile": "30",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "x",
+          "scrollWidth": 31,
+          "clientWidth": 27,
+          "scrollHeight": 10,
+          "clientHeight": 9
+        },
+        {
+          "tile": "31",
+          "text": "INSIDE SALES",
+          "axis": "x",
+          "scrollWidth": 33,
+          "clientWidth": 27,
+          "scrollHeight": 9,
+          "clientHeight": 9
+        },
+        {
+          "tile": "33",
+          "text": "GESTORCOMERCIAL",
+          "axis": "x",
+          "scrollWidth": 29,
+          "clientWidth": 27,
+          "scrollHeight": 10,
+          "clientHeight": 9
+        },
+        {
+          "tile": "34",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "x",
+          "scrollWidth": 31,
+          "clientWidth": 27,
+          "scrollHeight": 10,
+          "clientHeight": 9
+        },
+        {
+          "tile": "36",
+          "text": "FIELD SALES",
+          "axis": "x",
+          "scrollWidth": 29,
+          "clientWidth": 27,
+          "scrollHeight": 9,
+          "clientHeight": 9
+        },
+        {
+          "tile": "37",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "x",
+          "scrollWidth": 31,
+          "clientWidth": 27,
+          "scrollHeight": 10,
+          "clientHeight": 9
+        }
+      ],
+      "cards": [
+        {
+          "className": "controlsSticky",
+          "clientWidth": 361,
+          "scrollWidth": 361,
+          "clientHeight": 157,
+          "scrollHeight": 157
+        },
+        {
+          "className": "controls  ",
+          "clientWidth": 359,
+          "scrollWidth": 359,
+          "clientHeight": 67,
+          "scrollHeight": 67
+        },
+        {
+          "className": "hud",
+          "clientWidth": 361,
+          "scrollWidth": 361,
+          "clientHeight": 345,
+          "scrollHeight": 345
+        },
+        {
+          "className": "panel game-stats-card",
+          "clientWidth": 237,
+          "scrollWidth": 237,
+          "clientHeight": 343,
+          "scrollHeight": 343
+        },
+        {
+          "className": "score",
+          "clientWidth": 117,
+          "scrollWidth": 117,
+          "clientHeight": 343,
+          "scrollHeight": 343
+        },
+        {
+          "className": "auxiliaryActions",
+          "clientWidth": 361,
+          "scrollWidth": 361,
+          "clientHeight": 27,
+          "scrollHeight": 27
+        }
+      ],
+      "context": {
+        "playerName": "👤 QA-LAYOUT-46262205-P1",
+        "roundText": "Rodada: 1/5",
+        "diceText": "Última rolagemAguardando o primeiro lançamentoO resultado aparecerá aqui para todos",
+        "boardNodeIsSame": null,
+        "broadcastCount": null
+      }
+    },
+    {
+      "label": "844x390",
+      "viewport": [
+        844,
+        390
+      ],
+      "documentOverflowX": 0,
+      "documentScrollWidthDelta": -15,
+      "documentOverflowY": 0,
+      "board": {
+        "left": 8,
+        "top": 52,
+        "right": 448,
+        "bottom": 382,
+        "width": 440,
+        "height": 330
+      },
+      "boardRatio": 1.3333333333333333,
+      "stage": {
+        "left": 8,
+        "top": 52,
+        "right": 448,
+        "bottom": 382,
+        "width": 440,
+        "height": 330
+      },
+      "sidebar": {
+        "left": 456,
+        "top": 52,
+        "right": 821,
+        "bottom": 382,
+        "width": 365,
+        "height": 330,
+        "clientWidth": 365,
+        "scrollWidth": 365,
+        "clientHeight": 330,
+        "scrollHeight": 542
+      },
+      "sideContent": {
+        "left": 456,
+        "top": 52,
+        "right": 821,
+        "bottom": 594.25,
+        "width": 365,
+        "height": 542.25,
+        "clientWidth": 365,
+        "scrollWidth": 365,
+        "clientHeight": 542,
+        "scrollHeight": 542
+      },
+      "gap": 8,
+      "tileCount": 40,
+      "labelCount": 40,
+      "tokenPositions": [
+        "0"
+      ],
+      "tokensInsideBoard": true,
+      "visibleLabelCount": 40,
+      "overflowingLabelCount": 18,
+      "overflowingLabels": [
+        {
+          "tile": "0",
+          "text": "INÍCIOFATURAMENTO",
+          "axis": "x",
+          "scrollWidth": 38,
+          "clientWidth": 29,
+          "scrollHeight": 10,
+          "clientHeight": 9
+        },
+        {
+          "tile": "1",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "x",
+          "scrollWidth": 31,
+          "clientWidth": 29,
+          "scrollHeight": 10,
+          "clientHeight": 9
+        },
+        {
+          "tile": "3",
+          "text": "INSIDE SALES",
+          "axis": "x",
+          "scrollWidth": 33,
+          "clientWidth": 29,
+          "scrollHeight": 9,
+          "clientHeight": 9
+        },
+        {
+          "tile": "5",
+          "text": "TREINAMENTO",
+          "axis": "x",
+          "scrollWidth": 36,
+          "clientWidth": 29,
+          "scrollHeight": 9,
+          "clientHeight": 9
+        },
+        {
+          "tile": "6",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "x",
+          "scrollWidth": 31,
+          "clientWidth": 29,
+          "scrollHeight": 10,
+          "clientHeight": 9
+        },
+        {
+          "tile": "10",
+          "text": "INSIDE SALES",
+          "axis": "x",
+          "scrollWidth": 33,
+          "clientWidth": 29,
+          "scrollHeight": 9,
+          "clientHeight": 9
+        },
+        {
+          "tile": "12",
+          "text": "TREINAMENTO",
+          "axis": "x",
+          "scrollWidth": 36,
+          "clientWidth": 29,
+          "scrollHeight": 9,
+          "clientHeight": 9
+        },
+        {
+          "tile": "13",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "x",
+          "scrollWidth": 31,
+          "clientWidth": 29,
+          "scrollHeight": 10,
+          "clientHeight": 9
+        },
+        {
+          "tile": "16",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "x",
+          "scrollWidth": 31,
+          "clientWidth": 29,
+          "scrollHeight": 10,
+          "clientHeight": 9
+        },
+        {
+          "tile": "18",
+          "text": "TREINAMENTO",
+          "axis": "x",
+          "scrollWidth": 36,
+          "clientWidth": 29,
+          "scrollHeight": 9,
+          "clientHeight": 9
+        },
+        {
+          "tile": "20",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "x",
+          "scrollWidth": 31,
+          "clientWidth": 29,
+          "scrollHeight": 10,
+          "clientHeight": 9
+        },
+        {
+          "tile": "22",
+          "text": "INSIDE SALES",
+          "axis": "x",
+          "scrollWidth": 33,
+          "clientWidth": 29,
+          "scrollHeight": 9,
+          "clientHeight": 9
+        },
+        {
+          "tile": "24",
+          "text": "DESPESASOPERACIONAIS",
+          "axis": "x",
+          "scrollWidth": 37,
+          "clientWidth": 29,
+          "scrollHeight": 10,
+          "clientHeight": 9
+        },
+        {
+          "tile": "25",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "x",
+          "scrollWidth": 31,
+          "clientWidth": 29,
+          "scrollHeight": 10,
+          "clientHeight": 9
+        },
+        {
+          "tile": "30",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "x",
+          "scrollWidth": 31,
+          "clientWidth": 29,
+          "scrollHeight": 10,
+          "clientHeight": 9
+        },
+        {
+          "tile": "31",
+          "text": "INSIDE SALES",
+          "axis": "x",
+          "scrollWidth": 33,
+          "clientWidth": 29,
+          "scrollHeight": 9,
+          "clientHeight": 9
+        },
+        {
+          "tile": "34",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "x",
+          "scrollWidth": 31,
+          "clientWidth": 29,
+          "scrollHeight": 10,
+          "clientHeight": 9
+        },
+        {
+          "tile": "37",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "x",
+          "scrollWidth": 31,
+          "clientWidth": 29,
+          "scrollHeight": 10,
+          "clientHeight": 9
+        }
+      ],
+      "cards": [
+        {
+          "className": "controlsSticky",
+          "clientWidth": 365,
+          "scrollWidth": 365,
+          "clientHeight": 163,
+          "scrollHeight": 163
+        },
+        {
+          "className": "controls  ",
+          "clientWidth": 363,
+          "scrollWidth": 363,
+          "clientHeight": 69,
+          "scrollHeight": 69
+        },
+        {
+          "className": "hud",
+          "clientWidth": 365,
+          "scrollWidth": 365,
+          "clientHeight": 345,
+          "scrollHeight": 345
+        },
+        {
+          "className": "panel game-stats-card",
+          "clientWidth": 239,
+          "scrollWidth": 239,
+          "clientHeight": 343,
+          "scrollHeight": 343
+        },
+        {
+          "className": "score",
+          "clientWidth": 119,
+          "scrollWidth": 119,
+          "clientHeight": 343,
+          "scrollHeight": 343
+        },
+        {
+          "className": "auxiliaryActions",
+          "clientWidth": 365,
+          "scrollWidth": 365,
+          "clientHeight": 29,
+          "scrollHeight": 29
+        }
+      ],
+      "context": {
+        "playerName": "👤 QA-LAYOUT-46262205-P1",
+        "roundText": "Rodada: 1/5",
+        "diceText": "Última rolagemAguardando o primeiro lançamentoO resultado aparecerá aqui para todos",
+        "boardNodeIsSame": null,
+        "broadcastCount": null
+      }
+    },
+    {
+      "label": "932x430",
+      "viewport": [
+        932,
+        430
+      ],
+      "documentOverflowX": 0,
+      "documentScrollWidthDelta": -15,
+      "documentOverflowY": 0,
+      "board": {
+        "left": 8,
+        "top": 52,
+        "right": 497.515625,
+        "bottom": 419.125,
+        "width": 489.515625,
+        "height": 367.125
+      },
+      "boardRatio": 1.3333758937691522,
+      "stage": {
+        "left": 8,
+        "top": 52,
+        "right": 497.515625,
+        "bottom": 419.125,
+        "width": 489.515625,
+        "height": 367.125
+      },
+      "sidebar": {
+        "left": 505.515625,
+        "top": 52,
+        "right": 909,
+        "bottom": 422,
+        "width": 403.484375,
+        "height": 370,
+        "clientWidth": 403,
+        "scrollWidth": 403,
+        "clientHeight": 370,
+        "scrollHeight": 554
+      },
+      "sideContent": {
+        "left": 505.515625,
+        "top": 52,
+        "right": 909,
+        "bottom": 605.75,
+        "width": 403.484375,
+        "height": 553.75,
+        "clientWidth": 403,
+        "scrollWidth": 403,
+        "clientHeight": 554,
+        "scrollHeight": 554
+      },
+      "gap": 8,
+      "tileCount": 40,
+      "labelCount": 40,
+      "tokenPositions": [
+        "0"
+      ],
+      "tokensInsideBoard": true,
+      "visibleLabelCount": 40,
+      "overflowingLabelCount": 5,
+      "overflowingLabels": [
+        {
+          "tile": "0",
+          "text": "INÍCIOFATURAMENTO",
+          "axis": "x",
+          "scrollWidth": 38,
+          "clientWidth": 33,
+          "scrollHeight": 10,
+          "clientHeight": 9
+        },
+        {
+          "tile": "5",
+          "text": "TREINAMENTO",
+          "axis": "x",
+          "scrollWidth": 36,
+          "clientWidth": 33,
+          "scrollHeight": 9,
+          "clientHeight": 9
+        },
+        {
+          "tile": "12",
+          "text": "TREINAMENTO",
+          "axis": "x",
+          "scrollWidth": 36,
+          "clientWidth": 33,
+          "scrollHeight": 9,
+          "clientHeight": 9
+        },
+        {
+          "tile": "18",
+          "text": "TREINAMENTO",
+          "axis": "x",
+          "scrollWidth": 36,
+          "clientWidth": 33,
+          "scrollHeight": 9,
+          "clientHeight": 9
+        },
+        {
+          "tile": "24",
+          "text": "DESPESASOPERACIONAIS",
+          "axis": "x",
+          "scrollWidth": 37,
+          "clientWidth": 33,
+          "scrollHeight": 10,
+          "clientHeight": 9
+        }
+      ],
+      "cards": [
+        {
+          "className": "controlsSticky",
+          "clientWidth": 403,
+          "scrollWidth": 403,
+          "clientHeight": 171,
+          "scrollHeight": 171
+        },
+        {
+          "className": "controls  ",
+          "clientWidth": 401,
+          "scrollWidth": 401,
+          "clientHeight": 74,
+          "scrollHeight": 74
+        },
+        {
+          "className": "hud",
+          "clientWidth": 403,
+          "scrollWidth": 403,
+          "clientHeight": 345,
+          "scrollHeight": 345
+        },
+        {
+          "className": "panel game-stats-card",
+          "clientWidth": 265,
+          "scrollWidth": 265,
+          "clientHeight": 343,
+          "scrollHeight": 343
+        },
+        {
+          "className": "score",
+          "clientWidth": 132,
+          "scrollWidth": 132,
+          "clientHeight": 343,
+          "scrollHeight": 343
+        },
+        {
+          "className": "auxiliaryActions",
+          "clientWidth": 403,
+          "scrollWidth": 403,
+          "clientHeight": 32,
+          "scrollHeight": 32
+        }
+      ],
+      "context": {
+        "playerName": "👤 QA-LAYOUT-46262205-P1",
+        "roundText": "Rodada: 1/5",
+        "diceText": "Última rolagemAguardando o primeiro lançamentoO resultado aparecerá aqui para todos",
+        "boardNodeIsSame": null,
+        "broadcastCount": null
+      }
+    },
+    {
+      "label": "1024x768",
+      "viewport": [
+        1024,
+        768
+      ],
+      "documentOverflowX": 0,
+      "documentScrollWidthDelta": -15,
+      "documentOverflowY": 0,
+      "board": {
+        "left": 8,
+        "top": 52,
+        "right": 649.9375,
+        "bottom": 533.453125,
+        "width": 641.9375,
+        "height": 481.453125
+      },
+      "boardRatio": 1.3333333333333333,
+      "stage": {
+        "left": 8,
+        "top": 52,
+        "right": 649.9375,
+        "bottom": 533.453125,
+        "width": 641.9375,
+        "height": 481.453125
+      },
+      "sidebar": {
+        "left": 657.9375,
+        "top": 52,
+        "right": 1001,
+        "bottom": 760,
+        "width": 343.0625,
+        "height": 708,
+        "clientWidth": 343,
+        "scrollWidth": 343,
+        "clientHeight": 708,
+        "scrollHeight": 708
+      },
+      "sideContent": {
+        "left": 657.9375,
+        "top": 52,
+        "right": 1001,
+        "bottom": 676.703125,
+        "width": 343.0625,
+        "height": 624.703125,
+        "clientWidth": 343,
+        "scrollWidth": 343,
+        "clientHeight": 625,
+        "scrollHeight": 625
+      },
+      "gap": 8,
+      "tileCount": 40,
+      "labelCount": 40,
+      "tokenPositions": [
+        "0"
+      ],
+      "tokensInsideBoard": true,
+      "visibleLabelCount": 40,
+      "overflowingLabelCount": 0,
+      "overflowingLabels": [],
+      "cards": [
+        {
+          "className": "controlsSticky",
+          "clientWidth": 343,
+          "scrollWidth": 343,
+          "clientHeight": 177,
+          "scrollHeight": 177
+        },
+        {
+          "className": "controls  ",
+          "clientWidth": 341,
+          "scrollWidth": 341,
+          "clientHeight": 77,
+          "scrollHeight": 77
+        },
+        {
+          "className": "hud",
+          "clientWidth": 343,
+          "scrollWidth": 343,
+          "clientHeight": 404,
+          "scrollHeight": 404
+        },
+        {
+          "className": "panel game-stats-card",
+          "clientWidth": 341,
+          "scrollWidth": 341,
+          "clientHeight": 339,
+          "scrollHeight": 339
+        },
+        {
+          "className": "score",
+          "clientWidth": 341,
+          "scrollWidth": 341,
+          "clientHeight": 58,
+          "scrollHeight": 58
+        },
+        {
+          "className": "auxiliaryActions",
+          "clientWidth": 343,
+          "scrollWidth": 343,
+          "clientHeight": 34,
+          "scrollHeight": 34
+        }
+      ],
+      "context": {
+        "playerName": "👤 QA-LAYOUT-46262205-P1",
+        "roundText": "Rodada: 1/5",
+        "diceText": "Última rolagemAguardando o primeiro lançamentoO resultado aparecerá aqui para todos",
+        "boardNodeIsSame": null,
+        "broadcastCount": null
+      }
+    },
+    {
+      "label": "1366x768",
+      "viewport": [
+        1366,
+        768
+      ],
+      "documentOverflowX": 0,
+      "documentScrollWidthDelta": -15,
+      "documentOverflowY": 0,
+      "board": {
+        "left": 10.125,
+        "top": 54.125,
+        "right": 930.71875,
+        "bottom": 744.5625,
+        "width": 920.59375,
+        "height": 690.4375
+      },
+      "boardRatio": 1.333348420385625,
+      "stage": {
+        "left": 10.125,
+        "top": 54.125,
+        "right": 930.71875,
+        "bottom": 744.5625,
+        "width": 920.59375,
+        "height": 690.4375
+      },
+      "sidebar": {
+        "left": 940.84375,
+        "top": 54.125,
+        "right": 1340.875,
+        "bottom": 757.859375,
+        "width": 400.03125,
+        "height": 703.734375,
+        "clientWidth": 400,
+        "scrollWidth": 400,
+        "clientHeight": 704,
+        "scrollHeight": 704
+      },
+      "sideContent": {
+        "left": 940.84375,
+        "top": 54.125,
+        "right": 1340.875,
+        "bottom": 482.9375,
+        "width": 400.03125,
+        "height": 428.8125,
+        "clientWidth": 400,
+        "scrollWidth": 400,
+        "clientHeight": 429,
+        "scrollHeight": 429
+      },
+      "gap": 10.125,
+      "tileCount": 40,
+      "labelCount": 40,
+      "tokenPositions": [
+        "0"
+      ],
+      "tokensInsideBoard": true,
+      "visibleLabelCount": 40,
+      "overflowingLabelCount": 0,
+      "overflowingLabels": [],
+      "cards": [
+        {
+          "className": "controlsSticky",
+          "clientWidth": 198,
+          "scrollWidth": 198,
+          "clientHeight": 246,
+          "scrollHeight": 246
+        },
+        {
+          "className": "controls  ",
+          "clientWidth": 196,
+          "scrollWidth": 196,
+          "clientHeight": 91,
+          "scrollHeight": 91
+        },
+        {
+          "className": "hud",
+          "clientWidth": 198,
+          "scrollWidth": 198,
+          "clientHeight": 429,
+          "scrollHeight": 429
+        },
+        {
+          "className": "panel game-stats-card",
+          "clientWidth": 196,
+          "scrollWidth": 196,
+          "clientHeight": 339,
+          "scrollHeight": 339
+        },
+        {
+          "className": "score",
+          "clientWidth": 196,
+          "scrollWidth": 196,
+          "clientHeight": 83,
+          "scrollHeight": 83
+        },
+        {
+          "className": "auxiliaryActions",
+          "clientWidth": 198,
+          "scrollWidth": 198,
+          "clientHeight": 34,
+          "scrollHeight": 34
+        }
+      ],
+      "context": {
+        "playerName": "👤 QA-LAYOUT-46262205-P1",
+        "roundText": "Rodada: 1/5",
+        "diceText": "Última rolagemAguardando o primeiro lançamentoO resultado aparecerá aqui para todos",
+        "boardNodeIsSame": null,
+        "broadcastCount": null
+      }
+    },
+    {
+      "label": "1440x1080",
+      "viewport": [
+        1440,
+        1080
+      ],
+      "documentOverflowX": 0,
+      "documentScrollWidthDelta": -15,
+      "documentOverflowY": 0,
+      "board": {
+        "left": 11.390625,
+        "top": 70.78125,
+        "right": 1045.9375,
+        "bottom": 846.6875,
+        "width": 1034.546875,
+        "height": 775.90625
+      },
+      "boardRatio": 1.333340045914052,
+      "stage": {
+        "left": 11.390625,
+        "top": 70.78125,
+        "right": 1045.9375,
+        "bottom": 846.6875,
+        "width": 1034.546875,
+        "height": 775.90625
+      },
+      "sidebar": {
+        "left": 1057.328125,
+        "top": 70.78125,
+        "right": 1413.609375,
+        "bottom": 1068.578125,
+        "width": 356.28125,
+        "height": 997.796875,
+        "clientWidth": 356,
+        "scrollWidth": 356,
+        "clientHeight": 998,
+        "scrollHeight": 998
+      },
+      "sideContent": {
+        "left": 1057.328125,
+        "top": 70.78125,
+        "right": 1413.609375,
+        "bottom": 981.40625,
+        "width": 356.28125,
+        "height": 910.625,
+        "clientWidth": 356,
+        "scrollWidth": 356,
+        "clientHeight": 911,
+        "scrollHeight": 911
+      },
+      "gap": 11.390625,
+      "tileCount": 40,
+      "labelCount": 40,
+      "tokenPositions": [
+        "0"
+      ],
+      "tokensInsideBoard": true,
+      "visibleLabelCount": 40,
+      "overflowingLabelCount": 0,
+      "overflowingLabels": [],
+      "cards": [
+        {
+          "className": "controlsSticky",
+          "clientWidth": 356,
+          "scrollWidth": 356,
+          "clientHeight": 242,
+          "scrollHeight": 242
+        },
+        {
+          "className": "controls  ",
+          "clientWidth": 354,
+          "scrollWidth": 354,
+          "clientHeight": 114,
+          "scrollHeight": 114
+        },
+        {
+          "className": "hud",
+          "clientWidth": 356,
+          "scrollWidth": 356,
+          "clientHeight": 606,
+          "scrollHeight": 606
+        },
+        {
+          "className": "panel game-stats-card",
+          "clientWidth": 354,
+          "scrollWidth": 354,
+          "clientHeight": 498,
+          "scrollHeight": 498
+        },
+        {
+          "className": "score",
+          "clientWidth": 354,
+          "scrollWidth": 354,
+          "clientHeight": 98,
+          "scrollHeight": 98
+        },
+        {
+          "className": "auxiliaryActions",
+          "clientWidth": 356,
+          "scrollWidth": 356,
+          "clientHeight": 48,
+          "scrollHeight": 48
+        }
+      ],
+      "context": {
+        "playerName": "👤 QA-LAYOUT-46262205-P1",
+        "roundText": "Rodada: 1/5",
+        "diceText": "Última rolagemAguardando o primeiro lançamentoO resultado aparecerá aqui para todos",
+        "boardNodeIsSame": null,
+        "broadcastCount": null
+      }
+    },
+    {
+      "label": "1920x1080",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "documentOverflowX": 0,
+      "documentScrollWidthDelta": -15,
+      "documentOverflowY": 0,
+      "board": {
+        "left": 15.234375,
+        "top": 74.625,
+        "right": 1335.390625,
+        "bottom": 1064.734375,
+        "width": 1320.15625,
+        "height": 990.109375
+      },
+      "boardRatio": 1.3333438540565279,
+      "stage": {
+        "left": 15.234375,
+        "top": 74.625,
+        "right": 1335.390625,
+        "bottom": 1064.734375,
+        "width": 1320.15625,
+        "height": 990.109375
+      },
+      "sidebar": {
+        "left": 1350.625,
+        "top": 74.625,
+        "right": 1889.765625,
+        "bottom": 1064.734375,
+        "width": 539.140625,
+        "height": 990.109375,
+        "clientWidth": 539,
+        "scrollWidth": 539,
+        "clientHeight": 990,
+        "scrollHeight": 990
+      },
+      "sideContent": {
+        "left": 1350.625,
+        "top": 74.625,
+        "right": 1889.765625,
+        "bottom": 792.984375,
+        "width": 539.140625,
+        "height": 718.359375,
+        "clientWidth": 539,
+        "scrollWidth": 539,
+        "clientHeight": 718,
+        "scrollHeight": 718
+      },
+      "gap": 15.234375,
+      "tileCount": 40,
+      "labelCount": 40,
+      "tokenPositions": [
+        "0"
+      ],
+      "tokensInsideBoard": true,
+      "visibleLabelCount": 40,
+      "overflowingLabelCount": 24,
+      "overflowingLabels": [
+        {
+          "tile": "1",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "4",
+          "text": "GESTORCOMERCIAL",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "6",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "8",
+          "text": "DIREITODE COMPRA",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "9",
+          "text": "SORTE &REVÉS",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "11",
+          "text": "VENDEDORCOMUM",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "13",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "16",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "17",
+          "text": "VENDEDORCOMUM",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "19",
+          "text": "SORTE &REVÉS",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "20",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "21",
+          "text": "DIREITODE COMPRA",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "23",
+          "text": "GESTORCOMERCIAL",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "25",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "27",
+          "text": "DIREITODE COMPRA",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "29",
+          "text": "SORTE &REVÉS",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "30",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "32",
+          "text": "VENDEDORCOMUM",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "33",
+          "text": "GESTORCOMERCIAL",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "34",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "35",
+          "text": "MIX DEPRODUTOS",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "37",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "38",
+          "text": "MIX DEPRODUTOS",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "39",
+          "text": "SORTE &REVÉS",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        }
+      ],
+      "cards": [
+        {
+          "className": "controlsSticky",
+          "clientWidth": 266,
+          "scrollWidth": 266,
+          "clientHeight": 304,
+          "scrollHeight": 304
+        },
+        {
+          "className": "controls  ",
+          "clientWidth": 264,
+          "scrollWidth": 264,
+          "clientHeight": 145,
+          "scrollHeight": 145
+        },
+        {
+          "className": "hud",
+          "clientWidth": 266,
+          "scrollWidth": 266,
+          "clientHeight": 718,
+          "scrollHeight": 718
+        },
+        {
+          "className": "panel game-stats-card",
+          "clientWidth": 264,
+          "scrollWidth": 264,
+          "clientHeight": 565,
+          "scrollHeight": 565
+        },
+        {
+          "className": "score",
+          "clientWidth": 264,
+          "scrollWidth": 264,
+          "clientHeight": 143,
+          "scrollHeight": 143
+        },
+        {
+          "className": "auxiliaryActions",
+          "clientWidth": 266,
+          "scrollWidth": 266,
+          "clientHeight": 54,
+          "scrollHeight": 54
+        }
+      ],
+      "context": {
+        "playerName": "👤 QA-LAYOUT-46262205-P1",
+        "roundText": "Rodada: 1/5",
+        "diceText": "Última rolagemAguardando o primeiro lançamentoO resultado aparecerá aqui para todos",
+        "boardNodeIsSame": null,
+        "broadcastCount": null
+      }
+    },
+    {
+      "label": "2560x1080",
+      "viewport": [
+        2560,
+        1080
+      ],
+      "documentOverflowX": 0,
+      "documentScrollWidthDelta": -15,
+      "documentOverflowY": 0,
+      "board": {
+        "left": 16,
+        "top": 75.390625,
+        "right": 1334.125,
+        "bottom": 1063.984375,
+        "width": 1318.125,
+        "height": 988.59375
+      },
+      "boardRatio": 1.3333333333333333,
+      "stage": {
+        "left": 16,
+        "top": 75.390625,
+        "right": 1334.125,
+        "bottom": 1063.984375,
+        "width": 1318.125,
+        "height": 988.59375
+      },
+      "sidebar": {
+        "left": 1350.125,
+        "top": 75.390625,
+        "right": 2529,
+        "bottom": 1063.984375,
+        "width": 1178.875,
+        "height": 988.59375,
+        "clientWidth": 1179,
+        "scrollWidth": 1179,
+        "clientHeight": 989,
+        "scrollHeight": 989
+      },
+      "sideContent": {
+        "left": 1350.125,
+        "top": 75.390625,
+        "right": 2529,
+        "bottom": 650.5625,
+        "width": 1178.875,
+        "height": 575.171875,
+        "clientWidth": 1179,
+        "scrollWidth": 1179,
+        "clientHeight": 575,
+        "scrollHeight": 575
+      },
+      "gap": 16,
+      "tileCount": 40,
+      "labelCount": 40,
+      "tokenPositions": [
+        "0"
+      ],
+      "tokensInsideBoard": true,
+      "visibleLabelCount": 40,
+      "overflowingLabelCount": 24,
+      "overflowingLabels": [
+        {
+          "tile": "1",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "4",
+          "text": "GESTORCOMERCIAL",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "6",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "8",
+          "text": "DIREITODE COMPRA",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "9",
+          "text": "SORTE &REVÉS",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "11",
+          "text": "VENDEDORCOMUM",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "13",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "16",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "17",
+          "text": "VENDEDORCOMUM",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "19",
+          "text": "SORTE &REVÉS",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "20",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "21",
+          "text": "DIREITODE COMPRA",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "23",
+          "text": "GESTORCOMERCIAL",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "25",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "27",
+          "text": "DIREITODE COMPRA",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "29",
+          "text": "SORTE &REVÉS",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "30",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "32",
+          "text": "VENDEDORCOMUM",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "33",
+          "text": "GESTORCOMERCIAL",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "34",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "35",
+          "text": "MIX DEPRODUTOS",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "37",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "38",
+          "text": "MIX DEPRODUTOS",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "39",
+          "text": "SORTE &REVÉS",
+          "axis": "y",
+          "scrollWidth": 92,
+          "clientWidth": 92,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        }
+      ],
+      "cards": [
+        {
+          "className": "controlsSticky",
+          "clientWidth": 388,
+          "scrollWidth": 388,
+          "clientHeight": 277,
+          "scrollHeight": 277
+        },
+        {
+          "className": "controls  ",
+          "clientWidth": 386,
+          "scrollWidth": 386,
+          "clientHeight": 145,
+          "scrollHeight": 145
+        },
+        {
+          "className": "hud",
+          "clientWidth": 784,
+          "scrollWidth": 784,
+          "clientHeight": 575,
+          "scrollHeight": 575
+        },
+        {
+          "className": "panel game-stats-card",
+          "clientWidth": 387,
+          "scrollWidth": 387,
+          "clientHeight": 573,
+          "scrollHeight": 573
+        },
+        {
+          "className": "score",
+          "clientWidth": 387,
+          "scrollWidth": 387,
+          "clientHeight": 573,
+          "scrollHeight": 573
+        },
+        {
+          "className": "auxiliaryActions",
+          "clientWidth": 388,
+          "scrollWidth": 388,
+          "clientHeight": 48,
+          "scrollHeight": 48
+        }
+      ],
+      "context": {
+        "playerName": "👤 QA-LAYOUT-46262205-P1",
+        "roundText": "Rodada: 1/5",
+        "diceText": "Última rolagemAguardando o primeiro lançamentoO resultado aparecerá aqui para todos",
+        "boardNodeIsSame": null,
+        "broadcastCount": null
+      }
+    },
+    {
+      "label": "2560x1440",
+      "viewport": [
+        2560,
+        1440
+      ],
+      "documentOverflowX": 0,
+      "documentScrollWidthDelta": -15,
+      "documentOverflowY": 0,
+      "board": {
+        "left": 16,
+        "top": 76,
+        "right": 1813.328125,
+        "bottom": 1423.984375,
+        "width": 1797.328125,
+        "height": 1347.984375
+      },
+      "boardRatio": 1.3333449247139826,
+      "stage": {
+        "left": 16,
+        "top": 76,
+        "right": 1813.328125,
+        "bottom": 1423.984375,
+        "width": 1797.328125,
+        "height": 1347.984375
+      },
+      "sidebar": {
+        "left": 1829.328125,
+        "top": 76,
+        "right": 2529,
+        "bottom": 1424,
+        "width": 699.671875,
+        "height": 1348,
+        "clientWidth": 700,
+        "scrollWidth": 700,
+        "clientHeight": 1348,
+        "scrollHeight": 1348
+      },
+      "sideContent": {
+        "left": 1829.328125,
+        "top": 76,
+        "right": 2529,
+        "bottom": 697.25,
+        "width": 699.671875,
+        "height": 621.25,
+        "clientWidth": 700,
+        "scrollWidth": 700,
+        "clientHeight": 621,
+        "scrollHeight": 621
+      },
+      "gap": 16,
+      "tileCount": 40,
+      "labelCount": 40,
+      "tokenPositions": [
+        "0"
+      ],
+      "tokensInsideBoard": true,
+      "visibleLabelCount": 40,
+      "overflowingLabelCount": 24,
+      "overflowingLabels": [
+        {
+          "tile": "1",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "y",
+          "scrollWidth": 129,
+          "clientWidth": 129,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "4",
+          "text": "GESTORCOMERCIAL",
+          "axis": "y",
+          "scrollWidth": 129,
+          "clientWidth": 129,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "6",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "y",
+          "scrollWidth": 129,
+          "clientWidth": 129,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "8",
+          "text": "DIREITODE COMPRA",
+          "axis": "y",
+          "scrollWidth": 129,
+          "clientWidth": 129,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "9",
+          "text": "SORTE &REVÉS",
+          "axis": "y",
+          "scrollWidth": 129,
+          "clientWidth": 129,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "11",
+          "text": "VENDEDORCOMUM",
+          "axis": "y",
+          "scrollWidth": 129,
+          "clientWidth": 129,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "13",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "y",
+          "scrollWidth": 129,
+          "clientWidth": 129,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "16",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "y",
+          "scrollWidth": 129,
+          "clientWidth": 129,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "17",
+          "text": "VENDEDORCOMUM",
+          "axis": "y",
+          "scrollWidth": 129,
+          "clientWidth": 129,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "19",
+          "text": "SORTE &REVÉS",
+          "axis": "y",
+          "scrollWidth": 129,
+          "clientWidth": 129,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "20",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "y",
+          "scrollWidth": 129,
+          "clientWidth": 129,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "21",
+          "text": "DIREITODE COMPRA",
+          "axis": "y",
+          "scrollWidth": 129,
+          "clientWidth": 129,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "23",
+          "text": "GESTORCOMERCIAL",
+          "axis": "y",
+          "scrollWidth": 129,
+          "clientWidth": 129,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "25",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "y",
+          "scrollWidth": 129,
+          "clientWidth": 129,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "27",
+          "text": "DIREITODE COMPRA",
+          "axis": "y",
+          "scrollWidth": 129,
+          "clientWidth": 129,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "29",
+          "text": "SORTE &REVÉS",
+          "axis": "y",
+          "scrollWidth": 129,
+          "clientWidth": 129,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "30",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "y",
+          "scrollWidth": 129,
+          "clientWidth": 129,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "32",
+          "text": "VENDEDORCOMUM",
+          "axis": "y",
+          "scrollWidth": 129,
+          "clientWidth": 129,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "33",
+          "text": "GESTORCOMERCIAL",
+          "axis": "y",
+          "scrollWidth": 129,
+          "clientWidth": 129,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "34",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "y",
+          "scrollWidth": 129,
+          "clientWidth": 129,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "35",
+          "text": "MIX DEPRODUTOS",
+          "axis": "y",
+          "scrollWidth": 129,
+          "clientWidth": 129,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "37",
+          "text": "CARTEIRADE CLIENTES",
+          "axis": "y",
+          "scrollWidth": 129,
+          "clientWidth": 129,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "38",
+          "text": "MIX DEPRODUTOS",
+          "axis": "y",
+          "scrollWidth": 129,
+          "clientWidth": 129,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        },
+        {
+          "tile": "39",
+          "text": "SORTE &REVÉS",
+          "axis": "y",
+          "scrollWidth": 129,
+          "clientWidth": 129,
+          "scrollHeight": 23,
+          "clientHeight": 21
+        }
+      ],
+      "cards": [
+        {
+          "className": "controlsSticky",
+          "clientWidth": 227,
+          "scrollWidth": 227,
+          "clientHeight": 357,
+          "scrollHeight": 357
+        },
+        {
+          "className": "controls  ",
+          "clientWidth": 225,
+          "scrollWidth": 225,
+          "clientHeight": 167,
+          "scrollHeight": 167
+        },
+        {
+          "className": "hud",
+          "clientWidth": 463,
+          "scrollWidth": 463,
+          "clientHeight": 621,
+          "scrollHeight": 621
+        },
+        {
+          "className": "panel game-stats-card",
+          "clientWidth": 226,
+          "scrollWidth": 226,
+          "clientHeight": 619,
+          "scrollHeight": 619
+        },
+        {
+          "className": "score",
+          "clientWidth": 226,
+          "scrollWidth": 226,
+          "clientHeight": 619,
+          "scrollHeight": 619
+        },
+        {
+          "className": "auxiliaryActions",
+          "clientWidth": 227,
+          "scrollWidth": 227,
+          "clientHeight": 59,
+          "scrollHeight": 59
+        }
+      ],
+      "context": {
+        "playerName": "👤 QA-LAYOUT-46262205-P1",
+        "roundText": "Rodada: 1/5",
+        "diceText": "Última rolagemAguardando o primeiro lançamentoO resultado aparecerá aqui para todos",
+        "boardNodeIsSame": null,
+        "broadcastCount": null
+      }
+    }
+  ],
+  "consoleErrors": []
+}
