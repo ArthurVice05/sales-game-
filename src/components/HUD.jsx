@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect } from 'react'
 import { computePatrimonio } from '../game/patrimonio.js'
+import { buildGameStatSections } from './gameStats.js'
 
 const DEBUG_LOGS = import.meta.env.DEV && localStorage.getItem('SG_DEBUG_LOGS') === '1'
 
-export default function HUD({ totals, players }){
-  const [showDetails, setShowDetails] = useState(false)
+export default function HUD({ totals, players }) {
+  const statSections = buildGameStatSections(totals)
 
   useEffect(() => {
     if (!DEBUG_LOGS) return
@@ -14,61 +15,42 @@ export default function HUD({ totals, players }){
   }, [totals])
 
   return (
-    <div className={`hud${showDetails ? ' hud--detailsOpen' : ''}`}>
-      <div className="panel">
-        <div className="hudMetricsPrimary">
-          <div className="line hudMetric"><b className="hudHelp" title="Valor gerado pelas vendas e recursos da empresa.">Faturamento:</b> <span className="pos">$ {totals.faturamento}</span></div>
-          <div className="line hudMetric"><b className="hudHelp" title="Custos para manter vendedores, gestores, sistemas e outros recursos.">Manutenção:</b> <span className="neg">$ {totals.manutencao}</span></div>
-          <div className="line hudMetric"><b className="hudHelp" title="Recursos recebidos na recuperação financeira que geram obrigações futuras.">Empréstimos:</b> <span>$ {totals.emprestimos}</span></div>
-        </div>
-
-        <button
-          type="button"
-          className="hudDetailsToggle"
-          aria-expanded={showDetails}
-          aria-controls="hud-secondary-metrics"
-          onClick={() => setShowDetails(v => !v)}
-        >
-          {showDetails ? 'Ocultar detalhes' : 'Ver detalhes'}
-        </button>
-
-        <div
-          id="hud-secondary-metrics"
-          className={`hudMetricsSecondary${showDetails ? ' is-open' : ''}`}
-        >
-          <div className="line hudMetric"><b>Vendedores Comuns:</b> <span>{totals.vendedoresComuns}</span></div>
-          <div className="line hudMetric"><b>Field Sales:</b> <span>{totals.fieldSales}</span></div>
-          <div className="line hudMetric"><b>Inside Sales:</b> <span>{totals.insideSales}</span></div>
-          <div className="line hudMetric hudMetric--wide"><b>Mix Produtos:</b> <span>{totals.mixProdutos}</span> <b className="hudHelp" title="Valor dos recursos adquiridos que compõem o patrimônio."> Bens:</b> <span>$ {totals.bens}</span></div>
-          <div className="line hudMetric hudMetric--wide"><b>ERP/Sistemas:</b> <span>{totals.erpSistemas}</span> <b> Clientes:</b> <span>{totals.clientes}</span></div>
-          <div className="hudMetric hudMetric--wide"><b>Azul:</b> <span>{totals.az || 0}</span> &nbsp;
-           <b> Amarelo: </b><span>{totals.am || 0}</span> &nbsp;
-            <b>Roxo:</b> <span>{totals.rox || 0}</span>
-          </div>
-          <div className="hudMetric"><b>Gestores Comerciais:</b> <span>{totals.gestores ?? totals.gestoresComerciais ?? 0}</span></div>
-        </div>
-
-        <div className="hudMetricsPrimary hudMetricsPrimary--capacity">
-          <div className="hudMetric hudMetric--wide"><b className="hudHelp" title="Quantidade de clientes que a equipe consegue atender.">Capacidade:</b> <span>{totals.possibAt ?? 0}</span> &nbsp; <b>Em Atendimento:</b> <span>{totals.clientsAt ?? 0}</span></div>
-        </div>
+    <div className="hud">
+      <div className="panel game-stats-card">
+        {statSections.map((section) => (
+          <section className="game-stats-section" key={section.key}>
+            <h3 className="game-stats-title">{section.title}</h3>
+            <dl className="game-stats-list">
+              {section.rows.map((row) => (
+                <div className="game-stat-row" key={row.key} data-stat-key={row.key}>
+                  <dt>{row.label}</dt>
+                  <dd className={`game-stat-value game-stat-value--${row.tone}`}>
+                    {row.value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        ))}
       </div>
+
       <div className="score">
         <div className="title hudHelp" title="Patrimônio = Caixa + Bens. Critério de vitória no fim da partida.">
           Placar
         </div>
         <p className="scorePatrimonioNote">Patrimônio = Caixa + Bens</p>
-        {players.map(p => (
-          <div className="row" key={p.id}>
-            <span>{p.name}</span>
+        {players.map((player) => (
+          <div className="row" key={player.id}>
+            <span>{player.name}</span>
             <span className="scoreValues">
               <span className="hudHelp" title="Dinheiro disponível para compras, despesas e decisões.">
-                Caixa {Number(p.cash || 0).toLocaleString()}
+                Caixa {Number(player.cash || 0).toLocaleString('pt-BR')}
               </span>
               <span
                 className="hudHelp scorePatrimonio"
                 title="Patrimônio = Caixa + Bens (mesmo critério do pódio final)."
               >
-                Pat. {computePatrimonio(p).toLocaleString()}
+                Pat. {computePatrimonio(player).toLocaleString('pt-BR')}
               </span>
             </span>
           </div>

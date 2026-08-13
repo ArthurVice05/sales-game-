@@ -4075,3 +4075,1990 @@ html, body {
     font-size: 16px;
   }
 }
+
+/* ===== Integração do tabuleiro v2-40 na tela real da partida ===== */
+@media (min-width: 961px){
+  .content{
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) clamp(260px, 20vw, 320px);
+    align-items: stretch;
+    gap: var(--gap);
+    min-width: 0;
+  }
+
+  .boardWrap{
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    container-type: size;
+  }
+
+  .boardWrap .sg40GameBoard{
+    width: 100%;
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
+    aspect-ratio: 4 / 3;
+  }
+
+  @supports (width: 1cqw){
+    .boardWrap .sg40GameBoard{
+      width: min(100cqw, 133.333cqh);
+    }
+  }
+
+  .side{
+    width: 100%;
+    min-width: 0;
+    max-width: 320px;
+    height: 100%;
+    max-height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+  }
+}
+
+@media (max-width: 960px){
+  .boardWrap .sg40GameBoard,
+  .content--boardFocus .boardWrap .sg40GameBoard{
+    width: 100%;
+    height: auto;
+    max-width: 100%;
+    max-height: none;
+    aspect-ratio: 4 / 3;
+  }
+}
+
+/* ===== P0: shell responsivo da partida =====
+   Este bloco é deliberadamente final: consolida as regras históricas acima
+   sem alterar componentes, callbacks ou o motor do jogo. */
+html,
+body,
+#root {
+  width: 100%;
+  max-width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.page {
+  --game-header-height: 60px;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  height: 100dvh;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: var(--game-header-height) minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.page > .topbar {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  height: var(--game-header-height);
+  min-width: 0;
+  min-height: var(--game-header-height);
+  max-height: var(--game-header-height);
+  grid-row: 1;
+  overflow: hidden;
+}
+
+.topbarPrimary,
+.topbarSecondary,
+.topbarRow,
+.content,
+.boardWrap,
+.side,
+.side > .hud,
+.controlsSticky {
+  min-width: 0;
+  min-height: 0;
+}
+
+.content {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  min-width: 0;
+  min-height: 0;
+  grid-row: 2;
+  overflow: hidden;
+}
+
+.identityMismatchBanner {
+  position: fixed;
+  z-index: 50;
+  top: var(--game-header-height);
+  left: 50%;
+  width: min(44rem, calc(100% - 24px));
+  transform: translateX(-50%);
+}
+
+.topbar .turnTimer {
+  position: relative;
+  box-sizing: border-box;
+  height: 46px;
+  min-height: 46px;
+  max-height: 46px;
+  overflow: hidden;
+}
+
+.topbar .turnTimerPauseHint {
+  position: absolute;
+  top: 3px;
+  right: 5px;
+  margin: 0;
+  font-size: 8px;
+  line-height: 1;
+}
+
+.boardWrap .sg40GameBoard {
+  box-sizing: border-box;
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  aspect-ratio: 4 / 3;
+  flex: 0 0 auto;
+}
+
+.page .content .boardWrap .sg40GameBoard {
+  width: 100%;
+}
+
+@supports (width: 1cqw) {
+  .page .content .boardWrap .sg40GameBoard {
+    width: min(100cqw, 133.333cqh);
+  }
+}
+
+.mobilePortraitGuard {
+  display: none !important;
+}
+
+@media (min-width: 961px) {
+  .content {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) clamp(260px, 20vw, 320px);
+    grid-template-rows: minmax(0, 1fr);
+    align-items: stretch;
+    gap: clamp(8px, 1vw, 12px);
+    padding: clamp(8px, 1vw, 12px);
+  }
+
+  .boardWrap {
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+    overflow: hidden;
+    container-type: size;
+  }
+
+  .side {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 320px;
+    height: 100%;
+    max-height: 100%;
+    padding-right: 0;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: clamp(6px, 0.8vh, 10px);
+    overflow: hidden;
+    scrollbar-gutter: stable;
+  }
+
+  .side > .hud {
+    height: 100%;
+    max-height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+
+  .side > .controlsSticky {
+    position: static;
+    width: 100%;
+    max-height: min(62dvh, calc(100% - 5.5rem));
+    padding: clamp(5px, 0.7vh, 8px);
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+
+  .controlsSticky .turnBox {
+    order: -1;
+  }
+}
+
+@media (min-width: 961px) and (max-height: 800px) {
+  .topbar {
+    padding-block: 4px;
+  }
+
+  .side > .controlsSticky {
+    max-height: min(64dvh, calc(100% - 4.5rem));
+    padding: 5px;
+  }
+
+  .controlsSticky .diceResult {
+    margin-bottom: 5px;
+    padding: 7px 8px;
+  }
+
+  .controlsSticky .diceResultDie {
+    width: 42px;
+    height: 42px;
+  }
+
+  .controlsSticky .nextStepHint {
+    margin-bottom: 5px;
+    font-size: 12px;
+  }
+
+  .controlsSticky .controls {
+    padding: 6px;
+    gap: 5px;
+  }
+
+  .controlsSticky .btn {
+    min-height: 36px;
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 960px) {
+  html,
+  body,
+  #root {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .page {
+    --game-header-height: 82px;
+    height: 100svh;
+    min-height: 0;
+    max-height: 100svh;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .page--boardFocus {
+    --game-header-height: 56px;
+  }
+
+  .page > .topbar {
+    padding: 5px clamp(7px, 2vw, 10px);
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 4px;
+    overflow: hidden;
+  }
+
+  .topbar .topbarPrimary,
+  .topbar .topbarSecondary {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: clamp(6px, 2vw, 10px);
+    font-size: clamp(11px, 2.8vw, 13px);
+    line-height: 1.2;
+  }
+
+  .topbar .topbarRow--player {
+    min-width: 0;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+  }
+
+  .topbar .topbarRow--metrics,
+  .debugToggle {
+    display: none !important;
+  }
+
+  .topbar .topbarName {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .topbar .turnTimer {
+    min-width: clamp(72px, 23vw, 88px);
+    height: 44px;
+    min-height: 44px;
+    max-height: 44px;
+    padding: 3px 7px 4px;
+  }
+
+  .topbar .turnTimerValue {
+    font-size: clamp(15px, 4vw, 18px);
+  }
+
+  .content,
+  .content--boardFocus {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    min-width: 0;
+    min-height: 0;
+    max-height: none;
+    padding: clamp(6px, 1.8vw, 10px);
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: clamp(6px, 1.5vw, 10px);
+    overflow: hidden;
+  }
+
+  .boardModeBtn {
+    box-sizing: border-box;
+    position: static;
+    width: 100%;
+    max-width: 100%;
+    min-height: 38px;
+    margin: 0;
+    padding: 8px 12px;
+    display: block;
+    flex: 0 0 auto;
+    font-size: clamp(12px, 3vw, 14px);
+  }
+
+  .content:not(.content--boardFocus) .boardWrap {
+    display: none;
+  }
+
+  .content:not(.content--boardFocus) .side {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    padding: 0;
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 6px;
+    overflow: hidden;
+  }
+
+  .content:not(.content--boardFocus) .side > .controlsSticky {
+    order: 1;
+    position: static;
+    width: 100%;
+    max-height: min(54svh, 27rem);
+    padding: 4px;
+    flex: 0 1 auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+
+  .content:not(.content--boardFocus) .side > .hud {
+    order: 2;
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    flex: 1 1 auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+
+  .controlsSticky .turnBox {
+    order: -1;
+  }
+
+  .content--boardFocus {
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    justify-items: stretch;
+    align-items: stretch;
+  }
+
+  .content--boardFocus .boardModeBtn {
+    grid-column: 1;
+    grid-row: 1;
+    width: min(100%, 420px);
+    justify-self: center;
+  }
+
+  .content--boardFocus .boardWrap,
+  .content--boardFocus .boardWrap--follow {
+    box-sizing: border-box;
+    position: static;
+    grid-column: 1;
+    grid-row: 2;
+    width: 100%;
+    max-width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    max-height: 100%;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    container-type: size;
+  }
+
+  .content--boardFocus .side {
+    display: none;
+  }
+
+  .page--boardFocus > .topbar {
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .page--boardFocus .topbarPrimary {
+    flex: 1 1 auto;
+    overflow: hidden;
+  }
+
+  .page--boardFocus .topbarSecondary {
+    width: auto;
+    flex: 0 0 auto;
+  }
+
+  .page--boardFocus .gameHostBadge,
+  .page--boardFocus .topbar .money {
+    display: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .page--boardFocus .sg40GameBoard .sg40Preview__tileLabel {
+    display: none;
+  }
+
+  .page--boardFocus .sg40GameBoard .sg40Preview__tile {
+    grid-template-rows: minmax(0, 1fr);
+    padding: 0.1rem 0.06rem;
+  }
+
+  .page--boardFocus .sg40GameBoard .sg40Preview__tileIconFrame {
+    place-items: center;
+  }
+}
+
+@media (max-width: 960px) and (orientation: landscape) {
+  .page,
+  .page--boardFocus {
+    --game-header-height: 44px;
+  }
+
+  .page > .topbar {
+    padding-block: 3px;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .topbar .topbarPrimary {
+    flex: 1 1 auto;
+    overflow: hidden;
+  }
+
+  .topbar .topbarSecondary {
+    width: auto;
+    flex: 0 0 auto;
+  }
+
+  .topbar .gameHostBadge,
+  .topbar .money,
+  .topbar .turnTimerTrack,
+  .topbar .turnTimerPauseHint {
+    display: none;
+  }
+
+  .topbar .turnTimer {
+    min-width: 62px;
+    height: 36px;
+    min-height: 36px;
+    max-height: 36px;
+    padding: 2px 6px;
+  }
+
+  .content:not(.content--boardFocus) .side {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 0.9fr);
+    grid-template-rows: minmax(0, 1fr);
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .content:not(.content--boardFocus) .side > .hud {
+    grid-column: 1;
+    grid-row: 1;
+    order: initial;
+    height: 100%;
+    max-height: 100%;
+  }
+
+  .content:not(.content--boardFocus) .side > .controlsSticky {
+    grid-column: 2;
+    grid-row: 1;
+    order: initial;
+    height: 100%;
+    max-height: 100%;
+  }
+
+  .controlsSticky .diceResult {
+    margin-bottom: 4px;
+    padding: 5px 7px;
+  }
+
+  .controlsSticky .diceResultHeader {
+    margin-bottom: 3px;
+  }
+
+  .controlsSticky .diceResultDie {
+    width: 34px;
+    height: 34px;
+  }
+
+  .controlsSticky .nextStepHint {
+    margin-bottom: 4px;
+    font-size: 11px;
+  }
+
+  .controlsSticky .controls {
+    padding: 5px;
+    gap: 4px;
+  }
+
+  .controlsSticky .btn {
+    min-height: 32px;
+    padding: 6px 8px;
+    font-size: 11px;
+  }
+}
+
+/* ===== Composicao definitiva da partida =====
+   Uma unica arvore visual: o tabuleiro permanece montado e visivel.
+   O tamanho do palco depende apenas do viewport, cabecalho, paddings e painel. */
+@media (max-width: 0px) {
+.page {
+  --game-header-height: clamp(52px, 5.5dvh, 60px);
+  --layout-gap: clamp(8px, 0.8vw, 16px);
+  --sidebar-min: clamp(300px, 25vw, 360px);
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  height: 100dvh;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: var(--game-header-height) minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.page > .topbar {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  height: var(--game-header-height);
+  min-height: var(--game-header-height);
+  max-height: var(--game-header-height);
+  overflow: hidden;
+}
+
+.content {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: clamp(8px, 0.8vw, 16px);
+  padding: clamp(8px, 0.8vw, 16px);
+  overflow: hidden;
+}
+
+.boardWrap {
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  width: auto;
+  max-width: calc(100vw - var(--sidebar-min) - 3 * var(--layout-gap));
+  height: calc(100dvh - var(--game-header-height) - 2 * var(--layout-gap));
+  min-width: 0;
+  min-height: 0;
+  max-height: 100%;
+  aspect-ratio: 4 / 3;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  overflow: visible;
+  container-type: size;
+}
+
+.page .content .boardWrap .sg40GameBoard,
+.boardWrap .sg40GameBoard {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  max-height: 100%;
+  aspect-ratio: 4 / 3;
+  flex: 0 0 auto;
+}
+
+.side {
+  box-sizing: border-box;
+  flex: 1 1 var(--sidebar-min);
+  width: auto;
+  min-width: var(--sidebar-min);
+  max-width: none;
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  padding: 0;
+  display: block;
+  overflow: visible;
+  container: game-sidebar / inline-size;
+}
+
+.sideContent {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: clamp(5px, 0.65dvh, 9px);
+  overflow: visible;
+}
+
+.side .hud,
+.side .controlsSticky,
+.side .hud .panel,
+.side .hud .score,
+.side .controls,
+.side .turnBox,
+.side .auxiliaryActions {
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 0;
+  max-height: none;
+  overflow: visible;
+  scrollbar-gutter: auto;
+}
+
+.side .controlsSticky {
+  position: static;
+  width: 100%;
+  height: auto;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.side .hud {
+  width: 100%;
+  height: auto;
+  display: grid;
+  grid-template-rows: auto auto;
+  gap: clamp(4px, 0.55dvh, 8px);
+}
+
+.side .hud .panel,
+.side .hud .score {
+  margin: 0;
+  padding: clamp(6px, 0.65dvh, 10px);
+}
+
+.side .hud .score .title {
+  margin: calc(-1 * clamp(6px, 0.65dvh, 10px));
+  margin-bottom: clamp(4px, 0.45dvh, 7px);
+  padding: clamp(5px, 0.6dvh, 8px) clamp(7px, 0.7vw, 11px);
+  font-size: clamp(15px, 1vw, 19px);
+  line-height: 1.15;
+}
+
+.hudMetricsPrimary,
+.hudMetricsSecondary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(2px, 0.3dvh, 5px) clamp(6px, 0.65vw, 10px);
+}
+
+.hudMetricsPrimary + .hudMetricsSecondary,
+.hudMetricsSecondary + .hudMetricsPrimary {
+  margin-top: clamp(3px, 0.4dvh, 6px);
+}
+
+.hudMetricsPrimary--capacity {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.side .hudMetric,
+.side .hud .line {
+  margin: 0;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px;
+  font-size: clamp(13px, 0.85vw, 16px);
+  line-height: 1.25;
+}
+
+.side .hudMetric--wide {
+  grid-column: 1 / -1;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+
+.side .hudMetric b,
+.side .scoreValues,
+.side .score .row > span:first-child {
+  min-width: 0;
+  overflow-wrap: normal;
+}
+
+.side .scorePatrimonioNote {
+  margin: 0 0 3px;
+  font-size: clamp(11px, 0.72vw, 13px);
+  line-height: 1.15;
+}
+
+.side .hud .score .row {
+  min-width: 0;
+  padding: clamp(4px, 0.48dvh, 7px) clamp(6px, 0.65vw, 10px);
+  gap: 6px;
+  font-size: clamp(12px, 0.78vw, 15px);
+  line-height: 1.2;
+}
+
+.side .scoreValues {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 2px 7px;
+  text-align: right;
+}
+
+.side .diceResult {
+  margin: 0 0 clamp(4px, 0.5dvh, 7px);
+  padding: clamp(5px, 0.6dvh, 9px) clamp(7px, 0.7vw, 11px);
+}
+
+.side .diceResultHeader {
+  margin-bottom: 3px;
+}
+
+.side .diceResultDie {
+  width: clamp(34px, 4.4dvh, 48px);
+  height: clamp(34px, 4.4dvh, 48px);
+}
+
+.side .nextStepHint {
+  margin: 0 0 clamp(4px, 0.5dvh, 7px);
+  padding: clamp(5px, 0.58dvh, 8px);
+  font-size: clamp(12px, 0.78vw, 15px);
+  line-height: 1.2;
+}
+
+.side .controls {
+  width: 100%;
+  padding: clamp(5px, 0.6dvh, 9px);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(4px, 0.5dvh, 7px);
+}
+
+.side .turnBox {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(120px, 1fr);
+  align-items: center;
+  gap: clamp(5px, 0.6vw, 9px);
+  font-size: clamp(13px, 0.85vw, 16px);
+}
+
+.side .btn {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: clamp(38px, 4.5dvh, 48px);
+  padding: clamp(7px, 0.8dvh, 11px) clamp(7px, 0.7vw, 11px);
+  font-size: clamp(13px, 0.9vw, 16px);
+  line-height: 1.15;
+  white-space: normal;
+}
+
+.auxiliaryActions {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(4px, 0.55vw, 8px);
+}
+
+.hudDetailsToggle,
+.mobilePortraitGuard,
+.boardModeBtn {
+  display: none !important;
+}
+
+@container game-sidebar (min-width: 500px) {
+  .sideContent {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  .side .hud {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+  }
+
+  .side .controlsSticky {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .side .auxiliaryActions {
+    grid-column: 2;
+    grid-row: 2;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 800px) {
+  .page {
+    --game-header-height: 44px;
+    --layout-gap: clamp(8px, 0.75vw, 12px);
+    height: 100svh;
+  }
+
+  .page > .topbar {
+    padding: 3px clamp(7px, 1vw, 11px);
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 7px;
+  }
+
+  .topbar .topbarPrimary {
+    flex: 1 1 auto;
+    overflow: hidden;
+  }
+
+  .topbar .topbarSecondary {
+    width: auto;
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+  }
+
+  .topbar .topbarRow--metrics,
+  .topbar .gameHostBadge,
+  .topbar .money,
+  .topbar .turnTimerTrack,
+  .topbar .turnTimerPauseHint,
+  .debugToggle {
+    display: none !important;
+  }
+
+  .topbar .turnTimer {
+    min-width: 60px;
+    height: 34px;
+    min-height: 34px;
+    max-height: 34px;
+    padding: 2px 5px;
+  }
+
+  .boardWrap {
+    width: auto;
+    height: calc(100svh - var(--game-header-height) - 2 * var(--layout-gap));
+  }
+
+  .sideContent {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 4px;
+  }
+
+  .side .hud {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    gap: 3px;
+  }
+
+  .side .controlsSticky {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .side .auxiliaryActions {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .side .hud .panel,
+  .side .hud .score,
+  .side .controls,
+  .side .diceResult,
+  .side .nextStepHint {
+    padding: 4px 5px;
+  }
+
+  .side .hudMetric,
+  .side .hud .line,
+  .side .hud .score .row,
+  .side .turnBox,
+  .side .btn {
+    font-size: clamp(11px, 1.15dvh, 13px);
+    line-height: 1.12;
+  }
+
+  .side .hud .score .title {
+    margin: -4px -5px 3px;
+    padding: 4px 5px;
+    font-size: clamp(13px, 1.5dvh, 16px);
+  }
+
+  .side .scorePatrimonioNote {
+    display: none;
+  }
+
+  .side .hud .score .row {
+    padding: 3px 4px;
+  }
+
+  .side .diceResult {
+    margin-bottom: 3px;
+  }
+
+  .side .diceResultDie {
+    width: clamp(28px, 8dvh, 36px);
+    height: clamp(28px, 8dvh, 36px);
+  }
+
+  .side .nextStepHint {
+    margin-bottom: 3px;
+  }
+
+  .side .controls {
+    gap: 3px;
+  }
+
+  .side .turnBox {
+    grid-template-columns: minmax(0, auto) minmax(92px, 1fr);
+    gap: 3px;
+  }
+
+  .side .btn {
+    min-height: clamp(28px, 7.5dvh, 34px);
+    padding: 4px 5px;
+  }
+}
+
+@container game-sidebar (max-width: 359px) {
+  .sideContent {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+  }
+
+  .side .controlsSticky,
+  .side .hud,
+  .side .auxiliaryActions {
+    grid-column: 1;
+    grid-row: auto;
+  }
+}
+
+@media (orientation: portrait) and (max-width: 768px) {
+  html:has(.page),
+  body:has(.page),
+  #root:has(.page) {
+    height: auto;
+    min-height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .page {
+    --game-header-height: 76px;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: auto;
+    min-height: 100svh;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .page > .topbar {
+    position: relative;
+    flex: 0 0 var(--game-header-height);
+    padding: 5px clamp(7px, 2vw, 10px);
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 4px;
+  }
+
+  .topbar .topbarPrimary,
+  .topbar .topbarSecondary {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: clamp(5px, 1.6vw, 8px);
+    font-size: clamp(11px, 2.8vw, 13px);
+    line-height: 1.15;
+  }
+
+  .topbar .topbarRow--player {
+    min-width: 0;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+  }
+
+  .topbar .topbarRow--metrics,
+  .topbar .gameHostBadge,
+  .debugToggle {
+    display: none !important;
+  }
+
+  .topbar .topbarName {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .topbar .turnTimer {
+    min-width: 72px;
+    height: 38px;
+    min-height: 38px;
+    max-height: 38px;
+    padding: 2px 6px;
+  }
+
+  .topbar .turnTimerTrack,
+  .topbar .turnTimerPauseHint {
+    display: none;
+  }
+
+  .content {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    min-width: 0;
+    min-height: 0;
+    max-height: none;
+    padding: clamp(6px, 2vw, 10px);
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: clamp(6px, 1.8vw, 10px);
+    overflow: visible;
+  }
+
+  .boardWrap {
+    box-sizing: border-box;
+    flex: 0 0 auto;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    min-width: 0;
+    min-height: 0;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    display: block;
+    overflow: visible;
+    container-type: inline-size;
+  }
+
+  .page .content .boardWrap .sg40GameBoard,
+  .boardWrap .sg40GameBoard {
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    max-height: none;
+    aspect-ratio: 4 / 3;
+  }
+
+  .side {
+    box-sizing: border-box;
+    flex: 0 0 auto;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    display: block;
+    overflow: visible;
+  }
+
+  .sideContent {
+    width: 100%;
+    height: auto;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(6px, 1.8vw, 10px);
+    overflow: visible;
+  }
+
+  .side .controlsSticky {
+    order: 1;
+  }
+
+  .side .hud {
+    order: 2;
+  }
+
+  .side .auxiliaryActions {
+    order: 3;
+  }
+
+  .side .hudMetricsPrimary,
+  .side .hudMetricsSecondary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .side .controlsSticky,
+  .side .hud,
+  .side .auxiliaryActions,
+  .side .hud .panel,
+  .side .hud .score,
+  .side .controls {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+}
+
+/* ===== Arquitetura responsiva canonica da partida ===== */
+html:has(.page) {
+  scrollbar-gutter: stable;
+}
+
+html:has(.page),
+body:has(.page),
+#root:has(.page) {
+  width: 100%;
+  max-width: 100%;
+  height: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.page {
+  --board-ratio: 4 / 3;
+  --game-header-height: clamp(52px, 5.5dvh, 60px);
+  --layout-gap: clamp(8px, 0.8vw, 16px);
+  --sidebar-min: clamp(320px, 25vw, 440px);
+  --usable-height: calc(100svh - var(--game-header-height) - 2 * var(--layout-gap));
+  --board-width: min(
+    calc(var(--usable-height) * 4 / 3),
+    calc(100vw - var(--sidebar-min) - 3 * var(--layout-gap))
+  );
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  height: 100svh;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: var(--game-header-height) minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.page > .topbar {
+  box-sizing: border-box;
+  width: 100%;
+  height: var(--game-header-height);
+  min-height: var(--game-header-height);
+  max-height: var(--game-header-height);
+  min-width: 0;
+  overflow: hidden;
+}
+
+.content {
+  box-sizing: border-box;
+  width: 100%;
+  height: calc(100svh - var(--game-header-height));
+  min-width: 0;
+  min-height: 0;
+  padding: var(--layout-gap);
+  display: grid;
+  grid-template-columns:
+    minmax(0, var(--board-width))
+    minmax(var(--sidebar-min), 1fr);
+  grid-template-rows: minmax(0, var(--usable-height));
+  gap: var(--layout-gap);
+  align-items: start;
+  justify-items: stretch;
+  overflow: hidden;
+}
+
+.boardWrap,
+.content:not(.content--boardFocus) .boardWrap {
+  box-sizing: border-box;
+  grid-column: 1;
+  width: 100%;
+  height: auto;
+  min-width: 0;
+  min-height: 0;
+  max-width: 100%;
+  max-height: 100%;
+  margin: 0;
+  padding: 0;
+  display: block;
+  justify-content: flex-start;
+  justify-items: start;
+  aspect-ratio: var(--board-ratio);
+  overflow: visible;
+}
+
+.page .content .boardWrap .sg40GameBoard,
+.boardWrap .sg40GameBoard {
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+  max-height: none;
+  aspect-ratio: var(--board-ratio);
+  flex: 0 0 auto;
+}
+
+.side,
+.content:not(.content--boardFocus) .side {
+  box-sizing: border-box;
+  grid-column: 2;
+  width: 100%;
+  height: var(--usable-height);
+  min-width: 0;
+  min-height: 0;
+  max-width: none;
+  max-height: var(--usable-height);
+  padding: 0;
+  display: block;
+  overflow: visible;
+  container: game-sidebar / inline-size;
+}
+
+.sideContent {
+  box-sizing: border-box;
+  width: 100%;
+  height: auto;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: clamp(5px, 0.65dvh, 9px);
+  overflow: visible;
+}
+
+.side .hud,
+.side .controlsSticky,
+.side .hud .panel,
+.side .hud .score,
+.side .controls,
+.side .turnBox,
+.side .auxiliaryActions,
+.game-stats-list,
+.game-stats-section {
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 0;
+  max-height: none;
+  overflow: visible;
+}
+
+.side .hud {
+  width: 100%;
+  height: auto;
+  display: grid;
+  grid-template-rows: auto auto;
+  align-content: start;
+  gap: clamp(4px, 0.55dvh, 8px);
+}
+
+.game-stats-card {
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  padding: clamp(5px, 0.55dvh, 9px);
+  align-self: start;
+}
+
+.game-stats-section + .game-stats-section {
+  margin-top: clamp(3px, 0.4dvh, 6px);
+}
+
+.game-stats-title {
+  margin: 0;
+  padding: 0 clamp(3px, 0.35vw, 6px) clamp(2px, 0.3dvh, 4px);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: clamp(12px, 0.78vw, 15px);
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.game-stats-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+}
+
+.game-stat-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: center;
+  gap: clamp(6px, 0.65vw, 12px);
+  min-width: 0;
+  padding: clamp(2px, 0.32dvh, 5px) clamp(4px, 0.45vw, 8px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  font-size: clamp(13px, 0.82vw, 16px);
+  line-height: 1.2;
+}
+
+.game-stat-row dt,
+.game-stat-row dd {
+  margin: 0;
+}
+
+.game-stat-row dt {
+  min-width: 0;
+  font-weight: 700;
+  overflow-wrap: normal;
+}
+
+.game-stat-row dd {
+  white-space: nowrap;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.game-stat-value--positive {
+  color: var(--green, #3ddc97);
+}
+
+.game-stat-value--negative {
+  color: var(--red, #ff637d);
+}
+
+.game-stat-value--neutral {
+  color: #fff;
+}
+
+.side .hud .score {
+  width: 100%;
+  height: auto;
+  margin: 0;
+  padding: clamp(5px, 0.55dvh, 9px);
+}
+
+.side .hud .score .title {
+  margin: calc(-1 * clamp(5px, 0.55dvh, 9px));
+  margin-bottom: clamp(3px, 0.4dvh, 6px);
+  padding: clamp(4px, 0.5dvh, 7px) clamp(6px, 0.65vw, 10px);
+  font-size: clamp(15px, 1vw, 19px);
+  line-height: 1.15;
+}
+
+.side .scorePatrimonioNote {
+  margin: 0 0 3px;
+  font-size: clamp(12px, 0.72vw, 13px);
+  line-height: 1.15;
+}
+
+.side .hud .score .row {
+  min-width: 0;
+  padding: clamp(3px, 0.4dvh, 6px) clamp(4px, 0.5vw, 8px);
+  gap: 6px;
+  font-size: clamp(12px, 0.78vw, 15px);
+  line-height: 1.15;
+}
+
+.side .scoreValues {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 2px 7px;
+  text-align: right;
+}
+
+.side .controlsSticky {
+  position: static;
+  width: 100%;
+  height: auto;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.side .diceResult {
+  margin: 0 0 clamp(4px, 0.5dvh, 7px);
+  padding: clamp(5px, 0.6dvh, 9px) clamp(7px, 0.7vw, 11px);
+}
+
+.side .diceResultHeader {
+  margin-bottom: 3px;
+}
+
+.side .diceResultDie {
+  width: clamp(34px, 4.4dvh, 48px);
+  height: clamp(34px, 4.4dvh, 48px);
+}
+
+.side .nextStepHint {
+  margin: 0 0 clamp(4px, 0.5dvh, 7px);
+  padding: clamp(5px, 0.58dvh, 8px);
+  font-size: clamp(12px, 0.78vw, 15px);
+  line-height: 1.2;
+}
+
+.side .controls {
+  width: 100%;
+  height: auto;
+  padding: clamp(5px, 0.6dvh, 9px);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(4px, 0.5dvh, 7px);
+}
+
+.side .turnBox {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(112px, 1fr);
+  align-items: center;
+  gap: clamp(5px, 0.6vw, 9px);
+  font-size: clamp(13px, 0.85vw, 16px);
+}
+
+.side .btn {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: clamp(38px, 4.5dvh, 48px);
+  padding: clamp(7px, 0.8dvh, 11px) clamp(7px, 0.7vw, 11px);
+  font-size: clamp(13px, 0.9vw, 16px);
+  line-height: 1.15;
+  white-space: normal;
+}
+
+.auxiliaryActions {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(4px, 0.55vw, 8px);
+}
+
+.hudDetailsToggle,
+.mobilePortraitGuard,
+.boardModeBtn {
+  display: none !important;
+}
+
+@container game-sidebar (min-width: 360px) {
+  .sideContent {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto auto;
+  }
+
+  .side .hud {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+  }
+
+  .side .controlsSticky {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .side .auxiliaryActions {
+    grid-column: 2;
+    grid-row: 2;
+  }
+}
+
+@container game-sidebar (min-width: 680px) {
+  .sideContent {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .side .hud {
+    grid-column: 1 / span 2;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto;
+  }
+
+  .side .controlsSticky,
+  .side .auxiliaryActions {
+    grid-column: 3;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 800px) {
+  .page {
+    --game-header-height: 44px;
+    --layout-gap: clamp(8px, 0.75vw, 12px);
+    --sidebar-min: clamp(320px, 34vw, 400px);
+  }
+
+  .page > .topbar {
+    padding: 3px clamp(7px, 1vw, 11px);
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 7px;
+  }
+
+  .topbar .topbarPrimary {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .topbar .topbarSecondary {
+    width: auto;
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+  }
+
+  .topbar .topbarRow--metrics,
+  .topbar .gameHostBadge,
+  .topbar .money,
+  .topbar .turnTimerTrack,
+  .topbar .turnTimerPauseHint,
+  .debugToggle {
+    display: none !important;
+  }
+
+  .topbar .turnTimer {
+    min-width: 60px;
+    height: 34px;
+    min-height: 34px;
+    max-height: 34px;
+    padding: 2px 5px;
+  }
+
+  .game-stats-card,
+  .side .hud .score,
+  .side .controls,
+  .side .diceResult,
+  .side .nextStepHint {
+    padding: 3px 4px;
+  }
+
+  .game-stats-section + .game-stats-section {
+    margin-top: 1px;
+  }
+
+  .game-stats-title {
+    padding: 0 2px 1px;
+    font-size: 12px;
+    line-height: 1;
+  }
+
+  .game-stat-row {
+    gap: 4px;
+    padding: 1px 3px;
+    font-size: 12px;
+    line-height: 1.05;
+  }
+
+  .side .hud {
+    gap: 3px;
+  }
+
+  .side .hud .score .title {
+    margin: -3px -4px 2px;
+    padding: 3px 4px;
+    font-size: 13px;
+  }
+
+  .side .scorePatrimonioNote {
+    display: none;
+  }
+
+  .side .hud .score .row {
+    padding: 2px 3px;
+    font-size: 12px;
+    line-height: 1.05;
+  }
+
+  .side .diceResult,
+  .side .nextStepHint {
+    margin-bottom: 2px;
+  }
+
+  .side .diceResultDie {
+    width: clamp(28px, 8dvh, 36px);
+    height: clamp(28px, 8dvh, 36px);
+  }
+
+  .side .controls {
+    gap: 3px;
+  }
+
+  .side .turnBox {
+    grid-template-columns: minmax(0, auto) minmax(88px, 1fr);
+    gap: 3px;
+    font-size: 12px;
+  }
+
+  .side .btn {
+    min-height: clamp(27px, 7.5dvh, 34px);
+    padding: 3px 4px;
+    font-size: 12px;
+    line-height: 1.05;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 600px) {
+  .page {
+    --sidebar-min: clamp(340px, 44vw, 430px);
+  }
+
+  .sideContent {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: auto auto auto;
+    gap: 3px;
+  }
+
+  .side .hud {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(105px, 1fr);
+    grid-template-rows: auto;
+    gap: 3px;
+  }
+
+  .game-stats-card {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-content: start;
+    gap: 1px 4px;
+  }
+
+  .game-stats-section + .game-stats-section {
+    margin-top: 0;
+  }
+
+  .side .controlsSticky {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 3px;
+  }
+
+  .side .diceResult,
+  .side .nextStepHint {
+    height: 100%;
+    margin: 0;
+  }
+
+  .side .controls {
+    grid-column: 1 / -1;
+  }
+
+  .side .auxiliaryActions {
+    grid-column: 1 / -1;
+    grid-row: 3;
+  }
+}
+
+@media (orientation: portrait) and (max-width: 1024px) {
+  html:has(.page),
+  body:has(.page),
+  #root:has(.page) {
+    height: auto;
+    min-height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .page {
+    --game-header-height: 76px;
+    width: 100%;
+    height: auto;
+    min-height: 100svh;
+    max-height: none;
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+  }
+
+  .page > .topbar {
+    position: relative;
+    flex: 0 0 var(--game-header-height);
+    padding: 5px clamp(7px, 2vw, 10px);
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 4px;
+  }
+
+  .topbar .topbarPrimary,
+  .topbar .topbarSecondary {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: clamp(5px, 1.6vw, 8px);
+    font-size: clamp(11px, 2.8vw, 13px);
+    line-height: 1.15;
+  }
+
+  .topbar .topbarRow--player {
+    min-width: 0;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+  }
+
+  .topbar .topbarRow--metrics,
+  .topbar .gameHostBadge,
+  .debugToggle {
+    display: none !important;
+  }
+
+  .topbar .topbarName {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .topbar .turnTimer {
+    min-width: 72px;
+    height: 38px;
+    min-height: 38px;
+    max-height: 38px;
+    padding: 2px 6px;
+  }
+
+  .topbar .turnTimerTrack,
+  .topbar .turnTimerPauseHint {
+    display: none;
+  }
+
+  .content {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    min-width: 0;
+    min-height: 0;
+    max-height: none;
+    padding: clamp(6px, 2vw, 10px);
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: clamp(6px, 1.8vw, 10px);
+    overflow: visible;
+  }
+
+  .boardWrap,
+  .content:not(.content--boardFocus) .boardWrap {
+    box-sizing: border-box;
+    flex: 0 0 auto;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    min-width: 0;
+    min-height: 0;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    display: block;
+    aspect-ratio: 4 / 3;
+    overflow: visible;
+  }
+
+  .page .content .boardWrap .sg40GameBoard,
+  .boardWrap .sg40GameBoard {
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    max-height: none;
+    aspect-ratio: 4 / 3;
+  }
+
+  .side,
+  .content:not(.content--boardFocus) .side {
+    box-sizing: border-box;
+    flex: 0 0 auto;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    display: block;
+    overflow: visible;
+  }
+
+  .sideContent {
+    width: 100%;
+    height: auto;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(6px, 1.8vw, 10px);
+    overflow: visible;
+  }
+
+  .side .controlsSticky {
+    order: 1;
+  }
+
+  .side .hud {
+    order: 2;
+  }
+
+  .side .auxiliaryActions {
+    order: 3;
+  }
+
+  .side .controlsSticky,
+  .side .hud,
+  .side .auxiliaryActions,
+  .side .hud .panel,
+  .side .hud .score,
+  .side .controls,
+  .game-stats-list {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+@media (orientation: portrait) and (max-width: 599px) {
+  .boardWrap,
+  .content:not(.content--boardFocus) .boardWrap {
+    aspect-ratio: 8 / 14;
+  }
+
+  .page .content .boardWrap .sg40GameBoard,
+  .boardWrap .sg40GameBoard {
+    aspect-ratio: 8 / 14;
+  }
+}
+
+@media (max-width: 0px) {
+@media (max-width: 560px) {
+  .sg40GameBoard .sg40Preview__tileLabel {
+    display: none;
+  }
+
+  .sg40GameBoard .sg40Preview__tile {
+    grid-template-rows: minmax(0, 1fr);
+    padding: 0.1rem 0.06rem;
+  }
+
+  .sg40GameBoard .sg40Preview__tileIconFrame {
+    place-items: center;
+  }
+}
+
+/* Neutraliza os seletores mais especificos do antigo modo exclusivo.
+   A classe content--boardFocus nao e mais produzida pelo React. */
+@media (max-width: 960px) {
+  .content:not(.content--boardFocus) .boardWrap {
+    display: flex;
+  }
+
+  .content:not(.content--boardFocus) .side {
+    box-sizing: border-box;
+    flex: 1 1 var(--sidebar-min);
+    width: auto;
+    min-width: var(--sidebar-min);
+    max-width: none;
+    height: 100%;
+    min-height: 0;
+    max-height: 100%;
+    padding: 0;
+    display: block;
+    overflow: visible;
+  }
+}
+
+@media (orientation: portrait) and (max-width: 768px) {
+  .content:not(.content--boardFocus) .boardWrap {
+    flex: 0 0 auto;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    max-height: none;
+    display: block;
+  }
+
+  .content:not(.content--boardFocus) .side {
+    flex: 0 0 auto;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    height: auto;
+    max-height: none;
+    display: block;
+    overflow: visible;
+  }
+}
+
+}

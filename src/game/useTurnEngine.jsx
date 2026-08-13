@@ -1,8 +1,9 @@
 // src/game/useTurnEngine.jsx
 import React from 'react'
 
-// Pista
-import { TRACK_LEN } from '../data/track'
+// Pista versionada
+import { getBoardDefinition, resolveBoardVersion } from '../data/boardVersions.js'
+import { getTileType } from './domain/tiles.js'
 
 import { DEFAULT_MAX_ROUNDS, normalizeMaxRounds } from './roundConfig'
 import { planOfflineTurnSkip } from './offlineTurnSkip.js'
@@ -151,9 +152,14 @@ export function useTurnEngine({
   turnSeq = 0,
   setTurnSeq,
   maxRounds: maxRoundsProp,
+  boardVersion,
 }) {
   const DEBUG_LOGS = import.meta.env.DEV && localStorage.getItem('SG_DEBUG_LOGS') === '1'
   const MAX_ROUNDS = normalizeMaxRounds(maxRoundsProp, DEFAULT_MAX_ROUNDS)
+  const resolvedBoardVersion = resolveBoardVersion(boardVersion)
+  const boardDefinition = getBoardDefinition(resolvedBoardVersion)
+  const trackLen = boardDefinition.trackLen
+  const expensesIndex = boardDefinition.expensesIndex
   // ===== Modais =====
   // ✅ Hooks devem ser chamados sempre (evita React #310).
   // O app é envolvido por <ModalProvider>, então useModal() deve existir.
@@ -1159,12 +1165,12 @@ export function useTurnEngine({
     }
 
     const oldPos = cur.pos
-    const newPos = (oldPos + steps) % TRACK_LEN
+    const newPos = (oldPos + steps) % trackLen
     const lap = newPos < oldPos
     
     // ✅ CORREÇÃO CRÍTICA: Detecta volta completa e incrementa rodada individual do jogador
     // NOTA: A rodada geral só incrementa quando TODOS passam pela casa 0, mas aqui detectamos volta completa
-    const completedLap = lap && oldPos >= TRACK_LEN - 1  // Se estava na última casa e deu volta
+    const completedLap = lap && oldPos >= trackLen - 1  // Se estava na última casa e deu volta
 
     console.log('[DEBUG] 🚶 MOVIMENTO - De posição:', oldPos, 'Para posição:', newPos, 'Steps:', steps, 'Lap:', lap, 'CompletedLap:', completedLap)
 
@@ -1411,8 +1417,9 @@ export function useTurnEngine({
     // ✅ CORREÇÃO: Finalização por rodada será detectada no tick() quando shouldIncrementRound && nextRound > MAX_ROUNDS
 
     const landedOneBased = newPos + 1
+    const landedTileType = getTileType(landedOneBased, resolvedBoardVersion)
     const crossedStart1 = crossedTile(oldPos, newPos, 0)
-    const crossedExpenses23 = crossedTile(oldPos, newPos, 22)
+    const crossedExpenses23 = crossedTile(oldPos, newPos, expensesIndex)
 
     // ================== Regras por casas (modais) ==================
 
@@ -1421,23 +1428,23 @@ export function useTurnEngine({
 
     // ✅ CORREÇÃO: Definindo flags de tiles ANTES das IIFEs para poder usar shouldProcessPurchaseInQueue
     // ERP
-    const isErpTile = (landedOneBased === 6 || landedOneBased === 16 || landedOneBased === 32 || landedOneBased === 49)
+    const isErpTile = landedTileType === 'ERP'
     // Treinamento
-    const isTrainingTile = (landedOneBased === 2 || landedOneBased === 11 || landedOneBased === 19 || landedOneBased === 47)
+    const isTrainingTile = landedTileType === 'TRAINING'
     // Compra direta (menu)
-    const isDirectBuyTile = (landedOneBased === 5 || landedOneBased === 10 || landedOneBased === 43)
+    const isDirectBuyTile = landedTileType === 'DIRECT_BUY'
     // Inside Sales (casa específica)
-    const isInsideTile = (landedOneBased === 12 || landedOneBased === 21 || landedOneBased === 30 || landedOneBased === 42 || landedOneBased === 53)
+    const isInsideTile = landedTileType === 'INSIDE'
     // Clientes
-    const isClientsTile = [4,8,15,17,20,27,34,36,39,46,52,55].includes(landedOneBased)
+    const isClientsTile = landedTileType === 'CLIENTS'
     // Gestor
-    const isManagerTile = [18,24,29,51].includes(landedOneBased)
+    const isManagerTile = landedTileType === 'MANAGER'
     // Field Sales
-    const isFieldTile = [13,25,33,38,50].includes(landedOneBased)
+    const isFieldTile = landedTileType === 'FIELD'
     // Vendedores Comuns
-    const isCommonSellersTile = [9,28,40,45].includes(landedOneBased)
+    const isCommonSellersTile = landedTileType === 'COMMON'
     // Mix de Produtos
-    const isMixTile = [7,31,44].includes(landedOneBased)
+    const isMixTile = landedTileType === 'MIX'
     
     // ✅ CORREÇÃO: Detecta se há eventos de passagem que afetam o saldo
     const hasPassageEvents = crossedStart1 || crossedExpenses23
@@ -1955,7 +1962,7 @@ export function useTurnEngine({
 
     // ====== EVENTOS SEQUENCIAIS POR ROLL (sem IIFEs concorrentes) ======
     // Ordem garantida: eventos cruzados (Faturamento/Despesas/Empréstimo) -> evento da casa final (Sorte & Revés)
-    const isLuckMisfortuneTile = [3,14,22,26,35,41,48,54].includes(landedOneBased)
+    const isLuckMisfortuneTile = landedTileType === 'LUCK'
     const canRunSequenced = isMyTurn && !!pushModal && !!awaitTop
 
     const shouldRunSequenced = crossedStart1 || crossedExpenses23 || isLuckMisfortuneTile || shouldProcessPurchaseInQueue
@@ -1973,11 +1980,11 @@ export function useTurnEngine({
       
       if (crossedStart1 && !td._once.faturamento) {
         td._once.faturamento = true
-        events.push({ type: 'REVENUE', at: forwardDist(oldPos, 0, TRACK_LEN) })
+        events.push({ type: 'REVENUE', at: forwardDist(oldPos, boardDefinition.revenueIndex, trackLen) })
       }
       if (crossedExpenses23 && !td._once.expenses23) {
         td._once.expenses23 = true
-        events.push({ type: 'EXPENSES', at: forwardDist(oldPos, 22, TRACK_LEN) })
+        events.push({ type: 'EXPENSES', at: forwardDist(oldPos, expensesIndex, trackLen) })
       }
       if (isLuckMisfortuneTile && !td._once.luck) {
         td._once.luck = true
@@ -3008,7 +3015,8 @@ export function useTurnEngine({
     appendLog, broadcastState,
     setPlayers, setRound, setTurnIdx, setRoundFlags,
     setTurnLockBroadcast, requireFunds, maybeFinishGame,
-    pushModal, awaitTop, closeTop
+    pushModal, awaitTop, closeTop,
+    resolvedBoardVersion, trackLen, expensesIndex, boardDefinition
   ])
 
   // ========= handlers menores =========
@@ -3190,7 +3198,11 @@ export function useTurnEngine({
             turnLock: !!turnLock,
             lockOwner,
           }
-          const { nextState, events } = reduceGame(snapshot, { type: 'ROLL', steps: act.steps }, { myUid, trackLen: TRACK_LEN })
+          const { nextState, events } = reduceGame(snapshot, { type: 'ROLL', steps: act.steps }, {
+            myUid,
+            boardVersion: resolvedBoardVersion,
+            trackLen,
+          })
           if (nextState?.players) setPlayers(nextState.players)
           // efeitos noop seguros nesta etapa (não abre modal nem commita)
           runEvents(events, { logger: console })
@@ -3789,6 +3801,7 @@ export function useTurnEngine({
     requireFunds, pushModal, awaitTop, closeTop, setShowBankruptOverlay,
     commitLocalPlayers, commitLocalMeta,
     decideEndgameAfterBankruptcy,
+    resolvedBoardVersion, trackLen,
   ])
 
   // ====== auto-unlock removido ======
