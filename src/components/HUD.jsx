@@ -2,7 +2,9 @@ import React, { useEffect, useMemo } from 'react'
 import { rankPlayersByPatrimonio } from '../game/patrimonio.js'
 import { buildGameStatSections } from './gameStats.js'
 
-const DEBUG_LOGS = import.meta.env.DEV && localStorage.getItem('SG_DEBUG_LOGS') === '1'
+import { isDebugLogsEnabled } from '../game/debugFlags.js'
+
+const DEBUG_LOGS = isDebugLogsEnabled()
 
 function formatMoney(value) {
   return Number(value || 0).toLocaleString('pt-BR')

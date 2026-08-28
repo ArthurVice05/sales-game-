@@ -1,7 +1,8 @@
 // src/components/Controls.jsx
 import React, { useEffect } from 'react'
+import { isDebugLogsEnabled } from '../game/debugFlags.js'
 
-const DEBUG_LOGS = import.meta.env.DEV && localStorage.getItem('SG_DEBUG_LOGS') === '1'
+const DEBUG_LOGS = isDebugLogsEnabled()
 
 export default function Controls({
   onAction,

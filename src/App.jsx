@@ -84,6 +84,7 @@ import {
   resolveBoardVersion,
 } from './data/boardVersions.js'
 import { DEFAULT_MAX_ROUNDS, normalizeMaxRounds } from './game/roundConfig'
+import { isDebugLogsEnabled, isDevVerbose, isVercelDebugEnabled } from './game/debugFlags.js'
 import { formatRoundProgress } from './game/roundDisplay.js'
 import { normalizePlayersAliases } from './game/playerShape.js'
 import { consumeTileTip } from './game/progressiveTips.js'
@@ -148,7 +149,7 @@ function normalizeLastRoll(value) {
 }
 
 export default function App() {
-  const DEBUG_LOGS = import.meta.env.DEV && localStorage.getItem('SG_DEBUG_LOGS') === '1'
+  const DEBUG_LOGS = isDebugLogsEnabled()
   const DEBUG_VALIDATE = import.meta.env.DEV && localStorage.getItem('SALES_DEBUG_VALIDATE') === '1'
 
   // Comparação rápida (sem deep compare / sem JSON.stringify) para reduzir custo no hot-path
@@ -1091,7 +1092,7 @@ export default function App() {
           if (isSkipAttempt) {
             releaseSharedSkipKey(expectTurnId, expectTurnSeq)
           }
-          if (import.meta.env.DEV) {
+          if (isDevVerbose()) {
             console.log('[commit] rejected:', commitValidation.reason, commitValidation)
           }
           return prevState
@@ -1217,12 +1218,12 @@ export default function App() {
         })
         if (guardAction.action === 'release') {
           releaseSharedSkipKey(expectTurnId, expectTurnSeq)
-          if (import.meta.env.DEV) {
+          if (isDevVerbose()) {
             console.log('[auto-skip] CAS/commit failed — skip key released')
           }
         } else if (guardAction.action === 'confirm') {
           confirmSharedSkipKey(expectTurnId, expectTurnSeq)
-          if (import.meta.env.DEV) console.log('[auto-skip] CAS confirmed')
+          if (isDevVerbose()) console.log('[auto-skip] CAS confirmed')
         }
         resolve({ ok: !casLost && !!commitResult?.ok })
       } catch (e) {
@@ -2993,7 +2994,7 @@ export default function App() {
             <button onClick={() => {
               // NÃO clearMatchIdentity aqui: voltar da tela de loading NÃO é abandonar a partida.
               // Apagar a identidade impede "Reentrar" no card locked.
-              if (import.meta.env.DEV) {
+              if (isDevVerbose()) {
                 console.log('[resume] back-to-lobbies from loading (identity preserved)')
               }
               window.__setRoomCode?.(null)

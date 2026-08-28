@@ -11,7 +11,9 @@ export const useGameNet = () => {
   return useContext(Ctx)
 }
 
-const DEV_NET_LOGS = import.meta.env.DEV
+import { isDevVerbose } from '../game/debugFlags.js'
+
+const DEV_NET_LOGS = isDevVerbose()
 const LOOKUP_BACKOFF_MS = [250, 500, 1000]
 
 function netLog(tag, payload) {

@@ -26,7 +26,9 @@ import {
 import { turnAttemptKey } from './turnTimerLogic.js'
 import { shouldAttemptPresenceAutoSkip } from './presenceSkipLogic.js'
 
-const DEV = !!import.meta.env.DEV
+import { isDevVerbose } from './debugFlags.js'
+
+const DEV = isDevVerbose()
 
 function devLog(...args) {
   if (DEV) console.log(...args)

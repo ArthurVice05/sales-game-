@@ -7,6 +7,8 @@ import GameNetProvider from './net/GameNetProvider.jsx'
 // ✅ importa só o Provider (sem ModalRoot)
 import { ModalProvider } from './modals/ModalContext'
 
+import { isVercelDebugEnabled } from './game/debugFlags.js'
+
 // ✅ Funções globais para export de logs
 import {
   exportFullDebugReport,
@@ -43,6 +45,13 @@ function Root() {
       window.history.replaceState({}, '', url)
     }
     return () => { delete window.__setRoomCode }
+  }, [])
+
+  // Auto-ativa captura quando VITE_SG_DEBUG_LOGS=1 (Vercel)
+  React.useEffect(() => {
+    if (!isVercelDebugEnabled()) return
+    logCapture.enable()
+    console.log('[SG] logCapture auto-ativo (VITE_SG_DEBUG_LOGS=1)')
   }, [])
 
   // ✅ Expõe funções globais para export de logs

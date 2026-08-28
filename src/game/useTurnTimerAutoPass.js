@@ -22,7 +22,9 @@ import {
   wasAlreadySkipped,
 } from './sharedTurnSkipGuard.js'
 
-const DEV = !!import.meta.env.DEV
+import { isDevVerbose } from './debugFlags.js'
+
+const DEV = isDevVerbose()
 const POLL_MS = 500
 
 function shouldArmCoordinatorTimer({ remainingMs, turnDeadlineAt } = {}) {

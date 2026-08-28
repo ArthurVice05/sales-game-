@@ -84,6 +84,7 @@ import { buildErpPurchaseDeltas } from './erpPurchase'
 import { buildMixPurchaseDeltas } from './productMixPurchase'
 import { setCashAuditContext } from '../debug/cashAudit'
 import { mkCashMeta } from '../debug/cashMeta'
+import { isDebugLogsEnabled } from './debugFlags.js'
 
 // ===== Engine V2 (refactor incremental) =====
 // IMPORTANTE:
@@ -155,8 +156,7 @@ export function useTurnEngine({
   boardVersion,
   onTileVisit = null,
 }) {
-  const DEBUG_LOGS = import.meta.env.DEV && localStorage.getItem('SG_DEBUG_LOGS') === '1'
-  const MAX_ROUNDS = normalizeMaxRounds(maxRoundsProp, DEFAULT_MAX_ROUNDS)
+  const DEBUG_LOGS = isDebugLogsEnabled()
   const resolvedBoardVersion = resolveBoardVersion(boardVersion)
   const boardDefinition = getBoardDefinition(resolvedBoardVersion)
   const trackLen = boardDefinition.trackLen
