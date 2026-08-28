@@ -61,11 +61,55 @@ export function sanitizeTurnDeadlineOnHandoff({
   return current
 }
 
+export function resolveTurnDeadlineAfterHandoff({
+  prevTurnPlayerId,
+  prevTurnSeq,
+  nextTurnPlayerId,
+  nextTurnSeq,
+  incomingDeadlineAt,
+  currentDeadlineAt,
+  now = Date.now(),
+  turnTimeSec,
+  hasIncomingDeadline = false,
+} = {}) {
+  const handedOff =
+    String(prevTurnPlayerId ?? '') !== String(nextTurnPlayerId ?? '') ||
+    (Number(prevTurnSeq) || 0) !== (Number(nextTurnSeq) || 0)
+
+  let base = Number(currentDeadlineAt)
+  if (hasIncomingDeadline) {
+    const incoming = Number(incomingDeadlineAt)
+    base = Number.isFinite(incoming) ? incoming : NaN
+  }
+  if (!Number.isFinite(base)) {
+    base = computeTurnDeadlineAt(now, turnTimeSec)
+  }
+
+  if (!handedOff) return base
+
+  return sanitizeTurnDeadlineOnHandoff({
+    prevTurnPlayerId,
+    nextTurnPlayerId,
+    prevTurnSeq,
+    nextTurnSeq,
+    currentDeadlineAt: base,
+    now,
+    turnTimeSec,
+  })
+}
+
 export function shouldArmTimerSkipForTurn({
   remainingMs,
   minRemainingMs = TURN_HANDOFF_STALE_REMAINING_MS,
 } = {}) {
   return Number(remainingMs) >= Number(minRemainingMs)
+}
+
+export function shouldArmCoordinatorTimer({ remainingMs, turnDeadlineAt } = {}) {
+  if (shouldArmTimerSkipForTurn({ remainingMs })) return true
+  const deadline = Number(turnDeadlineAt)
+  if (!Number.isFinite(deadline)) return false
+  return Number(remainingMs) < TURN_HANDOFF_STALE_REMAINING_MS
 }
 
 /**

@@ -6,8 +6,8 @@ import { listLobbyPresence } from '../lib/lobbies.js'
 import { resolveTurnSkipAuthority } from './canonicalPresence.js'
 import {
   remainingTurnMs,
-  shouldArmTimerSkipForTurn,
   shouldAttemptTimerAutoPass,
+  shouldArmCoordinatorTimer,
   TURN_HANDOFF_STALE_REMAINING_MS,
 } from './turnTimerLogic.js'
 import { shouldProceedTimerAutoPassAfterAwait } from './turnCommitValidation.js'
@@ -26,13 +26,6 @@ import { isDevVerbose } from './debugFlags.js'
 
 const DEV = isDevVerbose()
 const POLL_MS = 500
-
-function shouldArmCoordinatorTimer({ remainingMs, turnDeadlineAt } = {}) {
-  if (shouldArmTimerSkipForTurn({ remainingMs })) return true
-  const deadline = Number(turnDeadlineAt)
-  if (!Number.isFinite(deadline)) return false
-  return Number(remainingMs) < TURN_HANDOFF_STALE_REMAINING_MS
-}
 
 function devLog(...args) {
   if (DEV) console.log(...args)

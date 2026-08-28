@@ -61,7 +61,7 @@ import {
   DEFAULT_TURN_TIME_SEC,
   normalizeTurnTime,
 } from './game/turnTimeConfig.js'
-import { computeTurnDeadlineAt, sanitizeTurnDeadlineOnHandoff } from './game/turnTimerLogic.js'
+import { computeTurnDeadlineAt, sanitizeTurnDeadlineOnHandoff, resolveTurnDeadlineAfterHandoff } from './game/turnTimerLogic.js'
 import { validateTurnCommit, stripCommitMeta, inferCommitKind, resolveSkipGuardAction } from './game/turnCommitValidation.js'
 import {
   shouldApplyDeferredLocalPatch,
@@ -975,13 +975,12 @@ export default function App() {
   const netState = net?.state
   const netStateId = net?.stateId
 
-  // Handoff offline: sanitize local. Multiplayer: deadline autoritativo via snapshot/broadcastState.
+  // Handoff: sanitize deadline quando identidade de turno muda (local + multiplayer).
   useEffect(() => {
     const prev = prevTurnIdentityRef.current
     const nextId = turnPlayerId != null ? String(turnPlayerId) : ''
     const nextSeq = Number(turnSeq) || 0
     prevTurnIdentityRef.current = { id: nextId, seq: nextSeq }
-    if (net?.enabled) return
 
     const sanitized = sanitizeTurnDeadlineOnHandoff({
       prevTurnPlayerId: prev.id,
@@ -996,7 +995,7 @@ export default function App() {
       setTurnDeadlineAt(Number(sanitized))
       turnDeadlineAtRef.current = Number(sanitized)
     }
-  }, [turnPlayerId, turnSeq, net?.enabled])
+  }, [turnPlayerId, turnSeq])
 
   // ====== "é minha vez?" (ÚNICA fonte: turnPlayerId) ======
   const isMyTurn = useMemo(() => {
@@ -1464,19 +1463,47 @@ export default function App() {
       setTurnTimeSec(DEFAULT_TURN_TIME_SEC)
     }
 
-    if (Object.prototype.hasOwnProperty.call(incomingNetState, 'turnDeadlineAt')) {
-      const d = Number(incomingNetState.turnDeadlineAt)
-      if (Number.isFinite(d)) setTurnDeadlineAt(d)
-      else if (incomingNetState.turnDeadlineAt == null) setTurnDeadlineAt(null)
-    } else if (isStartState) {
-      setTurnDeadlineAt(
-        computeTurnDeadlineAt(
-          Date.now(),
-          Object.prototype.hasOwnProperty.call(incomingNetState, 'turnTimeSec')
-            ? normalizeTurnTime(incomingNetState.turnTimeSec)
-            : turnTimeSecRef.current
-        )
-      )
+    const prevTurnId = String(turnPlayerIdRef.current ?? turnPlayerId ?? '')
+    const prevTurnSeqNum = Number(turnSeqRef.current ?? turnSeq ?? 0)
+    const nextTurnId = incomingTurnId ?? prevTurnId
+    const nextTurnSeq = typeof incomingNetState.turnSeq === 'number'
+      ? Number(incomingNetState.turnSeq)
+      : prevTurnSeqNum
+    const identityChanged =
+      nextTurnId !== prevTurnId || nextTurnSeq !== prevTurnSeqNum
+    const turnTimeForDeadline = Object.prototype.hasOwnProperty.call(incomingNetState, 'turnTimeSec')
+      ? normalizeTurnTime(incomingNetState.turnTimeSec)
+      : turnTimeSecRef.current
+    const hasIncomingDeadline = Object.prototype.hasOwnProperty.call(incomingNetState, 'turnDeadlineAt')
+    const incomingDeadlineRaw = hasIncomingDeadline ? incomingNetState.turnDeadlineAt : undefined
+
+    let resolvedDeadline
+    if (isStartState && !hasIncomingDeadline) {
+      resolvedDeadline = computeTurnDeadlineAt(Date.now(), turnTimeForDeadline)
+    } else {
+      resolvedDeadline = resolveTurnDeadlineAfterHandoff({
+        prevTurnPlayerId: prevTurnId,
+        prevTurnSeq: prevTurnSeqNum,
+        nextTurnPlayerId: nextTurnId,
+        nextTurnSeq: nextTurnSeq,
+        incomingDeadlineAt: incomingDeadlineRaw,
+        currentDeadlineAt: turnDeadlineAtRef.current,
+        now: Date.now(),
+        turnTimeSec: turnTimeForDeadline,
+        hasIncomingDeadline,
+      })
+    }
+
+    if (Number.isFinite(Number(resolvedDeadline))) {
+      setTurnDeadlineAt(Number(resolvedDeadline))
+      turnDeadlineAtRef.current = Number(resolvedDeadline)
+    } else if (hasIncomingDeadline && incomingDeadlineRaw == null) {
+      setTurnDeadlineAt(null)
+      turnDeadlineAtRef.current = null
+    } else if (identityChanged && !Number.isFinite(Number(resolvedDeadline))) {
+      const fresh = computeTurnDeadlineAt(Date.now(), turnTimeForDeadline)
+      setTurnDeadlineAt(fresh)
+      turnDeadlineAtRef.current = fresh
     }
 
     // --- roundFlags ---
