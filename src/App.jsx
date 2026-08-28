@@ -84,6 +84,7 @@ import {
   resolveBoardVersion,
 } from './data/boardVersions.js'
 import { DEFAULT_MAX_ROUNDS, normalizeMaxRounds } from './game/roundConfig'
+import { formatRoundProgress } from './game/roundDisplay.js'
 import { normalizePlayersAliases } from './game/playerShape.js'
 import { consumeTileTip } from './game/progressiveTips.js'
 import { MANUAL_CONSTANTS } from './game/manualConstants.js'
@@ -3052,7 +3053,7 @@ export default function App() {
         </div>
 
         <div className="status topbarSecondary">
-          <span>Rodada: {round}/{maxRounds}</span>
+          <span>Rodada: {formatRoundProgress(round, maxRounds, gameOver).label}</span>
           <TurnTimer
             turnDeadlineAt={turnDeadlineAt}
             turnTimeSec={turnTimeSec}

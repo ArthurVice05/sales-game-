@@ -243,6 +243,13 @@ test('pt8b motor usa loanCycle (wiring)', () => {
   assert.match(eng, /currentRound:\s*currentRoundRef\.current/)
 })
 
+test('pt10 HUD rodadas: início 0/N (motor round=1)', () => {
+  const mod = read('src/game/roundDisplay.js')
+  assert.match(mod, /formatRoundProgress/)
+  const app = read('src/App.jsx')
+  assert.match(app, /formatRoundProgress\(round, maxRounds, gameOver\)/)
+})
+
 test('pt9 skip de turno não corta o dado 3D', () => {
   const eng = read('src/game/useTurnEngine.jsx')
   assert.match(eng, /shouldRejectAbsentTurnSkip/)
