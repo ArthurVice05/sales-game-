@@ -157,6 +157,7 @@ export function useTurnEngine({
   onTileVisit = null,
 }) {
   const DEBUG_LOGS = isDebugLogsEnabled()
+  const MAX_ROUNDS = normalizeMaxRounds(maxRoundsProp, DEFAULT_MAX_ROUNDS)
   const resolvedBoardVersion = resolveBoardVersion(boardVersion)
   const boardDefinition = getBoardDefinition(resolvedBoardVersion)
   const trackLen = boardDefinition.trackLen
