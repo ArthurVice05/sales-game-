@@ -6052,12 +6052,18 @@ img[src*="multiplier"]{
   }
 
   .page {
+    width: 100%;
+    max-width: 100%;
     height: 100dvh;
     max-height: 100dvh;
+    min-width: 0;
     min-height: 0;
     overflow: hidden;
-    padding-bottom: env(safe-area-inset-bottom, 0px);
     box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-left: env(safe-area-inset-left, 0px);
   }
 
   /* .foot: chip fixo — regras em bloco .foot acima (não esconder crédito) */
@@ -6106,6 +6112,9 @@ img[src*="multiplier"]{
   .content--boardFocus {
     position: relative;
     flex: 1 1 auto;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     min-height: 0;
     height: auto !important;
     max-height: none;
@@ -6218,6 +6227,7 @@ img[src*="multiplier"]{
     --side-w: 100%;
     grid-column: 2;
     grid-row: 1;
+    box-sizing: border-box;
     width: 100% !important;
     max-width: 100% !important;
     height: 100% !important;
@@ -6434,10 +6444,14 @@ img[src*="multiplier"]{
   .sideQuickActions,
   .turnPrimaryActions .sideQuickActions {
     display: grid !important;
-    grid-template-columns: 1fr 1fr !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     gap: 4px !important;
     flex: 0 0 auto !important;
     flex-shrink: 0 !important;
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
     min-height: 68px !important;
     height: auto !important;
     max-height: none !important;
@@ -6446,6 +6460,10 @@ img[src*="multiplier"]{
     visibility: visible !important;
   }
   .sideQuickActions .btn {
+    box-sizing: border-box;
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
     min-height: 32px !important;
     height: auto !important;
     max-height: none !important;
@@ -6453,6 +6471,8 @@ img[src*="multiplier"]{
     font-size: 10px !important;
     line-height: 1.15 !important;
     white-space: normal !important;
+    overflow-wrap: anywhere;
+    word-break: break-word;
     opacity: 1 !important;
     visibility: visible !important;
   }
@@ -6557,10 +6577,13 @@ img[src*="multiplier"]{
   }
 
   html.sg-ios .page {
+    width: var(--sg-vv-width, 100%);
+    max-width: var(--sg-vv-width, 100%);
     height: var(--sg-vv-height, 100dvh);
     max-height: var(--sg-vv-height, 100dvh);
+    min-width: 0;
     min-height: 0;
-    /* offsetTop: quando a chrome do Safari “empurra” o visual viewport */
+    /* offsetTop/Left: chrome do Safari; largura já é a do visualViewport */
     margin-top: var(--sg-vv-offset-top, 0px);
     margin-left: var(--sg-vv-offset-left, 0px);
     padding-top: max(2px, env(safe-area-inset-top, 0px));

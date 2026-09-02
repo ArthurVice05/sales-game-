@@ -225,9 +225,10 @@ describe('sidebar player summary layout', () => {
       css,
       /@media \(max-width:\s*960px\) and \(orientation:\s*landscape\) and \(pointer:\s*coarse\)/,
     )
-    const marker = css.indexOf('/* ====== Mobile landscape (touch): tabuleiro em prioridade')
+    const marker = css.lastIndexOf('/* ====== Mobile landscape (touch): tabuleiro em prioridade')
     assert.ok(marker >= 0, 'bloco board-first deve existir')
-    const block = css.slice(marker, marker + 14000)
+    const iosMarker = css.indexOf('/* ====== iOS / WebKit ONLY', marker)
+    const block = css.slice(marker, iosMarker > marker ? iosMarker : marker + 14000)
     assert.match(block, /grid-template-columns:\s*minmax\(0,\s*1fr\)\s*minmax\(136px,\s*20%\)/)
     assert.match(block, /container-type:\s*size/)
     assert.match(block, /height:\s*100cqh\s*!important/)
@@ -238,6 +239,30 @@ describe('sidebar player summary layout', () => {
     assert.match(block, /hudSheetBackdrop/)
     assert.match(block, /\.side\s*>\s*\.hud--inline\s*\{[^}]*display:\s*none/)
     assert.doesNotMatch(block, /grid-template-rows:\s*minmax\(88px,\s*1fr\)/)
+    assert.match(block, /\.page\s*\{[^}]*padding-left:\s*env\(safe-area-inset-left/)
+    assert.match(block, /\.page\s*\{[^}]*padding-right:\s*env\(safe-area-inset-right/)
+    assert.match(block, /\.side,\s*\n\s*\.page \.content \.side\s*\{[^}]*min-width:\s*0/)
+    assert.match(block, /\.side,\s*\n\s*\.page \.content \.side\s*\{[^}]*box-sizing:\s*border-box/)
+    assert.match(block, /grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/)
+    assert.match(block, /\.sideQuickActions \.btn\s*\{[^}]*min-width:\s*0/)
+    assert.match(block, /\.sideQuickActions \.btn\s*\{[^}]*white-space:\s*normal/)
+    assert.match(block, /\.sideQuickActions \.btn\s*\{[^}]*overflow-wrap:\s*anywhere/)
+  })
+
+  it('nenhum bloco posterior desfaz o contrato landscape touch do HUD', () => {
+    const marker = css.lastIndexOf('/* ====== Mobile landscape (touch): tabuleiro em prioridade')
+    const iosMarker = css.indexOf('/* ====== iOS / WebKit ONLY', marker)
+    const after = css.slice(iosMarker > marker ? iosMarker : marker)
+    assert.doesNotMatch(
+      after,
+      /html:not\(\.sg-ios\)[^{]*\{[^}]*padding-right:\s*0/,
+    )
+    assert.match(after, /html\.sg-ios \.page/)
+    assert.match(after, /--sg-vv-width/)
+    assert.doesNotMatch(
+      after,
+      /\.sideQuickActions[^{]*\{[^}]*grid-template-columns:\s*1fr\s+1fr/,
+    )
   })
 
   it('desktop board contain 13/9 sem container-type size (evita área preta)', () => {

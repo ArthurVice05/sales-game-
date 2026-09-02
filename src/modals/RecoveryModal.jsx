@@ -301,10 +301,14 @@ export default function RecoveryModal({ playerName = 'Jogador', bens = 0, curren
   }), [MIX_PRICES, ERP_PRICES, creditRatio])
 
   return (
-    <div style={S.backdrop}>
+    <div style={S.backdrop} className="recovery-backdrop">
       {/* forçar remount por step ajuda quando a sub-tela possui estado interno */}
-      <div style={S.card} key={step}>
-        <div style={S.header}>
+      <div
+        style={S.card}
+        className={step === 'reduce' ? 'recovery-card recovery-card--reduce' : 'recovery-card'}
+        key={step}
+      >
+        <div style={S.header} className="recovery-header">
           <div style={{ fontWeight:900, fontSize:22 }}>RECUPERAÇÃO FINANCEIRA</div>
           {canClose && (
             <button onClick={close} style={S.closeBtn}>×</button>

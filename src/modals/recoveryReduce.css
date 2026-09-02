@@ -1,16 +1,24 @@
 /* Estilos exclusivos da tela RecoveryReduce (Reduzir Nível MIX/ERP).
    Não altera regras — só apresentação. */
 
+.recovery-card--reduce {
+  overflow: hidden;
+}
+
+.recovery-card--reduce .rr-root {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 .rr-root {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  /* Cabe sob o header do modal (card max 90vh) sem forçar scroll duplo */
-  max-height: calc(90vh - 68px);
+  flex: 1 1 auto;
   min-height: 0;
   padding: 14px 16px 16px;
   box-sizing: border-box;
-  overflow: hidden; /* scroll só em .rr-scroll, se necessário */
+  overflow: hidden;
 }
 
 .rr-title {
@@ -38,7 +46,10 @@
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  overscroll-behavior-y: contain;
+  scroll-padding: 8px;
   padding: 2px 2px 12px;
   box-sizing: border-box;
 }
@@ -326,12 +337,127 @@
     grid-template-columns: 1fr;
   }
 
+  .rr-scroll {
+    padding-bottom: 16px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 560px) {
+  .recovery-card--reduce {
+    height: 100%;
+    max-height: 100% !important;
+  }
+
+  .recovery-card--reduce .recovery-header {
+    padding: 6px 12px;
+  }
+
+  .recovery-card--reduce .recovery-header > div:first-child {
+    font-size: 17px !important;
+    line-height: 1.2;
+  }
+
+  .recovery-card--reduce .recovery-header button {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px;
+    min-height: 32px;
+    font-size: 16px;
+  }
+
   .rr-root {
-    max-height: calc(90vh - 64px);
+    gap: 4px;
+    padding: 6px 10px 8px;
+  }
+
+  .rr-title {
+    font-size: 15px;
+  }
+
+  .rr-lead {
+    font-size: 11px;
+    line-height: 1.25;
+  }
+
+  .rr-group {
+    padding: 6px;
+    gap: 4px;
+  }
+
+  .rr-group-title {
+    font-size: 12px;
+  }
+
+  .rr-levels {
+    gap: 6px;
+  }
+
+  .rr-card {
+    min-height: 76px;
+    padding: 5px 6px;
+    gap: 3px;
+  }
+
+  .rr-badge {
+    font-size: 9px;
+    padding: 3px 6px;
+  }
+
+  .rr-card-title {
+    font-size: 12px;
+  }
+
+  .rr-card-credit-label {
+    font-size: 10px;
+  }
+
+  .rr-card-credit-value {
+    font-size: 12px;
   }
 
   .rr-scroll {
-    padding-bottom: 16px;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    padding-bottom: 6px;
+  }
+
+  .rr-footer {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 6px 10px;
+    padding: 6px 2px 0;
+    margin-top: 0;
+  }
+
+  .rr-summary {
+    min-width: 0;
+    gap: 2px 8px;
+    font-size: 13px;
+  }
+
+  .rr-summary-hint {
+    font-size: 10px;
+    line-height: 1.25;
+  }
+
+  .rr-actions {
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .rr-btn-back,
+  .rr-btn-reduce {
+    flex: 0 0 auto;
+    padding: 8px 12px;
+    min-height: 40px;
+    font-size: 12px;
   }
 }
 

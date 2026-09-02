@@ -2,15 +2,22 @@
 const S = {
   backdrop: {
     position:'fixed', inset:0, background:'rgba(0,0,0,.6)',
-    display:'grid', placeItems:'center', zIndex:9999
+    display:'grid', placeItems:'center', zIndex:9999,
+    boxSizing:'border-box', overflow:'hidden',
+    width:'100%', height:'100%', maxHeight:'100dvh',
+    padding:'max(8px, env(safe-area-inset-top, 0px)) max(8px, env(safe-area-inset-right, 0px)) max(8px, env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px))',
   },
   card: {
-    width:'min(920px, 96vw)', maxHeight:'90vh', overflow:'auto',
+    width:'min(920px, 96vw)', maxWidth:'100%',
+    maxHeight:'min(90dvh, 90vh)',
+    display:'flex', flexDirection:'column', minHeight:0,
+    overflow:'hidden', boxSizing:'border-box',
     background:'#15161a', color:'#e9ecf1',
     border:'1px solid rgba(255,255,255,.08)',
     borderRadius:20, boxShadow:'0 20px 50px rgba(0,0,0,.5)',
   },
   header: {
+    flex:'0 0 auto',
     display:'flex', alignItems:'center', justifyContent:'space-between',
     padding:'14px 16px', borderBottom:'1px solid rgba(255,255,255,.08)'
   },
@@ -18,7 +25,14 @@ const S = {
     width:36, height:36, borderRadius:10, border:'1px solid rgba(255,255,255,.15)',
     background:'transparent', color:'#fff', fontSize:20, cursor:'pointer'
   },
-  body:{ padding:16 },
+  body:{
+    padding:16,
+    flex:'1 1 auto',
+    minHeight:0,
+    overflowX:'hidden',
+    overflowY:'auto',
+    WebkitOverflowScrolling:'touch',
+  },
   lead:{ opacity:.95, lineHeight:1.5 },
   bullets:{ margin:'8px 0 16px 18px' },
   rowBtns:{ display:'flex', gap:12, justifyContent:'flex-end', marginTop:12, flexWrap:'wrap' },
