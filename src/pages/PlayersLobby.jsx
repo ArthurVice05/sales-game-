@@ -11,8 +11,8 @@ import {
   joinLobby,
   setPlayerName,
   getLatestMatch,          // <<< novo: verificar se já existe match
+  findAuthoritativeRoomMeta,
   startLobbyHeartbeat, // ✅ NOVO
-  canResumeLockedMatch,
   attemptHostTransferFromPresence,
   GAME_PRESENCE_POLL_INTERVAL_MS,
 } from '../lib/lobbies'
@@ -32,6 +32,10 @@ import {
   normalizeTurnTime,
 } from '../game/turnTimeConfig'
 import { mergeLobbyMatchSettings, readMatchConfigFromRoomState } from '../game/turnTimerLogic'
+import {
+  MATCH_ENTRY,
+  evaluateMatchEntryReadiness,
+} from '../game/matchEntryReadiness.js'
 import { useGameNet } from '../net/GameNetProvider.jsx'
 
 /* ---------- Ícones SVG inline (decorativos; sem dependência externa) ---------- */
@@ -200,26 +204,42 @@ export default function PlayersLobby({ lobbyId, playerName, onBack, onStartGame 
   async function maybeNavigate(pls) {
     if (navigatedOnce.current) return
     const match = await getLatestMatch(lobbyId)
-    if (match?.id) {
-      navigatedOnce.current = true
-      // ✅ CORREÇÃO: Se pls não vier ou estiver vazio, busca do banco
-      let currentPlayers = pls
-      if (!currentPlayers || currentPlayers.length === 0) {
-        currentPlayers = await listLobbyPlayers(lobbyId)
-      }
-      const normalized = (currentPlayers || []).map((p, i) => ({
-        id: p.player_id,
-        name: p.player_name,
-        index: i,
-      }))
-      onStartGame?.({
-        lobbyId,
-        matchId: match?.id,
-        players: normalized,
-        me: { id: meId, name: meName },
-        resumeExistingMatch: true,
-      })
+    if (!match?.id) return
+
+    let roomMeta = { state: null, updatedAt: null }
+    try {
+      roomMeta = await findAuthoritativeRoomMeta(lobbyId)
+    } catch {}
+
+    const decision = evaluateMatchEntryReadiness({
+      latestMatchId: match.id,
+      latestMatchCreatedAt: match.created_at,
+      roomState: roomMeta.state,
+      roomUpdatedAt: roomMeta.updatedAt,
+      persistedPlayerId: meId,
+      mode: 'guest-wait',
+    })
+    if (decision.action !== MATCH_ENTRY.ENTER_CURRENT_MATCH) {
+      return
     }
+
+    navigatedOnce.current = true
+    let currentPlayers = pls
+    if (!currentPlayers || currentPlayers.length === 0) {
+      currentPlayers = await listLobbyPlayers(lobbyId)
+    }
+    const normalized = (currentPlayers || []).map((p, i) => ({
+      id: p.player_id,
+      name: p.player_name,
+      index: i,
+    }))
+    onStartGame?.({
+      lobbyId,
+      matchId: match.id,
+      players: normalized,
+      me: { id: meId, name: meName },
+      resumeExistingMatch: true,
+    })
   }
 
   /**
@@ -232,19 +252,38 @@ export default function PlayersLobby({ lobbyId, playerName, onBack, onStartGame 
     const playerId = persisted?.playerId
     if (!playerId) return false
 
-    const { ok } = await canResumeLockedMatch(lobbyId, playerId)
-    if (!ok) return false
+    let roomMeta = { state: null, updatedAt: null }
+    try {
+      roomMeta = await findAuthoritativeRoomMeta(lobbyId)
+    } catch {}
+    const roster = Array.isArray(roomMeta.state?.players) ? roomMeta.state.players : []
+    if (!roster.some((p) => String(p?.id) === String(playerId))) return false
+
+    let match = null
+    try {
+      match = await getLatestMatch(lobbyId)
+    } catch {}
+
+    const decision = evaluateMatchEntryReadiness({
+      latestMatchId: match?.id || null,
+      latestMatchCreatedAt: match?.created_at || null,
+      roomState: roomMeta.state,
+      roomUpdatedAt: roomMeta.updatedAt,
+      persistedPlayerId: playerId,
+      mode: 'legacy-resume',
+    })
+    if (
+      decision.action !== MATCH_ENTRY.ENTER_CURRENT_MATCH &&
+      decision.action !== MATCH_ENTRY.RESUME_LEGACY_MATCH
+    ) {
+      return false
+    }
 
     navigatedOnce.current = true
-    let matchId = null
-    try {
-      const match = await getLatestMatch(lobbyId)
-      matchId = match?.id || null
-    } catch {}
 
     onStartGame?.({
       lobbyId,
-      matchId,
+      matchId: match?.id || null,
       players: [],
       me: { id: playerId, name: meName || persisted.playerName || '' },
       resumeExistingMatch: true,
@@ -448,11 +487,9 @@ export default function PlayersLobby({ lobbyId, playerName, onBack, onStartGame 
       }
       
       const match = await startMatch({ lobbyId })
-      // Host também navega (e marca para não navegar de novo via realtime)
       navigatedOnce.current = true
-      // ✅ CORREÇÃO: Usa currentPlayers (do banco) e não players (do estado local)
       const normalized = currentPlayers.map((p, i) => ({ id: p.player_id, name: p.player_name, index: i }))
-      onStartGame?.({
+      const startResult = await Promise.resolve(onStartGame?.({
         lobbyId,
         matchId: match?.id,
         players: normalized,
@@ -460,7 +497,11 @@ export default function PlayersLobby({ lobbyId, playerName, onBack, onStartGame 
         maxRounds: normalizeMaxRounds(maxRounds),
         turnTimeSec: normalizeTurnTime(turnTimeSec),
         resumeExistingMatch: false,
-      })
+      }))
+      if (startResult && startResult.ok === false) {
+        navigatedOnce.current = false
+        await setLobbyStatus(lobbyId, prev || 'open')
+      }
     } catch (e) {
       console.error('startMatch failed', e)
       await setLobbyStatus(lobbyId, prev || 'open') // rollback

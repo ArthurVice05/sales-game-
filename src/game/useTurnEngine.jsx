@@ -6,6 +6,7 @@ import { getBoardDefinition, resolveBoardVersion } from '../data/boardVersions.j
 import { getTileType } from './domain/tiles.js'
 
 import { DEFAULT_MAX_ROUNDS, normalizeMaxRounds } from './roundConfig'
+import { shouldFinishAfterRoundTransition } from './roundEndDecision.js'
 import { planOfflineTurnSkip } from './offlineTurnSkip.js'
 import { shouldRejectAbsentTurnSkip } from './presenceSkipLogic.js'
 import {
@@ -2720,7 +2721,16 @@ export function useTurnEngine({
       if (canChangeTurn) {
         // ✅ ENDGAME autoritativo: finaliza assim que não houver modais
         const td = pendingTurnDataRef.current
-        const shouldEnd = !!(td?.endGame || endGamePendingRef.current)
+        const shouldEnd = !!(
+          td?.endGame ||
+          endGamePendingRef.current ||
+          (td && shouldFinishAfterRoundTransition({
+            endGame: td.endGame,
+            shouldIncrementRound: td.shouldIncrementRound,
+            nextRound: td.nextRound,
+            maxRounds: MAX_ROUNDS,
+          }))
+        )
 
         if (shouldEnd && !endGameFinalizedRef.current) {
           endGameFinalizedRef.current = true
@@ -2797,18 +2807,17 @@ export function useTurnEngine({
               if (finalCanChangeTurn && finalTurnIdx === turnIdx && finalIsLockOwner) {
                 console.log('[DEBUG] ✅ Mudando turno - de:', turnIdx, 'para:', turnData.nextTurnIdx, 'finalModalLocks:', finalModalLocks, 'finalOpening:', finalOpening, 'timeSinceLastModalClosed:', finalTimeSinceLastModalClosed)
               
-              // ✅ CORREÇÃO C: Detecta finalização por rodada ANTES de mudar turno
-              // Condição autoritativa: currentRoundRef.current === MAX_ROUNDS E shouldIncrementRound === true
-              // OU endGame === true (todos chegaram na rodada final)
-              // (não usa pos/TRACK_LEN - apenas round-based)
-              const isEndgameCondition = currentRoundRef.current === MAX_ROUNDS && turnData.shouldIncrementRound
-              const isEndgameByFlag = turnData.endGame === true
-              if (isEndgameCondition || isEndgameByFlag || (turnData.shouldIncrementRound && turnData.nextRound > MAX_ROUNDS)) {
-                console.log('[ENDGAME] detectado: fim da partida - currentRound:', currentRoundRef.current, 'shouldIncrementRound:', turnData.shouldIncrementRound, 'nextRound:', turnData.nextRound)
+              // Encerramento por rodadas: apenas endGame (volta completa na rodada final)
+              // ou nextRound > MAX_ROUNDS. shouldIncrementRound é entrada na próxima rodada.
+              if (shouldFinishAfterRoundTransition({
+                endGame: turnData.endGame,
+                shouldIncrementRound: turnData.shouldIncrementRound,
+                nextRound: turnData.nextRound,
+                maxRounds: MAX_ROUNDS,
+              })) {
+                console.log('[ENDGAME] detectado: fim da partida - currentRound:', currentRoundRef.current, 'shouldIncrementRound:', turnData.shouldIncrementRound, 'nextRound:', turnData.nextRound, 'endGame:', turnData.endGame)
                 
-                const forceFinish =
-                  isEndgameCondition ||
-                  isEndgameByFlag
+                const forceFinish = turnData.endGame === true
 
                 // Chama maybeFinishGame para calcular vencedor
                 const finishResult = maybeFinishGame(

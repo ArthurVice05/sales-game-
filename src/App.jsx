@@ -86,6 +86,11 @@ import {
 import { DEFAULT_MAX_ROUNDS, normalizeMaxRounds } from './game/roundConfig'
 import { isDebugLogsEnabled, isDevVerbose, isVercelDebugEnabled } from './game/debugFlags.js'
 import { formatRoundProgress } from './game/roundDisplay.js'
+import {
+  buildStartMatchPatch,
+  isStartCommitSuccess,
+  shouldApplyRoomStateForMatch,
+} from './game/matchEntryReadiness.js'
 import { normalizePlayersAliases } from './game/playerShape.js'
 import { consumeTileTip } from './game/progressiveTips.js'
 import { MANUAL_CONSTANTS } from './game/manualConstants.js'
@@ -486,6 +491,7 @@ export default function App() {
   const turnSeqRef = React.useRef(turnSeq)
   const lockOwnerRef = React.useRef(lockOwner)
   const turnLockRef = React.useRef(turnLock)
+  const expectedMatchIdRef = React.useRef(null)
   const lastRollTurnKeyRef = React.useRef(lastRollTurnKey)
   useEffect(() => { turnPlayerIdRef.current = turnPlayerId }, [turnPlayerId])
   useEffect(() => { turnSeqRef.current = turnSeq }, [turnSeq])
@@ -1283,6 +1289,9 @@ export default function App() {
   // Hidratação autoritativa de rooms.state → estado local (única implementação).
   const applyRemoteNetState = React.useCallback((incomingNetState, incomingNetVersion, incomingNetStateId) => {
     if (!incomingNetState) return false
+    if (!shouldApplyRoomStateForMatch(incomingNetState, expectedMatchIdRef.current)) {
+      return false
+    }
 
     const np = Array.isArray(incomingNetState.players) ? incomingNetState.players : null
     const nr = Number.isInteger(incomingNetState.round) ? incomingNetState.round : null
@@ -1629,9 +1638,11 @@ export default function App() {
   }, [turnLock, isMyTurn, turnIdx, players, lockOwner, myUid, netCommit])
 
   async function commitRemoteState(nextStatePartial) {
-    if (typeof netCommit === 'function') {
-      try {
-        await netCommit(prev => {
+    if (typeof netCommit !== 'function') {
+      return { ok: true, local: true }
+    }
+    try {
+      const result = await netCommit(prev => {
           const prevState = prev || {}
           const nextPartial = nextStatePartial || {}
           const nextBoardVersion = resolveBoardVersion(
@@ -1741,12 +1752,13 @@ export default function App() {
           try { delete next.turnIdx } catch {}
           return next
         })
+        if (result?.ok === false) return { ok: false, reason: result.skipped ? 'skipped' : 'commit-failed' }
+        return { ok: true }
       } catch (e) {
         console.warn('[NET] commit failed:', e?.message || e)
-        // Limpa baseline em caso de erro
         playersBeforeRef.current = null
+        return { ok: false, reason: 'commit-exception' }
       }
-    }
   }
 
   function broadcastState(nextPlayers, nextTurnIdx, nextRound, gameOverState = gameOver, winnerState = winner, patch = {}) {
@@ -2008,13 +2020,12 @@ export default function App() {
     
     let patchCommit = Promise.resolve()
     if (isStartGame) {
-      // ✅ START GAME: Usa commitRemoteState com snapshot completo (única exceção permitida)
       console.log('[App] broadcastState (START) - versão:', currentVersion, 'turnPlayerId:', safeTurnPlayerId, 'round:', safeRound)
-      commitRemoteState({
+      patchCommit = Promise.resolve(commitRemoteState({
         players: normalizedPlayers,
         boardVersion: safeBoardVersion,
         turnPlayerId: safeTurnPlayerId,
-        round: safeRound,
+        round: 1,
         maxRounds: safeMaxRounds,
         turnTimeSec: safeTurnTimeSec,
         turnDeadlineAt: nextTurnDeadlineAt,
@@ -2024,13 +2035,16 @@ export default function App() {
         lastRoll: null,
         turnLock: false,
         lockOwner: null,
+        winner: null,
+        gameOver: false,
+        matchId: patch.matchId != null ? String(patch.matchId) : undefined,
         stateId,
         actionId,
         kind: 'START',
         stateVersion: currentVersion,
         updatedAt: now,
         updatedBy: myUid
-      })
+      }))
     } else {
       // ✅ CORREÇÃO MULTIPLAYER: Ação parcial - usar commitGamePatch com delta
       // ✅ Delta sem JSON.stringify (hot-path): usa snapshot direto do player alterado quando houver `playerDeltaIds`
@@ -2193,13 +2207,15 @@ export default function App() {
     return patchCommit
   }
 
-  function broadcastStart(nextPlayers, configuredMaxRounds = maxRoundsRef.current, configuredTurnTimeSec = turnTimeSecRef.current) {
+  function broadcastStart(nextPlayers, configuredMaxRounds = maxRoundsRef.current, configuredTurnTimeSec = turnTimeSecRef.current, startOpts = {}) {
     let normalized = normalizePlayers(nextPlayers)
     const startBoardVersion = getNewGameBoardVersion()
     setBoardVersion(startBoardVersion)
     boardVersionRef.current = startBoardVersion
     const startMaxRounds = normalizeMaxRounds(configuredMaxRounds)
     const startTurnTimeSec = normalizeTurnTime(configuredTurnTimeSec)
+    const startMatchId = startOpts.matchId != null ? String(startOpts.matchId) : undefined
+    if (startMatchId) expectedMatchIdRef.current = startMatchId
 
     // HOST (quem clicou iniciar) joga primeiro:
     const hostIdx = normalized.findIndex(p => String(p?.id) === String(myUid))
@@ -2225,23 +2241,17 @@ export default function App() {
     setTurnDeadlineAt(startDeadline)
     turnDeadlineAtRef.current = startDeadline
 
-    // rede
-    broadcastState(normalized, 0, 1, false, null, {
-      boardVersion: startBoardVersion,
-      turnPlayerId: firstPlayerId,
-      round: 1,
+    const startPatch = buildStartMatchPatch({
+      matchId: startMatchId,
       maxRounds: startMaxRounds,
       turnTimeSec: startTurnTimeSec,
       turnDeadlineAt: startDeadline,
-      gameOver: false,
-      winner: null,
-      roundFlags: Array(normalized.length).fill(false),
-      turnSeq: 0,
-      lastRollTurnKey: null,
-      lastRoll: null,
-      isStartGame: true
+      turnPlayerId: firstPlayerId,
+      boardVersion: startBoardVersion,
+      playersCount: normalized.length,
     })
-    // entre abas
+
+    const startCommit = broadcastState(normalized, 0, 1, false, null, startPatch)
     defer(() => {
       try {
         bcRef.current?.postMessage?.({
@@ -2250,10 +2260,12 @@ export default function App() {
           players: normalized,
           maxRounds: startMaxRounds,
           turnTimeSec: startTurnTimeSec,
+          matchId: startMatchId,
           source: meId,
         })
       } catch (e) { console.warn('[App] broadcastStart failed:', e) }
     })
+    return startCommit
   }
 
   // ====== "é minha vez?" (declaração movida para antes do useEffect do watchdog)
@@ -2815,7 +2827,7 @@ export default function App() {
           window.__setRoomCode?.(null)
           setPhase('lobbies')
         }}
-          onStartGame={(payload) => {
+          onStartGame={async (payload) => {
           // nome/uuid da sala
           const roomName =
             payload?.lobbyName ||
@@ -2860,6 +2872,10 @@ export default function App() {
 
             resumeLog('room requested', roomKey)
             resumeLog('identity found', !!resolvedId)
+
+            if (payload?.matchId) {
+              expectedMatchIdRef.current = String(payload.matchId)
+            }
 
             resetMatchLocalUi()
             try { setMyUid(String(resolvedId)) } catch {}
@@ -2937,7 +2953,11 @@ export default function App() {
               seat: i // ✅ CORREÇÃO: Atribui seat baseado na ordem ordenada
             })
           )
-          if (mapped.length === 0) return
+          if (mapped.length === 0) return { ok: false, reason: 'empty-roster' }
+
+          if (payload?.matchId) {
+            expectedMatchIdRef.current = String(payload.matchId)
+          }
 
           // ✅ CORREÇÃO: Normaliza players antes de usar
           const normalized = normalizePlayers(mapped)
@@ -3000,8 +3020,16 @@ export default function App() {
             }
           })
           setLog(['Jogo iniciado!'])
-          broadcastStart(normalized, maxRoundsRef.current, turnTimeSecRef.current)
+          const startCommit = await Promise.resolve(
+            broadcastStart(normalized, maxRoundsRef.current, turnTimeSecRef.current, {
+              matchId: payload?.matchId,
+            })
+          )
+          if (!isStartCommitSuccess(startCommit, { netEnabled: !!net?.enabled })) {
+            return { ok: false, reason: startCommit?.reason || 'start-commit-failed' }
+          }
           setPhase('game')
+          return { ok: true }
         }}
         />
       </ModalProvider>

@@ -296,9 +296,9 @@ export async function getLatestMatch(lobbyId) {
  * Preferência: row com state.players.length > 0.
  * Não altera schema; só leitura.
  */
-export async function findAuthoritativeRoomState (roomCode) {
+export async function findAuthoritativeRoomMeta (roomCode) {
   const code = String(roomCode ?? '').trim()
-  if (!code) return null
+  if (!code) return { state: null, updatedAt: null }
 
   const { data, error } = await supabase
     .from('rooms')
@@ -312,7 +312,16 @@ export async function findAuthoritativeRoomState (roomCode) {
   const usable = rows.find(
     (r) => Array.isArray(r?.state?.players) && r.state.players.length > 0
   )
-  return (usable || rows[0])?.state ?? null
+  const row = usable || rows[0]
+  return {
+    state: row?.state ?? null,
+    updatedAt: row?.updated_at ?? null,
+  }
+}
+
+export async function findAuthoritativeRoomState (roomCode) {
+  const { state } = await findAuthoritativeRoomMeta(roomCode)
+  return state
 }
 
 /**
