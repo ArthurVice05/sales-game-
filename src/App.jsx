@@ -4,6 +4,8 @@ import './styles.css'
 
 // Telas
 import StartScreen from './components/StartScreen.jsx'
+import LocalGameSetup from './components/LocalGameSetup.jsx'
+import LocalTurnHandoff from './components/LocalTurnHandoff.jsx'
 import LobbyList from './pages/LobbyList.jsx'
 import PlayersLobby from './pages/PlayersLobby.jsx'
 import Board from './components/board/Board.jsx'
@@ -97,6 +99,18 @@ import { MANUAL_CONSTANTS } from './game/manualConstants.js'
 import OrientationGuard from './components/orientation/OrientationGuard.jsx'
 import { enterGamePresentation } from './utils/fullscreen.js'
 import { useBoardPinchZoom } from './hooks/useBoardPinchZoom.js'
+import { createUuidV4 } from './lib/uuid.js'
+import {
+  GAME_MODE,
+  applyStarterKit,
+  createLocalPlayers,
+  isLocalTurnReady,
+  localTurnKey,
+  resolveGameplayActorId,
+  shouldCreateGameBroadcastChannel,
+  shouldEnableTurnTimer,
+  shouldOpenLocalHandoff,
+} from './game/localHotseat.js'
 
 // -------------------------------------------------------------
 // App raiz – concentra roteamento de fases e estado global leve
@@ -216,7 +230,8 @@ export default function App() {
   }, [isSameValue])
 
   // ====== fases da UI
-  const [phase, setPhase] = useState('start') // 'start' | 'lobbies' | 'playersLobby' | 'game'
+  const [phase, setPhase] = useState('start') // 'start' | 'localSetup' | 'lobbies' | 'playersLobby' | 'game'
+  const [gameMode, setGameMode] = useState(null)
   const [currentLobbyId, setCurrentLobbyId] = useState(null)
   const [roomId, setRoomId] = useState(null)
   const [boardVersion, setBoardVersion] = useState(getNewGameBoardVersion)
@@ -230,20 +245,6 @@ export default function App() {
   const [myUid, setMyUid] = useState(meId)
 
   // ====== estado mínimo do jogo
-  const STARTER_KIT = useMemo(
-    () => Object.freeze({ mixProdutos: 'D', erpLevel: 'D', clients: 1, vendedoresComuns: 1 }),
-    []
-  )
-  const applyStarterKit = (obj = {}) => ({
-    ...obj,
-    mixProdutos: obj.mixProdutos ?? 'D',
-    erpLevel: obj.erpLevel ?? 'D',
-    clients: obj.clients ?? 1,
-    vendedoresComuns: obj.vendedoresComuns ?? 1,
-    loanTakenInMatch: obj.loanTakenInMatch ?? false,
-    lastChargedLoanId: obj.lastChargedLoanId ?? null,
-  })
-
   // ✅ CORREÇÃO: Normaliza ordem dos players para garantir consistência entre clientes
   // Seat é IMUTÁVEL após atribuído no start - nunca reatribui seat existente
   const normalizePlayers = (players) => {
@@ -358,6 +359,8 @@ export default function App() {
   const [lastRollTurnKey, setLastRollTurnKey] = useState(null)
   // ✅ turnSeq: contador monotônico do turno (1 jogador: 0→1→2…; evita [ROLL_BLOCK])
   const [turnSeq, setTurnSeq] = useState(0)
+  const [acknowledgedLocalTurnKey, setAcknowledgedLocalTurnKey] = useState(null)
+  const [localMatchId, setLocalMatchId] = useState(null)
 
   // ===== Última rolagem do dado (somente apresentação; não entra em regras) =====
   const [lastRollUI, setLastRollUI] = useState(null)
@@ -523,12 +526,29 @@ export default function App() {
     }
   }, [turnLock, lockOwner, turnPlayerId])
 
-  // ====== “quem sou eu” no array de players
-  const isMine = React.useCallback((p) => !!p && String(p.id) === String(myUid), [myUid])
+  const currentLocalTurnKey = localTurnKey(turnPlayerId, turnSeq)
+  const localTurnReady = isLocalTurnReady({
+    gameMode,
+    turnPlayerId,
+    turnSeq,
+    acknowledgedTurnKey: acknowledgedLocalTurnKey,
+  })
+  const gameplayActorId = useMemo(() => resolveGameplayActorId({
+    gameMode,
+    localTurnReady,
+    turnPlayerId,
+    myUid,
+  }), [gameMode, localTurnReady, turnPlayerId, myUid])
+
+  // ====== “quem opera o jogo” no array de players
+  const isMine = React.useCallback(
+    (p) => !!p && gameplayActorId != null && String(p.id) === String(gameplayActorId),
+    [gameplayActorId],
+  )
   const [identityMismatch, setIdentityMismatch] = useState(false)
   const myCashInfo = useMemo(
-    () => resolveMyCash({ myUid, players }),
-    [myUid, players]
+    () => resolveMyCash({ myUid: gameplayActorId, players }),
+    [gameplayActorId, players]
   )
   // Sem fallback silencioso para 0 quando o assento não está no roster (identidade quebrada).
   const myCash = myCashInfo.found ? myCashInfo.cash : (identityMismatch ? null : 0)
@@ -561,11 +581,17 @@ export default function App() {
   }, [])
 
   // ====== BroadcastChannel para sync entre abas (mesmo navegador)
-  const syncKey = useMemo(() => `sg-sync:${currentLobbyId || 'local'}`, [currentLobbyId])
+  const syncKey = useMemo(() => (
+    shouldCreateGameBroadcastChannel({ gameMode, lobbyId: currentLobbyId })
+      ? `sg-sync:${currentLobbyId}`
+      : null
+  ), [gameMode, currentLobbyId])
 
   useEffect(() => {
     try {
       bcRef.current?.close?.()
+      bcRef.current = null
+      if (!syncKey) return undefined
       const bc = new BroadcastChannel(syncKey)
       bc.onmessage = (e) => {
         const d = e.data || {}
@@ -931,7 +957,7 @@ export default function App() {
     const v = !!value
     const nextOwner =
       v
-        ? String(owner ?? myUid ?? turnPlayerId ?? '')
+        ? String(owner ?? gameplayActorId ?? turnPlayerId ?? '')
         : null
 
     // ✅ Invariante: turnLock=true nunca deve coexistir com lockOwner null/''.
@@ -952,7 +978,7 @@ export default function App() {
     // ✅ Propaga para Supabase (estado compartilhado) — sem depender de turnIdx
     defer(() => {
       try {
-        if (net?.enabled && net?.ready && typeof netCommit === 'function') {
+        if (gameMode !== GAME_MODE.LOCAL && net?.enabled && net?.ready && typeof netCommit === 'function') {
           const expectTurnId = String(turnPlayerIdRef.current ?? turnPlayerId ?? '')
           const expectTurnSeq = Number(turnSeqRef.current ?? turnSeq ?? 0)
           commitGamePatch({
@@ -988,6 +1014,12 @@ export default function App() {
     const nextSeq = Number(turnSeq) || 0
     prevTurnIdentityRef.current = { id: nextId, seq: nextSeq }
 
+    if (gameMode === GAME_MODE.LOCAL && !localTurnReady) {
+      setTurnDeadlineAt(null)
+      turnDeadlineAtRef.current = null
+      return
+    }
+
     const sanitized = sanitizeTurnDeadlineOnHandoff({
       prevTurnPlayerId: prev.id,
       nextTurnPlayerId: nextId,
@@ -1001,17 +1033,17 @@ export default function App() {
       setTurnDeadlineAt(Number(sanitized))
       turnDeadlineAtRef.current = Number(sanitized)
     }
-  }, [turnPlayerId, turnSeq])
+  }, [turnPlayerId, turnSeq, gameMode, localTurnReady])
 
   // ====== "é minha vez?" (ÚNICA fonte: turnPlayerId) ======
   const isMyTurn = useMemo(() => {
-    const me = String(myUid || meId || "")
+    const me = String(gameplayActorId || "")
     if (!me) return false
     if (!turnPlayerId) return false
     const mePlayer = players.find(p => String(p.id) === me)
     if (mePlayer?.bankrupt) return false
     return String(turnPlayerId) === me
-  }, [turnPlayerId, myUid, meId, players])
+  }, [turnPlayerId, gameplayActorId, players])
 
   // ✅ coerência: mantém turnIdx <-> turnPlayerId sincronizados (evita desync UI vs engine)
   useEffect(() => {
@@ -1056,7 +1088,7 @@ export default function App() {
     const isSkipAttempt = commitKind === 'AUTO_PASS' || commitKind === 'AUTO_SKIP_OFFLINE'
 
     // Sem net: avanço local já aplicado — confirma guard imediatamente.
-    if (typeof netCommit !== 'function') {
+    if (gameMode === GAME_MODE.LOCAL || typeof netCommit !== 'function') {
       if (isSkipAttempt) {
         confirmSharedSkipKey(expectTurnId, expectTurnSeq)
       }
@@ -1239,7 +1271,7 @@ export default function App() {
       }
     })
     })
-  }, [netCommit, myUid, DEBUG_LOGS])
+  }, [netCommit, myUid, gameMode, DEBUG_LOGS])
   
   // ✅ CORREÇÃO: O baseline é capturado no broadcastState antes de fazer commit
   // Não precisamos capturar via useEffect, pois o baseline deve ser o estado ANTES da mudança
@@ -1594,13 +1626,15 @@ export default function App() {
   }, [turnPlayerId, turnIdx, setPlayers, applyLastRollUI, clearRollingTimeout, DEBUG_LOGS, currentLobbyId, roomId, myUid, meId, myName])
 
   useEffect(() => {
+    if (gameMode === GAME_MODE.LOCAL) return
     if (!net?.enabled || !net?.ready) return
     if (!netState) return
     applyRemoteNetState(netState, netVersion, netStateId)
-  }, [netVersion, netState, netStateId, net?.enabled, net?.ready, applyRemoteNetState, resumeHydrateNonce])
+  }, [gameMode, netVersion, netState, netStateId, net?.enabled, net?.ready, applyRemoteNetState, resumeHydrateNonce])
 
   // ✅ BUG 2 FIX: Watchdog anti-trava - libera turnLock se travado por muito tempo
   useEffect(() => {
+    if (gameMode === GAME_MODE.LOCAL) return undefined
     if (!turnLock) {
       lockSinceRef.current = null
       return
@@ -1635,10 +1669,10 @@ export default function App() {
     }, 1000)
 
     return () => clearInterval(checkInterval)
-  }, [turnLock, isMyTurn, turnIdx, players, lockOwner, myUid, netCommit])
+  }, [gameMode, turnLock, isMyTurn, turnIdx, players, lockOwner, myUid, netCommit])
 
   async function commitRemoteState(nextStatePartial) {
-    if (typeof netCommit !== 'function') {
+    if (gameMode === GAME_MODE.LOCAL || typeof netCommit !== 'function') {
       return { ok: true, local: true }
     }
     try {
@@ -1874,20 +1908,23 @@ export default function App() {
       (patch.turnPlayerId !== undefined && String(patch.turnPlayerId) !== String(turnPlayerId)) ||
       (patch.turnSeq !== undefined && Number(patch.turnSeq) !== Number(turnSeq))
     )
+    const clearDeadlineForLocalHandoff = gameMode === GAME_MODE.LOCAL && turnIdentityChanged
     let nextTurnDeadlineAt = turnDeadlineAtRef.current
     if (patch.turnDeadlineAt !== undefined) {
       nextTurnDeadlineAt = patch.turnDeadlineAt == null ? null : Number(patch.turnDeadlineAt)
     } else if (patchKind === 'ENDGAME' || finalGameOver) {
       nextTurnDeadlineAt = null
+    } else if (clearDeadlineForLocalHandoff) {
+      nextTurnDeadlineAt = null
     } else if (turnIdentityChanged) {
       nextTurnDeadlineAt = computeTurnDeadlineAt(Date.now(), safeTurnTimeSec)
     }
-    if (Number.isFinite(Number(nextTurnDeadlineAt))) {
+    if (nextTurnDeadlineAt != null && Number.isFinite(Number(nextTurnDeadlineAt))) {
       if (!shouldDeferLocal) {
         setTurnDeadlineAt(Number(nextTurnDeadlineAt))
         turnDeadlineAtRef.current = Number(nextTurnDeadlineAt)
       }
-    } else if (nextTurnDeadlineAt == null && (patchKind === 'ENDGAME' || finalGameOver)) {
+    } else if (nextTurnDeadlineAt == null && (patchKind === 'ENDGAME' || finalGameOver || clearDeadlineForLocalHandoff)) {
       if (!shouldDeferLocal) {
         setTurnDeadlineAt(null)
         turnDeadlineAtRef.current = null
@@ -1932,10 +1969,10 @@ export default function App() {
         const nextIdStr = String(nextTurnPlayerId)
         if (String(turnPlayerId || '') !== nextIdStr) setTurnPlayerId(nextIdStr)
       }
-      if (Number.isFinite(Number(nextTurnDeadlineAt))) {
+      if (nextTurnDeadlineAt != null && Number.isFinite(Number(nextTurnDeadlineAt))) {
         setTurnDeadlineAt(Number(nextTurnDeadlineAt))
         turnDeadlineAtRef.current = Number(nextTurnDeadlineAt)
-      } else if (nextTurnDeadlineAt == null && (patchKind === 'ENDGAME' || finalGameOver)) {
+      } else if (nextTurnDeadlineAt == null && (patchKind === 'ENDGAME' || finalGameOver || clearDeadlineForLocalHandoff)) {
         setTurnDeadlineAt(null)
         turnDeadlineAtRef.current = null
       }
@@ -2397,22 +2434,82 @@ export default function App() {
     setWinner(null)
     setTurnLock(false)
     setLockOwner(null)
+    setTurnPlayerId(null)
+    turnPlayerIdRef.current = null
     setTurnSeq(0)
-    setDiceFx(null)
+    turnSeqRef.current = 0
+    setTurnDeadlineAt(null)
+    turnDeadlineAtRef.current = null
+    setLastRollTurnKey(null)
+    lastRollTurnKeyRef.current = null
+    setLastRollUI(null)
+    clearDiceUi()
     setShowBankruptOverlay(false)
+    setHudSheetOpen(false)
+    setProgressiveTip(null)
     setTutorialOpen(false)
+    setAcknowledgedLocalTurnKey(null)
     tutorialAutoOpenedRef.current = ''
     hydratedFromNetRef.current = false
     lastAppliedNetVersionRef.current = 0
     lastAppliedStateIdRef.current = null
     lastLocalStateRef.current = null
     playersBeforeRef.current = null
-  }, [])
+  }, [clearDiceUi])
+
+  function startLocalGame({ names, maxRounds: requestedRounds, turnTimeSec: requestedTime }) {
+    const createdPlayers = createLocalPlayers(names)
+    const normalized = normalizePlayers(createdPlayers)
+    const firstPlayerId = normalized[0]?.id ? String(normalized[0].id) : null
+    if (!firstPlayerId) return
+
+    const localRounds = normalizeMaxRounds(requestedRounds)
+    const localTime = normalizeTurnTime(requestedTime)
+    const nextBoardVersion = getNewGameBoardVersion()
+
+    window.__setRoomCode?.(null)
+    setCurrentLobbyId(null)
+    setRoomId(null)
+    resetMatchLocalUi()
+    setBoardVersion(nextBoardVersion)
+    boardVersionRef.current = nextBoardVersion
+    setPlayers(normalized, { source: 'LOCAL_START' })
+    playersBeforeRef.current = normalized
+    setRound(1)
+    setTurnIdx(0)
+    setTurnPlayerId(firstPlayerId)
+    turnPlayerIdRef.current = firstPlayerId
+    setTurnSeq(0)
+    turnSeqRef.current = 0
+    setRoundFlags(new Array(normalized.length).fill(false))
+    setMaxRounds(localRounds)
+    maxRoundsRef.current = localRounds
+    setTurnTimeSec(localTime)
+    turnTimeSecRef.current = localTime
+    setTurnDeadlineAt(null)
+    turnDeadlineAtRef.current = null
+    setAcknowledgedLocalTurnKey(null)
+    setLocalMatchId(createUuidV4())
+    setIdentityMismatch(false)
+    setMeHud((previous) => ({
+      ...previous,
+      id: firstPlayerId,
+      name: normalized[0].name,
+      color: normalized[0].color,
+      cash: normalized[0].cash,
+      possibAt: 0,
+      clientsAt: 0,
+    }))
+    setLog(['Partida local iniciada!'])
+    setPhase('game')
+  }
 
   // Não depender da referência de `players` (sync contínuo cancelava o timeout)
   const gameRosterReady =
     phase === 'game' && Array.isArray(players) && players.length > 0
-  const tutorialMatchKey = String(currentLobbyId || '')
+  const tutorialMatchKey = String(
+    gameMode === GAME_MODE.LOCAL ? (localMatchId || '') : (currentLobbyId || '')
+  )
 
   useEffect(() => {
     if (!gameRosterReady || !tutorialMatchKey) return undefined
@@ -2494,7 +2591,7 @@ export default function App() {
     roundFlags, setRoundFlags,
     isMyTurn,
     isMine,
-    myUid, meId,
+    myUid: gameplayActorId, meId,
     myCash,
     current,
     broadcastState,
@@ -2513,6 +2610,85 @@ export default function App() {
     onTileVisit: handleTileVisit,
   })
 
+  const localHandoffOpen = shouldOpenLocalHandoff({
+    gameMode,
+    gameOver,
+    turnPlayerId,
+    turnSeq,
+    localTurnReady,
+    acknowledgedTurnKey: acknowledgedLocalTurnKey,
+  })
+  const localHandoffReadyToConfirm =
+    localHandoffOpen &&
+    !diceFx &&
+    !isRollingUI &&
+    !turnLock &&
+    Number(modalLocks || 0) === 0
+
+  const confirmLocalTurn = React.useCallback((requestedTurnKey) => {
+    if (gameMode !== GAME_MODE.LOCAL || gameOver) return
+    if (!currentLocalTurnKey || requestedTurnKey !== currentLocalTurnKey) return
+    if (diceFxRef.current || diceInFlightRef.current || turnLockRef.current) return
+    if (Number(modalLocks || 0) !== 0) return
+
+    const deadline = computeTurnDeadlineAt(Date.now(), turnTimeSecRef.current)
+    setTurnDeadlineAt(deadline)
+    turnDeadlineAtRef.current = deadline
+    setAcknowledgedLocalTurnKey(currentLocalTurnKey)
+  }, [gameMode, gameOver, currentLocalTurnKey, modalLocks])
+
+  useEffect(() => {
+    if (!localHandoffOpen) return
+    // Apenas camadas locais de apresentação; modais/regras do motor não são fechados aqui.
+    setHudSheetOpen(false)
+    setProgressiveTip(null)
+    setShowBankruptOverlay(false)
+    setTutorialOpen(false)
+  }, [localHandoffOpen, currentLocalTurnKey])
+
+  async function exitCurrentGame() {
+    if (gameMode === GAME_MODE.LOCAL) {
+      window.__setRoomCode?.(null)
+      setCurrentLobbyId(null)
+      setRoomId(null)
+      resetMatchLocalUi()
+      setPlayers([
+        applyStarterKit({
+          id: meId,
+          name: '',
+          cash: MANUAL_CONSTANTS.startCash,
+          pos: 0,
+          color: '#FFD600',
+          bens: MANUAL_CONSTANTS.startBens,
+        }),
+      ], { source: 'LOCAL_EXIT' })
+      setLocalMatchId(null)
+      setMyName('')
+      setGameMode(null)
+      setPhase('start')
+      return
+    }
+
+    if (!gameOver && myUid) {
+      try {
+        await forfeitMatch()
+      } catch (error) {
+        console.warn('[App] Erro ao eliminar jogador ao sair:', error)
+      }
+    }
+    if (currentLobbyId && myUid) {
+      try {
+        await leaveRoom({ roomCode: currentLobbyId, playerId: myUid })
+      } catch (error) {
+        console.warn('[App] Erro ao sair da sala:', error)
+      }
+      clearMatchIdentity(currentLobbyId)
+    }
+    window.__setRoomCode?.(null)
+    resetMatchLocalUi()
+    setPhase('lobbies')
+  }
+
   // Presença + auto-skip (Etapa 2) — só durante game multiplayer
   const [turnAbsenceStatus, setTurnAbsenceStatus] = useState(null)
 
@@ -2523,7 +2699,7 @@ export default function App() {
   const prevLobbyHostIdRef = useRef(null)
 
   useGamePresenceAutoSkip({
-    enabled: phase === 'game' && !!net?.enabled && !!net?.ready,
+    enabled: gameMode !== GAME_MODE.LOCAL && phase === 'game' && !!net?.enabled && !!net?.ready,
     lobbyId: currentLobbyId,
     // Canônico: sem fallback para sg_tab_player_id/meId na presença do game
     myUid: myUid || null,
@@ -2540,9 +2716,13 @@ export default function App() {
   // Cronômetro autoritativo: presence-coordinator ou lobby-host-fallback; CAS compartilhado.
   // Bloqueia também enquanto o dado 3D ainda não aplicou o ROLL no motor.
   useTurnTimerAutoPass({
-    enabled: phase === 'game' && !gameOver && (!!net?.enabled ? !!net?.ready : true),
+    enabled:
+      phase === 'game' &&
+      !gameOver &&
+      shouldEnableTurnTimer({ gameMode, localTurnReady }) &&
+      (!!net?.enabled ? !!net?.ready : true),
     lobbyId: currentLobbyId,
-    myUid: myUid || null,
+    myUid: gameplayActorId || null,
     lobbyHostId,
     players,
     turnPlayerId,
@@ -2555,7 +2735,7 @@ export default function App() {
   })
 
   useEffect(() => {
-    if (phase !== 'game' || !currentLobbyId) {
+    if (gameMode === GAME_MODE.LOCAL || phase !== 'game' || !currentLobbyId) {
       setLobbyHostId(null)
       prevLobbyHostIdRef.current = null
       setHostPromotedHint(false)
@@ -2578,7 +2758,7 @@ export default function App() {
       cancelled = true
       try { off?.() } catch {}
     }
-  }, [phase, currentLobbyId])
+  }, [gameMode, phase, currentLobbyId])
 
   useEffect(() => {
     const next = lobbyHostId != null ? String(lobbyHostId) : null
@@ -2609,8 +2789,8 @@ export default function App() {
   const currentPlayer = players[turnIdx]
   const isCurrentPlayerBankrupt = currentPlayer?.bankrupt === true
   const isWaitingRevenue = round === maxRounds && players[turnIdx]?.waitingAtRevenue
-  const isMyTurnExact = (turnPlayerId != null && myUid != null) && (String(turnPlayerId) === String(myUid))
-  const lockOwnerOk = turnLock ? (lockOwner != null && String(lockOwner) === String(myUid)) : true
+  const isMyTurnExact = (turnPlayerId != null && gameplayActorId != null) && (String(turnPlayerId) === String(gameplayActorId))
+  const lockOwnerOk = turnLock ? (lockOwner != null && String(lockOwner) === String(gameplayActorId)) : true
   // ✅ Chave do turno por turnSeq (monotônico; funciona com 1–4 jogadores)
   const currentTurnKey =
     typeof turnSeq === 'number'
@@ -2623,8 +2803,8 @@ export default function App() {
   const controlsCanRoll =
     !gameOver &&
     turnPlayerId != null &&
-    myUid != null &&
-    String(turnPlayerId) === String(myUid) &&
+    gameplayActorId != null &&
+    String(turnPlayerId) === String(gameplayActorId) &&
     turnLock === false &&
     lockOwnerOk &&
     Number(modalLocks || 0) === 0 &&
@@ -2674,7 +2854,7 @@ export default function App() {
       const localKey = `local:${currentTurnKey || turnSeq || Date.now()}`
       diceAnimatedKeysRef.current.add(localKey)
       if (currentTurnKey) diceAnimatedKeysRef.current.add(String(currentTurnKey))
-      setTurnLockBroadcast(true, String(myUid))
+      setTurnLockBroadcast(true, String(gameplayActorId))
       onAction(act)
       setDiceFx({
         id: localKey,
@@ -2709,7 +2889,7 @@ export default function App() {
       !!pending &&
       !!expectedId &&
       expectedId === liveId &&
-      expectedId === String(myUid || '') &&
+      expectedId === String(gameplayActorId || '') &&
       (!Number.isFinite(expectedSeq) || expectedSeq === liveSeq)
 
     if (stillSameTurn) {
@@ -2731,7 +2911,7 @@ export default function App() {
       setIsRollingUI(false)
       rollingTimeoutRef.current = null
     }, 200)
-  }, [clearRollingTimeout, onAction, turnPlayerId, turnSeq, myUid])
+  }, [clearRollingTimeout, onAction, turnPlayerId, turnSeq, gameplayActorId])
 
   useEffect(() => {
     handleDiceFxCompleteRef.current = handleDiceFxComplete
@@ -2767,6 +2947,7 @@ export default function App() {
           onEnter={(typedName) => {
           const clean = String(typedName || '').trim()
           if (!clean) return
+          setGameMode(GAME_MODE.ONLINE)
           // ✅ salva somente após ação explícita do usuário
           setTabPlayerName(clean)
           setMyName(clean)
@@ -2787,6 +2968,27 @@ export default function App() {
             setPhase('lobbies')
           }
         }}
+          onLocal={() => {
+            setGameMode(GAME_MODE.LOCAL)
+            window.__setRoomCode?.(null)
+            setCurrentLobbyId(null)
+            setRoomId(null)
+            setPhase('localSetup')
+          }}
+        />
+      </ModalProvider>
+    )
+  }
+
+  if (phase === 'localSetup') {
+    return (
+      <ModalProvider>
+        <LocalGameSetup
+          onBack={() => {
+            setGameMode(null)
+            setPhase('start')
+          }}
+          onStart={startLocalGame}
         />
       </ModalProvider>
     )
@@ -3068,7 +3270,7 @@ export default function App() {
     <>
     <OrientationGuard enabled>
     <ModalProvider>
-    <div className="page">
+    <div className="page" data-game-shell>
       <header className="topbar">
         <div className="status topbarPrimary">
           <div className="topbarRow topbarRow--player">
@@ -3117,7 +3319,7 @@ export default function App() {
             turnSeq={turnSeq}
             turnLock={turnLock}
             gameOver={gameOver}
-            paused={!!turnLock}
+            paused={!!turnLock || (gameMode === GAME_MODE.LOCAL && !localTurnReady)}
           />
           <span className="money">
             💵 ${' '}
@@ -3162,7 +3364,7 @@ export default function App() {
             onMeHud={setMeHud}
             boardVersion={boardVersion}
             me={players.find(isMine) || null}
-            matchId={currentLobbyId || roomId}
+            matchId={gameMode === GAME_MODE.LOCAL ? localMatchId : (currentLobbyId || roomId)}
           />
           <DiceRollOverlay
             open={!!diceFx}
@@ -3215,7 +3417,7 @@ export default function App() {
                 onAction={onControlsAction}
                 current={current}
                 isMyTurn={isMyTurn}
-                myUid={myUid}
+                myUid={gameplayActorId}
                 turnPlayerId={turnPlayerId}
                 turnLock={turnLock}
                 lockOwner={lockOwner}
@@ -3225,28 +3427,9 @@ export default function App() {
               <button
                 type="button"
                 className="btn dark"
-                onClick={async () => {
-                  if (!gameOver && myUid) {
-                    try {
-                      await forfeitMatch()
-                    } catch (error) {
-                      console.warn('[App] Erro ao eliminar jogador ao sair:', error)
-                    }
-                  }
-                  if (currentLobbyId && myUid) {
-                    try {
-                      await leaveRoom({ roomCode: currentLobbyId, playerId: myUid })
-                    } catch (error) {
-                      console.warn('[App] Erro ao sair da sala:', error)
-                    }
-                    clearMatchIdentity(currentLobbyId)
-                  }
-                  window.__setRoomCode?.(null)
-                  resetMatchLocalUi()
-                  setPhase('lobbies')
-                }}
+                onClick={exitCurrentGame}
               >
-                Sair para Lobbies
+                {gameMode === GAME_MODE.LOCAL ? 'Sair da partida' : 'Sair para Lobbies'}
               </button>
               <button
                 type="button"
@@ -3268,7 +3451,7 @@ export default function App() {
               onAction={onControlsAction}
               current={current}
               isMyTurn={isMyTurn}
-              myUid={myUid}
+              myUid={gameplayActorId}
               turnPlayerId={turnPlayerId}
               turnLock={turnLock}
               lockOwner={lockOwner}
@@ -3320,25 +3503,23 @@ export default function App() {
     </ModalProvider>
     </OrientationGuard>
 
+      <LocalTurnHandoff
+        open={localHandoffOpen && !gameOver}
+        playerName={current?.name || ''}
+        turnKey={currentLocalTurnKey}
+        initial={turnSeq === 0}
+        readyToConfirm={localHandoffReadyToConfirm}
+        onConfirm={confirmLocalTurn}
+      />
+
       {/* Fora de .page (overflow) — FinalWinners ainda usa portal no body */}
       {gameOver && (
         <FinalWinners
           players={players}
           maxRounds={maxRounds}
           endedRound={round}
-          onExit={async () => {
-            if (currentLobbyId && myUid) {
-              try {
-                await leaveRoom({ roomCode: currentLobbyId, playerId: myUid })
-              } catch (error) {
-                console.warn('[App] Erro ao sair da sala:', error)
-              }
-              clearMatchIdentity(currentLobbyId)
-            }
-            window.__setRoomCode?.(null)
-            resetMatchLocalUi()
-            setPhase('lobbies')
-          }}
+          exitLabel={gameMode === GAME_MODE.LOCAL ? 'Sair da partida' : 'Voltar aos Lobbies'}
+          onExit={exitCurrentGame}
         />
       )}
 

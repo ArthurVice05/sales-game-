@@ -13,7 +13,7 @@ export const FINAL_WINNERS_Z_INDEX = 2147483646
  * Portal em document.body: evita ficar atrás do tabuleiro no mobile
  * (.page overflow:hidden + stacking do boardWrap).
  */
-export default function FinalWinners({ players = [], maxRounds, endedRound, onExit, onResolve }) {
+export default function FinalWinners({ players = [], maxRounds, endedRound, onExit, onResolve, exitLabel = 'Voltar aos Lobbies' }) {
   const rankedPlayers = useMemo(() => rankPlayersByPatrimonio(players), [players])
 
   const first = rankedPlayers[0] || null
@@ -70,7 +70,7 @@ export default function FinalWinners({ players = [], maxRounds, endedRound, onEx
 
         <div className="finalWinnersActions">
           <button type="button" className="finalWinnersBtn" onClick={doExit}>
-            Voltar aos Lobbies
+            {exitLabel}
           </button>
         </div>
       </div>

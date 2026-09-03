@@ -254,7 +254,7 @@ test('pt9 skip de turno não corta o dado 3D', () => {
   const eng = read('src/game/useTurnEngine.jsx')
   assert.match(eng, /shouldRejectAbsentTurnSkip/)
   const app = read('src/App.jsx')
-  assert.match(app, /setTurnLockBroadcast\(true, String\(myUid\)\)/)
+  assert.match(app, /setTurnLockBroadcast\(true, String\(gameplayActorId\)\)/)
   assert.match(app, /ROLL descartado/)
   assert.match(app, /onAction\(act\)/)
   assert.match(app, /pendingAction: null/)

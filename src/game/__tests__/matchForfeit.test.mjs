@@ -114,10 +114,11 @@ test('endgame: 3 jogadores, 1 vivo restante', () => {
 test('App aplica forfeitMatch antes de leaveRoom no Sair para Lobbies', () => {
   const root = join(dirname(fileURLToPath(import.meta.url)), '../../..')
   const app = readFileSync(join(root, 'src/App.jsx'), 'utf8')
-  const marker = 'Sair para Lobbies'
-  const idx = app.indexOf(marker)
-  assert.ok(idx > 0)
-  const handler = app.slice(Math.max(0, idx - 900), idx)
+  const start = app.indexOf('async function exitCurrentGame()')
+  const end = app.indexOf('// Presença + auto-skip', start)
+  assert.ok(start > 0 && end > start)
+  const handler = app.slice(start, end)
+  assert.match(handler, /gameMode === GAME_MODE\.LOCAL/)
   const forfeitPos = handler.lastIndexOf('forfeitMatch')
   const leavePos = handler.lastIndexOf('leaveRoom')
   assert.ok(forfeitPos >= 0, 'Sair deve chamar forfeitMatch')

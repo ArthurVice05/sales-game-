@@ -9,7 +9,7 @@ import TironiCredit from './TironiCredit.jsx'
 import bgImg from '/dynamic-data-visualization-3d.jpg'
 import logoGame from '/SalesGame_Logo-removebg-preview.png'
 
-export default function StartScreen({ onEnter }) {
+export default function StartScreen({ onEnter, onLocal }) {
   // ✅ OBJ 2: input SEMPRE inicia vazio (não auto-preenche via sessionStorage)
   const [name, setName] = useState("")
   // Tour também pode abrir na abertura; no tabuleiro segue 1× por partida
@@ -52,7 +52,7 @@ export default function StartScreen({ onEnter }) {
       <div className="startCenter">
         <div className="startCard">
           <p className="startHint">
-            Digite seu nome e entre para visualizar as salas disponíveis.
+            Jogue online com outras pessoas ou compartilhe este dispositivo em uma partida local.
           </p>
 
           <div className="startSummary">
@@ -64,7 +64,7 @@ export default function StartScreen({ onEnter }) {
             </p>
           </div>
 
-          <label className="startLabel" htmlFor="playerName">Nome do Jogador</label>
+          <label className="startLabel" htmlFor="playerName">Seu nome para jogar online</label>
           <input
             id="playerName"
             ref={inputRef}
@@ -76,7 +76,11 @@ export default function StartScreen({ onEnter }) {
             maxLength={30}
           />
           <button className="startBtn" onClick={handleEnter} disabled={!canEnter} aria-disabled={!canEnter}>
-            Entrar
+            Jogar online
+          </button>
+          <div className="startModeDivider" aria-hidden="true"><span>ou</span></div>
+          <button type="button" className="startBtn startBtn--local" onClick={() => onLocal?.()}>
+            Jogar neste dispositivo
           </button>
           <button
             type="button"
