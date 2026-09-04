@@ -32,6 +32,13 @@ import {
   normalizeTurnTime,
 } from '../game/turnTimeConfig'
 import { mergeLobbyMatchSettings, readMatchConfigFromRoomState } from '../game/turnTimerLogic'
+import { isBotsFeatureEnabled } from '../game/bots/botFlags.js'
+import {
+  effectiveBotCount,
+  lobbyStartGate,
+  maxBotCountForHumans,
+  normalizeBotConfig,
+} from '../game/bots/botRoster.js'
 import {
   MATCH_ENTRY,
   evaluateMatchEntryReadiness,
@@ -156,6 +163,7 @@ export default function PlayersLobby({ lobbyId, playerName, onBack, onStartGame 
   const [toggling, setToggling] = useState(false)
   const [maxRounds, setMaxRounds] = useState(DEFAULT_MAX_ROUNDS)
   const [turnTimeSec, setTurnTimeSec] = useState(DEFAULT_TURN_TIME_SEC)
+  const [botCount, setBotCount] = useState(0)
   const settingsSeededRef = useRef(false)
 
   const net = useGameNet()
@@ -176,8 +184,27 @@ export default function PlayersLobby({ lobbyId, playerName, onBack, onStartGame 
     return new Set(names).size !== names.length
   }, [players])
   
-  // precisa ser host, sala 'open', >=1 jogador e todos prontos
-  const canStart = amHost && lobby?.status === 'open' && players.length >= 1 && readyCount === players.length
+  const botsEnabled = isBotsFeatureEnabled()
+  const maxPlayersLimit = Number(lobby?.max_players) || 4
+  const effectiveBots = effectiveBotCount({
+    humanCount: players.length,
+    requestedCount: botsEnabled ? botCount : 0,
+    maxPlayers: maxPlayersLimit,
+    botsEnabled,
+  })
+  const maxSelectableBots = botsEnabled
+    ? maxBotCountForHumans(players.length, maxPlayersLimit)
+    : 0
+  const startGate = lobbyStartGate({
+    humans: players,
+    botCount: botsEnabled ? botCount : 0,
+    botsEnabled,
+    amHost,
+    lobbyOpen: lobby?.status === 'open',
+  })
+  const canStart = botsEnabled
+    ? startGate.canStart
+    : (amHost && lobby?.status === 'open' && players.length >= 1 && readyCount === players.length)
 
   // ✅ C3: se nome estiver vazio, impede fluxo do lobby.
   useEffect(() => {
@@ -414,7 +441,8 @@ export default function PlayersLobby({ lobbyId, playerName, onBack, onStartGame 
     const cfg = readMatchConfigFromRoomState(netState)
     setMaxRounds(cfg.maxRounds)
     setTurnTimeSec(cfg.turnTimeSec)
-  }, [netReady, netState?.maxRounds, netState?.turnTimeSec, netState?.stateId])
+    if (cfg.botConfig) setBotCount(cfg.botConfig.count)
+  }, [netReady, netState?.maxRounds, netState?.turnTimeSec, netState?.botConfig?.count, netState?.stateId])
 
   // Host publica defaults uma vez se a sala ainda não tiver config.
   useEffect(() => {
@@ -422,16 +450,30 @@ export default function PlayersLobby({ lobbyId, playerName, onBack, onStartGame 
     if (settingsSeededRef.current) return
     const hasRounds = Object.prototype.hasOwnProperty.call(netState || {}, 'maxRounds')
     const hasTime = Object.prototype.hasOwnProperty.call(netState || {}, 'turnTimeSec')
-    if (hasRounds && hasTime) {
+    const hasBot = Object.prototype.hasOwnProperty.call(netState || {}, 'botConfig')
+    if (hasRounds && hasTime && (!botsEnabled || hasBot)) {
       settingsSeededRef.current = true
       return
     }
     settingsSeededRef.current = true
-    netCommit((prev) => mergeLobbyMatchSettings(prev, {
-      maxRounds: hasRounds ? prev?.maxRounds : DEFAULT_MAX_ROUNDS,
-      turnTimeSec: hasTime ? prev?.turnTimeSec : DEFAULT_TURN_TIME_SEC,
-    }))
-  }, [netReady, amHost, netCommit, netState])
+    const seedPatch = {
+      maxRounds: hasRounds ? netState?.maxRounds : DEFAULT_MAX_ROUNDS,
+      turnTimeSec: hasTime ? netState?.turnTimeSec : DEFAULT_TURN_TIME_SEC,
+    }
+    if (botsEnabled && !hasBot) {
+      seedPatch.botConfig = normalizeBotConfig({ count: 0 })
+      setBotCount(0)
+    }
+    netCommit((prev) => mergeLobbyMatchSettings(prev, seedPatch))
+  }, [netReady, amHost, netCommit, netState, botsEnabled])
+
+  useEffect(() => {
+    if (!amHost || !botsEnabled || lobby?.status !== 'open') return
+    const cap = maxBotCountForHumans(players.length, maxPlayersLimit)
+    if (botCount <= cap) return
+    publishMatchSettings({ botCount: cap, botConfig: { count: cap } })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [amHost, botsEnabled, players.length, botCount, maxPlayersLimit, lobby?.status])
 
   function publishMatchSettings(next) {
     const cfg = {
@@ -444,6 +486,14 @@ export default function PlayersLobby({ lobbyId, playerName, onBack, onStartGame 
     }
     setMaxRounds(cfg.maxRounds)
     setTurnTimeSec(cfg.turnTimeSec)
+    if (Object.prototype.hasOwnProperty.call(next || {}, 'botConfig') || Object.prototype.hasOwnProperty.call(next || {}, 'botCount')) {
+      const nextBot = normalizeBotConfig({
+        count: next.botCount != null ? next.botCount : next.botConfig?.count,
+        ...(next.botConfig || {}),
+      })
+      setBotCount(nextBot.count)
+      cfg.botConfig = nextBot
+    }
     if (typeof netCommit === 'function') {
       netCommit((prev) => mergeLobbyMatchSettings(prev, cfg))
     }
@@ -486,6 +536,13 @@ export default function PlayersLobby({ lobbyId, playerName, onBack, onStartGame 
         return
       }
       
+      const freshBotCount = effectiveBotCount({
+        humanCount: currentPlayers.length,
+        requestedCount: botsEnabled ? botCount : 0,
+        maxPlayers: Number(lobby?.max_players) || 4,
+        botsEnabled,
+      })
+      const botConfig = normalizeBotConfig({ count: freshBotCount })
       const match = await startMatch({ lobbyId })
       navigatedOnce.current = true
       const normalized = currentPlayers.map((p, i) => ({ id: p.player_id, name: p.player_name, index: i }))
@@ -496,6 +553,8 @@ export default function PlayersLobby({ lobbyId, playerName, onBack, onStartGame 
         me: { id: meId, name: meName },
         maxRounds: normalizeMaxRounds(maxRounds),
         turnTimeSec: normalizeTurnTime(turnTimeSec),
+        botCount: freshBotCount,
+        botConfig,
         resumeExistingMatch: false,
       }))
       if (startResult && startResult.ok === false) {
@@ -685,6 +744,41 @@ export default function PlayersLobby({ lobbyId, playerName, onBack, onStartGame 
           )}
           <p className="playerLobbyRoundNote">Somente o host pode alterar esta configuração.</p>
         </section>
+
+        {botsEnabled && lobby?.status === 'open' ? (
+        <section className="playerLobbyPanel">
+          <div className="playerLobbyPanelHeader">
+            <h3 className="playerLobbyPanelTitle"><IconUsers /> Máquinas</h3>
+            <p className="playerLobbyPanelHint">
+              Humanos têm prioridade. O total não ultrapassa {maxPlayersLimit} jogadores.
+            </p>
+          </div>
+          {amHost ? (
+            <div className="playerLobbyRounds" role="group" aria-label="Máquinas">
+              {[0, 1, 2, 3].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  className={`playerLobbyRoundBtn${botCount === n ? ' playerLobbyRoundBtn--active' : ''}`}
+                  aria-pressed={botCount === n}
+                  disabled={n > maxSelectableBots}
+                  onClick={() => publishMatchSettings({ botCount: n, botConfig: { count: n } })}
+                >
+                  {n === 0 ? '0 máquinas' : n === 1 ? '1 máquina' : `${n} máquinas`}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="playerLobbyRoundSelection">
+              Máquinas: <b>{effectiveBots}</b>
+            </p>
+          )}
+          <p className="playerLobbyRoundSelection">
+            {players.length} humano{players.length === 1 ? '' : 's'} + {effectiveBots} máquina{effectiveBots === 1 ? '' : 's'} = {players.length + effectiveBots}/{maxPlayersLimit} jogadores
+          </p>
+          <p className="playerLobbyRoundNote">Somente o host pode alterar esta configuração.</p>
+        </section>
+        ) : null}
 
         {/* ===== Objetivo da partida (mesmo texto para host e convidados) ===== */}
         <section className="playerLobbyPanel">

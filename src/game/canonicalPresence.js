@@ -5,6 +5,8 @@
  * Funções puras (sem Supabase) — espelham o threshold/coordinator de lobbies.js.
  */
 
+import { isBotPlayer } from './bots/botTypes.js'
+
 /** Mesmo valor de src/lib/lobbies.js — NÃO afrouxar. */
 export const GAME_OFFLINE_THRESHOLD_MS = 35_000
 
@@ -28,6 +30,7 @@ export function pickPresenceCoordinator(rosterPlayers, presenceList, now = Date.
   )
   for (const p of rosterPlayers || []) {
     if (!p || p.bankrupt) continue
+    if (isBotPlayer(p)) continue
     const id = String(p.id ?? '')
     if (!id) continue
     if (isPresenceFresh(byId.get(id), now)) return id

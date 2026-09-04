@@ -64,6 +64,11 @@ import {
 import { computeTurnDeadlineAt, sanitizeTurnDeadlineOnHandoff, resolveTurnDeadlineAfterHandoff } from './game/turnTimerLogic.js'
 import { validateTurnCommit, stripCommitMeta, inferCommitKind, resolveSkipGuardAction } from './game/turnCommitValidation.js'
 import {
+  getLiveBotMoveBarrier,
+  shouldApplyRemotePlayersDuringBotMove,
+  logBotCommit,
+} from './game/bots/botMoveBarrier.js'
+import {
   shouldApplyDeferredLocalPatch,
   captureTurnEmissionSnapshot,
 } from './game/turnStateMonotonic.js'
@@ -94,6 +99,10 @@ import {
 import { normalizePlayersAliases } from './game/playerShape.js'
 import { consumeTileTip } from './game/progressiveTips.js'
 import { MANUAL_CONSTANTS } from './game/manualConstants.js'
+import { isBotsFeatureEnabled } from './game/bots/botFlags.js'
+import { assembleMatchRoster } from './game/bots/botRoster.js'
+import { useBotTurnController } from './game/bots/useBotTurnController.js'
+import { enrichSuccessfulClaimResult } from './game/bots/botClaimProof.js'
 import OrientationGuard from './components/orientation/OrientationGuard.jsx'
 import { enterGamePresentation } from './utils/fullscreen.js'
 import { useBoardPinchZoom } from './hooks/useBoardPinchZoom.js'
@@ -358,6 +367,9 @@ export default function App() {
   const [lastRollTurnKey, setLastRollTurnKey] = useState(null)
   // ✅ turnSeq: contador monotônico do turno (1 jogador: 0→1→2…; evita [ROLL_BLOCK])
   const [turnSeq, setTurnSeq] = useState(0)
+  const claimProofRef = useRef(null)
+  const botCoordinatorIdRef = useRef(null)
+  const botsFeatureOn = isBotsFeatureEnabled()
 
   // ===== Última rolagem do dado (somente apresentação; não entra em regras) =====
   const [lastRollUI, setLastRollUI] = useState(null)
@@ -1072,6 +1084,7 @@ export default function App() {
     defer(async () => {
       let casLost = false
       let commitResult = null
+      let observedStateVersion = null
       try {
         commitResult = await netCommit(prev => {
           const prevState = prev || {}
@@ -1087,11 +1100,13 @@ export default function App() {
               local: localBoardVersion,
               remote: resolveBoardVersion(prevState.boardVersion),
             })
+            observedStateVersion = prevState.stateVersion ?? 0
             return prevState
           }
 
         // Guard de commit: revalida snapshot remoto (auto-pass / handoff / LOCK).
         const commitValidation = validateTurnCommit(prevState, statePatch, { now })
+        observedStateVersion = prevState.stateVersion ?? 0
         if (!commitValidation.ok) {
           casLost = true
           if (isSkipAttempt) {
@@ -1107,6 +1122,7 @@ export default function App() {
         const localStateVersion = currentVersion
         const remoteStateVersion = prevState.stateVersion ?? 0
         const safeVersion = Math.max(localStateVersion, remoteStateVersion) + 1
+        observedStateVersion = safeVersion
         
         // ✅ CORREÇÃO CRÍTICA: nunca deixe o patch "encolher" players para 1 só jogador.
         // Em commits iniciais, prevState.players pode vir vazio/stale (antes do primeiro snapshot).
@@ -1168,11 +1184,14 @@ export default function App() {
           })
         }
 
-        // Baseline = roster commitado (evita reenviar cash stale em patches seguintes)
-        try {
-          playersBeforeRef.current = JSON.parse(JSON.stringify(mergedPlayers))
-        } catch {
-          playersBeforeRef.current = mergedPlayers
+        // BOT_MOVE: baseline só depois de {ok:true} (broadcastState deferLocalUntilCommit).
+        // Atualizar aqui antes da confirmação remota fazia o snapshot antigo “engolir” o delta.
+        if (statePatch?._commitKind !== 'BOT_MOVE') {
+          try {
+            playersBeforeRef.current = JSON.parse(JSON.stringify(mergedPlayers))
+          } catch {
+            playersBeforeRef.current = mergedPlayers
+          }
         }
         
         // Prepara statePatch completo (inclui versionamento monotônico)
@@ -1209,7 +1228,7 @@ export default function App() {
           next.players = normalizePlayers(next.players)
         }
         
-          if (DEBUG_LOGS) console.log('[NET] ✅ commitGamePatch - tipo:', statePatch.turnPlayerId ? 'TURN' : statePatch.round ? 'ROUND' : 'PLAYER_DELTA', 
+          if (DEBUG_LOGS) console.log('[NET] ✅ commitGamePatch - tipo:', statePatch._commitKind || (statePatch.turnPlayerId ? 'TURN' : statePatch.round ? 'ROUND' : 'PLAYER_DELTA'),
             'playersDeltaIds:', Object.keys(playersDeltaById).join(','),
             'statePatchKeys:', Object.keys(statePatch).join(','),
             'stateVersion:', safeVersion, '(local:', localStateVersion, 'remote:', remoteStateVersion, ')')
@@ -1230,12 +1249,16 @@ export default function App() {
           confirmSharedSkipKey(expectTurnId, expectTurnSeq)
           if (isDevVerbose()) console.log('[auto-skip] CAS confirmed')
         }
-        resolve({ ok: !casLost && !!commitResult?.ok })
+        resolve({
+          ok: !casLost && !!commitResult?.ok,
+          casLost,
+          stateVersion: observedStateVersion,
+        })
       } catch (e) {
         const failAction = resolveSkipGuardAction(statePatch, { casLost: true, commitOk: false })
         if (failAction.action === 'release') releaseSharedSkipKey(expectTurnId, expectTurnSeq)
         console.warn('[NET] commitGamePatch failed:', e?.message || e)
-        resolve({ ok: false })
+        resolve({ ok: false, casLost: true, stateVersion: observedStateVersion })
       }
     })
     })
@@ -1384,15 +1407,29 @@ export default function App() {
         }
       } else {
         const normalizedPlayers = normalizePlayers(plan.players)
-        setPlayers(normalizedPlayers, { source: 'SNAPSHOT' })
-        try {
-          playersBeforeRef.current = JSON.parse(JSON.stringify(normalizedPlayers))
-        } catch {
-          playersBeforeRef.current = normalizedPlayers
+        const moveBarrier = getLiveBotMoveBarrier()
+        const incomingBot = moveBarrier
+          ? normalizedPlayers.find((p) => String(p?.id) === String(moveBarrier.playerId))
+          : null
+        const localBot = moveBarrier
+          ? localRoster.find((p) => String(p?.id) === String(moveBarrier.playerId))
+          : null
+        const applyPlayers = shouldApplyRemotePlayersDuringBotMove({
+          barrier: moveBarrier,
+          incomingPlayer: incomingBot,
+          localPlayer: localBot,
+        })
+        if (applyPlayers) {
+          setPlayers(normalizedPlayers, { source: 'SNAPSHOT' })
+          try {
+            playersBeforeRef.current = JSON.parse(JSON.stringify(normalizedPlayers))
+          } catch {
+            playersBeforeRef.current = normalizedPlayers
+          }
         }
 
         // turnIdx derivado do turnPlayerId (nunca do remoto)
-        if (incomingTurnId) {
+        if (applyPlayers && incomingTurnId) {
           const derivedTurnIdx = normalizedPlayers.findIndex(p => String(p.id) === String(incomingTurnId))
           if (derivedTurnIdx >= 0 && derivedTurnIdx !== turnIdx) {
             setTurnIdx(derivedTurnIdx)
@@ -2250,6 +2287,9 @@ export default function App() {
       boardVersion: startBoardVersion,
       playersCount: normalized.length,
     })
+    if (startOpts.botConfig) {
+      startPatch.botConfig = startOpts.botConfig
+    }
 
     const startCommit = broadcastState(normalized, 0, 1, false, null, startPatch)
     defer(() => {
@@ -2511,6 +2551,10 @@ export default function App() {
     maxRounds,
     boardVersion,
     onTileVisit: handleTileVisit,
+    claimProofRef,
+    botCoordinatorIdRef,
+    authoritativeMatchId: netState?.matchId || expectedMatchIdRef.current,
+    remoteBotClaimExecutor: netState?.botClaimExecutor ?? null,
   })
 
   // Presença + auto-skip (Etapa 2) — só durante game multiplayer
@@ -2521,6 +2565,87 @@ export default function App() {
   const [lobbyHostId, setLobbyHostId] = useState(null)
   const [hostPromotedHint, setHostPromotedHint] = useState(false)
   const prevLobbyHostIdRef = useRef(null)
+
+  const commitBotClaim = React.useCallback(async ({ claim, seed, turnKey, steal, heartbeat } = {}) => {
+    const now = Date.now()
+    const result = await commitGamePatch({
+      playersDeltaById: {},
+      statePatch: {
+        turnLock: true,
+        lockOwner: myUid,
+        lockTs: now,
+        botTurnKey: turnKey,
+        botTurnSeed: seed,
+        botClaimExecutor: claim?.executorId,
+        ...(heartbeat ? {} : { botPhase: 'CLAIMED' }),
+        _expectTurnPlayerId: claim?.turnPlayerId,
+        _expectTurnSeq: claim?.turnSeq,
+        ...(claim?.matchId ? { _expectMatchId: String(claim.matchId) } : {}),
+        ...(steal && claim?.releaseExpectedOwner
+          ? { _expectLockOwner: String(claim.releaseExpectedOwner) }
+          : {}),
+        _commitKind: 'BOT_CLAIM',
+      },
+    })
+    logBotCommit(heartbeat ? 'BOT_HEARTBEAT' : 'BOT_CLAIM', {
+      matchId: claim?.matchId,
+      turnPlayerId: claim?.turnPlayerId,
+      turnSeq: claim?.turnSeq,
+      actionId: turnKey,
+      executorId: claim?.executorId,
+      ok: result?.ok === true,
+      casLost: result?.ok !== true,
+    })
+    if (!result || result.ok !== true) {
+      return { ok: false, casLost: true, reason: result?.reason || 'claim-cas-lost' }
+    }
+    return enrichSuccessfulClaimResult({ ok: true }, claim, turnKey) || { ok: true }
+  }, [commitGamePatch, myUid])
+
+  const onBotRoll = React.useCallback(async (payload) => {
+    if (!payload) return { ok: false, reason: 'empty-payload' }
+    const raw = onAction({
+      type: 'ROLL',
+      steps: payload.steps,
+      actorId: payload.actorId,
+      botClaim: {
+        ...(payload.botClaim || {}),
+        ok: true,
+        lockOwner: myUid,
+      },
+    })
+    const result = await Promise.resolve(raw)
+    if (result && typeof result === 'object' && result.ok === true) return { ok: true }
+    if (result && typeof result === 'object' && result.ok === false) {
+      return { ok: false, reason: result.reason || 'rejected' }
+    }
+    return { ok: false, reason: 'undefined-result' }
+  }, [onAction, myUid])
+
+  const { thinking: botTurnThinking } = useBotTurnController({
+    enabled: phase === 'game' && botsFeatureOn && !gameOver,
+    botsEnabled: botsFeatureOn,
+    lobbyId: currentLobbyId,
+    players,
+    myUid,
+    matchId: netState?.matchId || expectedMatchIdRef.current,
+    turnPlayerId,
+    turnSeq,
+    gameOver,
+    turnLock,
+    lockOwner,
+    lockTs: netState?.lockTs,
+    lastRollTurnKey,
+    round,
+    maxRounds,
+    lobbyHostId,
+    netState,
+    commitClaim: commitBotClaim,
+    onBotRoll,
+    coordinatorIdRef: botCoordinatorIdRef,
+    claimProofRef,
+    authoritativeNetEnabled: !!(net?.enabled && net?.ready),
+  })
 
   useGamePresenceAutoSkip({
     enabled: phase === 'game' && !!net?.enabled && !!net?.ready,
@@ -2637,6 +2762,8 @@ export default function App() {
     ? 'Partida encerrada — veja o resultado.'
     : hostPromotedHint
     ? 'Você agora é o Host da sala.'
+    : botTurnThinking
+    ? 'Máquina pensando'
     : turnAbsenceStatus === 'waiting'
     ? 'Jogador desconectado — aguardando reconexão...'
     : turnAbsenceStatus === 'skipped'
@@ -2953,14 +3080,22 @@ export default function App() {
               seat: i // ✅ CORREÇÃO: Atribui seat baseado na ordem ordenada
             })
           )
-          if (mapped.length === 0) return { ok: false, reason: 'empty-roster' }
+          const roster = botsFeatureOn
+            ? assembleMatchRoster({
+                humans: mapped,
+                matchId: payload?.matchId,
+                botCount: payload?.botCount ?? payload?.botConfig?.count ?? 0,
+                botsEnabled: true,
+              })
+            : mapped
+          if (roster.length === 0) return { ok: false, reason: 'empty-roster' }
 
           if (payload?.matchId) {
             expectedMatchIdRef.current = String(payload.matchId)
           }
 
           // ✅ CORREÇÃO: Normaliza players antes de usar
-          const normalized = normalizePlayers(mapped)
+          const normalized = normalizePlayers(roster)
 
           // ✅ FIX: myUid pela identidade da sala (UUID), nunca por nome.
           const roomKey = String(payload?.lobbyId || currentLobbyId || roomId || '')
@@ -3023,6 +3158,9 @@ export default function App() {
           const startCommit = await Promise.resolve(
             broadcastStart(normalized, maxRoundsRef.current, turnTimeSecRef.current, {
               matchId: payload?.matchId,
+              ...(payload?.botConfig && Number(payload?.botCount) > 0
+                ? { botConfig: payload.botConfig }
+                : {}),
             })
           )
           if (!isStartCommitSuccess(startCommit, { netEnabled: !!net?.enabled })) {

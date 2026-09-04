@@ -47,6 +47,23 @@ export function mergePlayerPartial(existing, delta = {}) {
     base[key] = value
   }
 
+  if (base.isBot === true || base.controller === 'BOT' || existing?.isBot === true) {
+    base.isBot = true
+    base.controller = 'BOT'
+    if (existing?.botDifficulty != null && base.botDifficulty == null) {
+      base.botDifficulty = existing.botDifficulty
+    }
+    if (existing?.botPolicyVersion != null && base.botPolicyVersion == null) {
+      base.botPolicyVersion = existing.botPolicyVersion
+    }
+    if (Number.isInteger(existing?.seat) && !Number.isInteger(base.seat)) {
+      base.seat = existing.seat
+    }
+    if (Number.isInteger(existing?.joinOrder) && !Number.isInteger(base.joinOrder)) {
+      base.joinOrder = existing.joinOrder
+    }
+  }
+
   return normalizePlayerAliases(base)
 }
 

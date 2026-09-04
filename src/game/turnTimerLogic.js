@@ -8,6 +8,7 @@ import {
   resolveTurnTimeSecFromState,
 } from './turnTimeConfig.js'
 import { normalizeMaxRounds, DEFAULT_MAX_ROUNDS } from './roundConfig.js'
+import { normalizeBotConfig } from './bots/botRoster.js'
 
 export function turnAttemptKey(turnPlayerId, turnSeq) {
   return `${String(turnPlayerId ?? '')}|${Number(turnSeq) || 0}`
@@ -140,7 +141,7 @@ export function mergeLobbyMatchSettings(prevState = {}, nextSettings = {}) {
       : DEFAULT_TURN_TIME_SEC,
   })
 
-  return {
+  const next = {
     ...prev,
     maxRounds: cfg.maxRounds,
     turnTimeSec: cfg.turnTimeSec,
@@ -148,6 +149,15 @@ export function mergeLobbyMatchSettings(prevState = {}, nextSettings = {}) {
       ? (prev.kind || 'TURN')
       : 'LOBBY_SETTINGS',
   }
+  if (Object.prototype.hasOwnProperty.call(nextSettings || {}, 'botConfig')) {
+    next.botConfig = normalizeBotConfig({
+      ...(prev.botConfig || {}),
+      ...(nextSettings.botConfig || {}),
+    })
+  } else if (prev.botConfig) {
+    next.botConfig = normalizeBotConfig(prev.botConfig)
+  }
+  return next
 }
 
 /**
@@ -240,5 +250,8 @@ export function readMatchConfigFromRoomState(state) {
     ? normalizeMaxRounds(state.maxRounds)
     : DEFAULT_MAX_ROUNDS
   const turnTimeSec = resolveTurnTimeSecFromState(state, DEFAULT_TURN_TIME_SEC)
-  return { maxRounds, turnTimeSec }
+  if (!Object.prototype.hasOwnProperty.call(state || {}, 'botConfig')) {
+    return { maxRounds, turnTimeSec }
+  }
+  return { maxRounds, turnTimeSec, botConfig: normalizeBotConfig(state.botConfig) }
 }

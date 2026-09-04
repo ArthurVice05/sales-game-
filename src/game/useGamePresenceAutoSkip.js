@@ -25,6 +25,7 @@ import {
 } from './sharedTurnSkipGuard.js'
 import { turnAttemptKey } from './turnTimerLogic.js'
 import { shouldAttemptPresenceAutoSkip } from './presenceSkipLogic.js'
+import { isBotPlayer } from './bots/botTypes.js'
 
 import { isDevVerbose } from './debugFlags.js'
 
@@ -235,12 +236,15 @@ export function useGamePresenceAutoSkip({
         if (cancelled) return
       }
 
-      const turnPresent2 = isTurnPlayerPresent({
-        turnPlayerId: curTurnId,
-        presenceList: presence,
-        now: Date.now(),
-        thresholdMs: GAME_OFFLINE_THRESHOLD_MS,
-      })
+      const currentTurnPlayer = roster.find((p) => String(p?.id) === curTurnId)
+      const turnPresent2 = isBotPlayer(currentTurnPlayer)
+        ? true
+        : isTurnPlayerPresent({
+            turnPlayerId: curTurnId,
+            presenceList: presence,
+            now: Date.now(),
+            thresholdMs: GAME_OFFLINE_THRESHOLD_MS,
+          })
 
       devLog('[presence] current turn present=' + (turnPresent2 ? 'true' : 'false'))
 
@@ -256,7 +260,10 @@ export function useGamePresenceAutoSkip({
 
       // Host transfer (independente do auto-skip)
       try {
-        const candidateIds = roster.map((p) => String(p?.id ?? '')).filter(Boolean)
+        const candidateIds = roster
+          .filter((p) => !isBotPlayer(p))
+          .map((p) => String(p?.id ?? ''))
+          .filter(Boolean)
         const ht = await attemptHostTransferFromPresence({
           lobbyId,
           myUid: String(presenceId),

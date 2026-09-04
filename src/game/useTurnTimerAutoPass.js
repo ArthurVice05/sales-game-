@@ -10,7 +10,7 @@ import {
   shouldArmCoordinatorTimer,
   TURN_HANDOFF_STALE_REMAINING_MS,
 } from './turnTimerLogic.js'
-import { shouldProceedTimerAutoPassAfterAwait } from './turnCommitValidation.js'
+import { shouldProceedTimerAutoPassAfterAwait, shouldDisableTimerAutoPassForTurn, parseSkipAttemptResult } from './turnCommitValidation.js'
 import {
   getLastSharedSkipKey,
   getSharedSkipInFlight,
@@ -104,6 +104,13 @@ export function useTurnTimerAutoPass({
       if (getSharedSkipInFlight()) return
 
       const roster = Array.isArray(playersRef.current) ? playersRef.current : []
+
+      if (shouldDisableTimerAutoPassForTurn(roster, curTurnId)) {
+        armedKeyRef.current = ''
+        skipArmedRef.current = false
+        return
+      }
+
       const now = Date.now()
       const turnKey = `${curTurnId}|${curTurnSeq}`
       const remaining = remainingTurnMs(deadlineRef.current, now)
@@ -227,9 +234,9 @@ export function useTurnTimerAutoPass({
 
           let ok = false
           if (result && typeof result.then === 'function') {
-            ok = await result
+            ok = parseSkipAttemptResult(await result)
           } else {
-            ok = !!result
+            ok = parseSkipAttemptResult(result)
           }
 
           if (ok) {
