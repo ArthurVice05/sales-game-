@@ -1,0 +1,323 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/modals/RecoveryFire.jsx");import __vite__cjsImport0_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=0c66d85e"; const jsxDEV = __vite__cjsImport0_react_jsxDevRuntime["jsxDEV"];
+import * as RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;
+let prevRefreshReg;
+let prevRefreshSig;
+if (import.meta.hot && !inWebWorker) {
+  if (!window.$RefreshReg$) {
+    throw new Error(
+      "@vitejs/plugin-react can't detect preamble. Something is wrong."
+    );
+  }
+  prevRefreshReg = window.$RefreshReg$;
+  prevRefreshSig = window.$RefreshSig$;
+  window.$RefreshReg$ = RefreshRuntime.getRefreshReg("C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/modals/RecoveryFire.jsx");
+  window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
+}
+var _s = $RefreshSig$();
+import __vite__cjsImport3_react from "/node_modules/.vite/deps/react.js?v=0c66d85e"; const React = __vite__cjsImport3_react.__esModule ? __vite__cjsImport3_react.default : __vite__cjsImport3_react; const useMemo = __vite__cjsImport3_react["useMemo"]; const useState = __vite__cjsImport3_react["useState"];
+import S from "/src/modals/recoveryStyles.js";
+export default function RecoveryFire({ roles = [], onBack, onConfirm }) {
+  _s();
+  const normalized = useMemo(() => {
+    return roles.map((r) => {
+      const unit = Number(r.unit ?? r.total ?? 0);
+      const owned = Number(r.owned ?? r.qty ?? 0);
+      return { ...r, unit, owned };
+    });
+  }, [roles]);
+  const [qty, setQty] = useState(() => {
+    const init = {};
+    normalized.forEach((r) => {
+      init[r.key] = 0;
+    });
+    return init;
+  });
+  const fmt = (v) => `R$ ${Number(v || 0).toLocaleString("pt-BR")}`;
+  const creditUnit = (unit) => Math.floor(Number(unit || 0) * 0.5);
+  const add = (k, delta) => {
+    setQty((q) => {
+      const role = normalized.find((r) => r.key === k);
+      if (!role) return q;
+      const cur = Number(q[k] || 0);
+      const next = Math.max(0, Math.min(role.owned, cur + delta));
+      if (next === cur) return q;
+      return { ...q, [k]: next };
+    });
+  };
+  const creditByRole = useMemo(() => {
+    const out = {};
+    normalized.forEach((r) => {
+      const q = Number(qty[r.key] || 0);
+      out[r.key] = creditUnit(r.unit) * q;
+    });
+    return out;
+  }, [qty, normalized]);
+  const totalCredit = useMemo(
+    () => Object.values(creditByRole).reduce((a, b) => a + b, 0),
+    [creditByRole]
+  );
+  const confirm = () => {
+    if (totalCredit <= 0) return;
+    const items = {};
+    normalized.forEach((r) => {
+      items[r.key] = Number(qty[r.key] || 0);
+    });
+    onConfirm?.({
+      type: "FIRE",
+      items,
+      // quantidades a demitir por cargo
+      creditByRole,
+      // crédito por cargo
+      totalCredit,
+      // total no caixa
+      amount: totalCredit,
+      // alias p/ compat
+      note: `Demissões +${fmt(totalCredit)}`
+    });
+  };
+  return /* @__PURE__ */ jsxDEV("div", { style: S.body, children: [
+    /* @__PURE__ */ jsxDEV("div", { style: S.subHeader, children: /* @__PURE__ */ jsxDEV("b", { style: { fontSize: 20 }, children: "DEMITIR FUNCIONÁRIOS" }, void 0, false, {
+      fileName: "C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/modals/RecoveryFire.jsx",
+      lineNumber: 98,
+      columnNumber: 32
+    }, this) }, void 0, false, {
+      fileName: "C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/modals/RecoveryFire.jsx",
+      lineNumber: 98,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("p", { style: { opacity: 0.9, marginBottom: 12, lineHeight: 1.45 }, children: "Reduz a equipe e devolve 50% do valor ao caixa. Use para recuperar saldo e evitar falência." }, void 0, false, {
+      fileName: "C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/modals/RecoveryFire.jsx",
+      lineNumber: 99,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("div", { style: { display: "grid", gridTemplateColumns: "1.2fr 1fr 1.2fr 1fr", gap: 8, opacity: 0.9, fontWeight: 700, marginBottom: 6 }, children: [
+      /* @__PURE__ */ jsxDEV("div", { children: "Cargo" }, void 0, false, {
+        fileName: "C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/modals/RecoveryFire.jsx",
+        lineNumber: 105,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { children: "Valor Unitário" }, void 0, false, {
+        fileName: "C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/modals/RecoveryFire.jsx",
+        lineNumber: 106,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { children: "Qtd demitir" }, void 0, false, {
+        fileName: "C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/modals/RecoveryFire.jsx",
+        lineNumber: 107,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { children: "Crédito" }, void 0, false, {
+        fileName: "C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/modals/RecoveryFire.jsx",
+        lineNumber: 108,
+        columnNumber: 9
+      }, this)
+    ] }, void 0, true, {
+      fileName: "C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/modals/RecoveryFire.jsx",
+      lineNumber: 104,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("div", { style: { display: "grid", gap: 12 }, children: normalized.map((r) => {
+      const q = Number(qty[r.key] || 0);
+      const unit = Number(r.unit || 0);
+      const owned = Number(r.owned || 0);
+      const cu = creditUnit(unit);
+      const credit = cu * q;
+      const minusDisabled = q <= 0;
+      const plusDisabled = q >= owned || owned <= 0;
+      return /* @__PURE__ */ jsxDEV(
+        "div",
+        {
+          style: {
+            display: "grid",
+            gridTemplateColumns: "1.2fr 1fr 1.2fr 1fr",
+            alignItems: "center",
+            gap: 8
+          },
+          children: [
+            /* @__PURE__ */ jsxDEV("div", { children: [
+              /* @__PURE__ */ jsxDEV("div", { style: { fontWeight: 800 }, children: r.label }, void 0, false, {
+                fileName: "C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/modals/RecoveryFire.jsx",
+                lineNumber: 132,
+                columnNumber: 17
+              }, this),
+              /* @__PURE__ */ jsxDEV("div", { style: { opacity: 0.75, fontSize: 12 }, children: [
+                "Possui: ",
+                /* @__PURE__ */ jsxDEV("b", { children: owned }, void 0, false, {
+                  fileName: "C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/modals/RecoveryFire.jsx",
+                  lineNumber: 133,
+                  columnNumber: 69
+                }, this)
+              ] }, void 0, true, {
+                fileName: "C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/modals/RecoveryFire.jsx",
+                lineNumber: 133,
+                columnNumber: 17
+              }, this)
+            ] }, void 0, true, {
+              fileName: "C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/modals/RecoveryFire.jsx",
+              lineNumber: 131,
+              columnNumber: 15
+            }, this),
+            /* @__PURE__ */ jsxDEV("div", { children: [
+              /* @__PURE__ */ jsxDEV("div", { children: /* @__PURE__ */ jsxDEV("b", { children: fmt(unit) }, void 0, false, {
+                fileName: "C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/modals/RecoveryFire.jsx",
+                lineNumber: 137,
+                columnNumber: 22
+              }, this) }, void 0, false, {
+                fileName: "C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/modals/RecoveryFire.jsx",
+                lineNumber: 137,
+                columnNumber: 17
+              }, this),
+              /* @__PURE__ */ jsxDEV("div", { style: { opacity: 0.75, fontSize: 12 }, children: [
+                "Crédito por un.: ",
+                /* @__PURE__ */ jsxDEV("b", { children: fmt(cu) }, void 0, false, {
+                  fileName: "C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/modals/RecoveryFire.jsx",
+                  lineNumber: 138,
+                  columnNumber: 78
+                }, this)
+              ] }, void 0, true, {
+                fileName: "C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/modals/RecoveryFire.jsx",
+                lineNumber: 138,
+                columnNumber: 17
+              }, this)
+            ] }, void 0, true, {
+              fileName: "C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/modals/RecoveryFire.jsx",
+              lineNumber: 136,
+              columnNumber: 15
+            }, this),
+            /* @__PURE__ */ jsxDEV("div", { style: { display: "flex", gap: 6, alignItems: "center" }, children: [
+              /* @__PURE__ */ jsxDEV(
+                "button",
+                {
+                  style: { ...S.spin, opacity: minusDisabled ? 0.5 : 1, cursor: minusDisabled ? "not-allowed" : "pointer" },
+                  disabled: minusDisabled,
+                  onClick: () => add(r.key, -1),
+                  children: "-"
+                },
+                void 0,
+                false,
+                {
+                  fileName: "C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/modals/RecoveryFire.jsx",
+                  lineNumber: 142,
+                  columnNumber: 17
+                },
+                this
+              ),
+              /* @__PURE__ */ jsxDEV("div", { style: { minWidth: 28, textAlign: "center", fontWeight: 800 }, children: q }, void 0, false, {
+                fileName: "C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/modals/RecoveryFire.jsx",
+                lineNumber: 147,
+                columnNumber: 17
+              }, this),
+              /* @__PURE__ */ jsxDEV(
+                "button",
+                {
+                  style: { ...S.spin, opacity: plusDisabled ? 0.5 : 1, cursor: plusDisabled ? "not-allowed" : "pointer" },
+                  disabled: plusDisabled,
+                  onClick: () => add(r.key, 1),
+                  children: "+"
+                },
+                void 0,
+                false,
+                {
+                  fileName: "C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/modals/RecoveryFire.jsx",
+                  lineNumber: 148,
+                  columnNumber: 17
+                },
+                this
+              )
+            ] }, void 0, true, {
+              fileName: "C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/modals/RecoveryFire.jsx",
+              lineNumber: 141,
+              columnNumber: 15
+            }, this),
+            /* @__PURE__ */ jsxDEV("div", { children: /* @__PURE__ */ jsxDEV("b", { children: fmt(credit) }, void 0, false, {
+              fileName: "C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/modals/RecoveryFire.jsx",
+              lineNumber: 155,
+              columnNumber: 20
+            }, this) }, void 0, false, {
+              fileName: "C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/modals/RecoveryFire.jsx",
+              lineNumber: 155,
+              columnNumber: 15
+            }, this)
+          ]
+        },
+        r.key,
+        true,
+        {
+          fileName: "C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/modals/RecoveryFire.jsx",
+          lineNumber: 122,
+          columnNumber: 13
+        },
+        this
+      );
+    }) }, void 0, false, {
+      fileName: "C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/modals/RecoveryFire.jsx",
+      lineNumber: 111,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("div", { style: { marginTop: 12, textAlign: "right", fontWeight: 900 }, children: [
+      "Total a resgatar: ",
+      /* @__PURE__ */ jsxDEV("b", { children: fmt(totalCredit) }, void 0, false, {
+        fileName: "C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/modals/RecoveryFire.jsx",
+        lineNumber: 162,
+        columnNumber: 27
+      }, this)
+    ] }, void 0, true, {
+      fileName: "C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/modals/RecoveryFire.jsx",
+      lineNumber: 161,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("div", { style: S.rowBtns, children: [
+      /* @__PURE__ */ jsxDEV("button", { style: S.back, onClick: onBack, children: "← Voltar" }, void 0, false, {
+        fileName: "C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/modals/RecoveryFire.jsx",
+        lineNumber: 166,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV(
+        "button",
+        {
+          style: { ...S.cta, background: "#ef4444", opacity: totalCredit > 0 ? 1 : 0.6 },
+          onClick: confirm,
+          disabled: totalCredit <= 0,
+          children: "DEMITIR"
+        },
+        void 0,
+        false,
+        {
+          fileName: "C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/modals/RecoveryFire.jsx",
+          lineNumber: 167,
+          columnNumber: 9
+        },
+        this
+      )
+    ] }, void 0, true, {
+      fileName: "C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/modals/RecoveryFire.jsx",
+      lineNumber: 165,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/modals/RecoveryFire.jsx",
+    lineNumber: 97,
+    columnNumber: 5
+  }, this);
+}
+_s(RecoveryFire, "4y0gTI9A2FXyDgvQRhdV6EEv1Rg=");
+_c = RecoveryFire;
+var _c;
+$RefreshReg$(_c, "RecoveryFire");
+if (import.meta.hot && !inWebWorker) {
+  window.$RefreshReg$ = prevRefreshReg;
+  window.$RefreshSig$ = prevRefreshSig;
+}
+if (import.meta.hot && !inWebWorker) {
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/modals/RecoveryFire.jsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/modals/RecoveryFire.jsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+
+//# sourceMappingURL=data:application/json;base64,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REE7QUFBQSxJQUVBLHVCQUFDLFNBQUksT0FBTyxFQUFDa0QsV0FBVSxJQUFJRCxXQUFVLFNBQVNWLFlBQVcsSUFBRyxHQUFHO0FBQUE7QUFBQSxNQUMzQyx1QkFBQyxPQUFHdEMsY0FBSWtCLFdBQVcsS0FBbkI7QUFBQTtBQUFBO0FBQUE7QUFBQSxhQUFxQjtBQUFBLFNBRHpDO0FBQUE7QUFBQTtBQUFBO0FBQUEsV0FFQTtBQUFBLElBRUEsdUJBQUMsU0FBSSxPQUFPcEMsRUFBRW9FLFNBQ1o7QUFBQSw2QkFBQyxZQUFPLE9BQU9wRSxFQUFFcUUsTUFBTSxTQUFTbEUsUUFBUSx3QkFBeEM7QUFBQTtBQUFBO0FBQUE7QUFBQSxhQUFnRDtBQUFBLE1BQ2hEO0FBQUEsUUFBQztBQUFBO0FBQUEsVUFDQyxPQUFPLEVBQUMsR0FBR0gsRUFBRXNFLEtBQUtDLFlBQVcsV0FBV3JCLFNBQVNkLGNBQVksSUFBSSxJQUFJLElBQUU7QUFBQSxVQUN2RSxTQUFTTTtBQUFBQSxVQUNULFVBQVVOLGVBQWU7QUFBQSxVQUFFO0FBQUE7QUFBQSxRQUg3QjtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUEsTUFNQTtBQUFBLFNBUkY7QUFBQTtBQUFBO0FBQUE7QUFBQSxXQVNBO0FBQUEsT0E3RUY7QUFBQTtBQUFBO0FBQUE7QUFBQSxTQThFQTtBQUVKO0FBQUMvQixHQTdJdUJKLGNBQVk7QUFBQXVFLEtBQVp2RTtBQUFZLElBQUF1RTtBQUFBQyxhQUFBRCxJQUFBIiwibmFtZXMiOlsiUmVhY3QiLCJ1c2VNZW1vIiwidXNlU3RhdGUiLCJTIiwiUmVjb3ZlcnlGaXJlIiwicm9sZXMiLCJvbkJhY2siLCJvbkNvbmZpcm0iLCJfcyIsIm5vcm1hbGl6ZWQiLCJtYXAiLCJyIiwidW5pdCIsIk51bWJlciIsInRvdGFsIiwib3duZWQiLCJxdHkiLCJzZXRRdHkiLCJpbml0IiwiZm9yRWFjaCIsImtleSIsImZtdCIsInYiLCJ0b0xvY2FsZVN0cmluZyIsImNyZWRpdFVuaXQiLCJNYXRoIiwiZmxvb3IiLCJhZGQiLCJrIiwiZGVsdGEiLCJxIiwicm9sZSIsImZpbmQiLCJjdXIiLCJuZXh0IiwibWF4IiwibWluIiwiY3JlZGl0QnlSb2xlIiwib3V0IiwidG90YWxDcmVkaXQiLCJPYmplY3QiLCJ2YWx1ZXMiLCJyZWR1Y2UiLCJhIiwiYiIsImNvbmZpcm0iLCJpdGVtcyIsInR5cGUiLCJhbW91bnQiLCJub3RlIiwiYm9keSIsInN1YkhlYWRlciIsImZvbnRTaXplIiwib3BhY2l0eSIsIm1hcmdpbkJvdHRvbSIsImxpbmVIZWlnaHQiLCJkaXNwbGF5IiwiZ3JpZFRlbXBsYXRlQ29sdW1ucyIsImdhcCIsImZvbnRXZWlnaHQiLCJjdSIsImNyZWRpdCIsIm1pbnVzRGlzYWJsZWQiLCJwbHVzRGlzYWJsZWQiLCJhbGlnbkl0ZW1zIiwibGFiZWwiLCJzcGluIiwiY3Vyc29yIiwibWluV2lkdGgiLCJ0ZXh0QWxpZ24iLCJtYXJnaW5Ub3AiLCJyb3dCdG5zIiwiYmFjayIsImN0YSIsImJhY2tncm91bmQiLCJfYyIsIiRSZWZyZXNoUmVnJCJdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlcyI6WyJSZWNvdmVyeUZpcmUuanN4Il0sInNvdXJjZXNDb250ZW50IjpbIi8vIHNyYy9tb2RhbHMvcmVjb3ZlcnkvUmVjb3ZlcnlGaXJlLmpzeFxyXG5pbXBvcnQgUmVhY3QsIHsgdXNlTWVtbywgdXNlU3RhdGUgfSBmcm9tICdyZWFjdCdcclxuaW1wb3J0IFMgZnJvbSAnLi9yZWNvdmVyeVN0eWxlcydcclxuXHJcbi8qKlxyXG4gKiByb2xlczogW3sga2V5Oidjb211bSd8J2ZpZWxkJ3wnaW5zaWRlJ3wnZ2VzdG9yJywgbGFiZWwsIHVuaXQ/LCB0b3RhbD8sIG93bmVkPywgcXR5PyB9XVxyXG4gKiBvbkNvbmZpcm0ocGF5bG9hZCk6XHJcbiAqICB7XHJcbiAqICAgIHR5cGU6ICdGSVJFJyxcclxuICogICAgaXRlbXM6IHsgW2tleV06IHF0ZFBhcmFEZW1pdGlyIH0sXHJcbiAqICAgIGNyZWRpdEJ5Um9sZTogeyBba2V5XTogY3JlZGl0b0dlcmFkbyB9LFxyXG4gKiAgICB0b3RhbENyZWRpdDogbnVtYmVyLFxyXG4gKiAgICBhbW91bnQ6IG51bWJlciwgICAgICAgICAgLy8gYWxpYXMgcC8gY29tcGF0XHJcbiAqICAgIG5vdGU6IHN0cmluZ1xyXG4gKiAgfVxyXG4gKi9cclxuZXhwb3J0IGRlZmF1bHQgZnVuY3Rpb24gUmVjb3ZlcnlGaXJlKHsgcm9sZXMgPSBbXSwgb25CYWNrLCBvbkNvbmZpcm0gfSkge1xyXG4gIC8vIG5vcm1hbGl6YSB1bml0IGUgb3duZWRcclxuICBjb25zdCBub3JtYWxpemVkID0gdXNlTWVtbygoKSA9PiB7XHJcbiAgICByZXR1cm4gcm9sZXMubWFwKHIgPT4ge1xyXG4gICAgICBjb25zdCB1bml0ID0gTnVtYmVyKChyLnVuaXQgPz8gci50b3RhbCkgPz8gMClcclxuICAgICAgY29uc3Qgb3duZWQgPSBOdW1iZXIoKHIub3duZWQgPz8gci5xdHkpID8/IDApXHJcbiAgICAgIHJldHVybiB7IC4uLnIsIHVuaXQsIG93bmVkIH1cclxuICAgIH0pXHJcbiAgfSwgW3JvbGVzXSlcclxuXHJcbiAgLy8gZXN0YWRvOiBxdWFudG8gbyBqb2dhZG9yIHF1ZXIgZGVtaXRpciBkZSBjYWRhIGNhcmdvXHJcbiAgY29uc3QgW3F0eSwgc2V0UXR5XSA9IHVzZVN0YXRlKCgpID0+IHtcclxuICAgIGNvbnN0IGluaXQgPSB7fVxyXG4gICAgbm9ybWFsaXplZC5mb3JFYWNoKHIgPT4geyBpbml0W3Iua2V5XSA9IDAgfSlcclxuICAgIHJldHVybiBpbml0XHJcbiAgfSlcclxuXHJcbiAgY29uc3QgZm10ID0gKHYpID0+IGBSJCAke051bWJlcih2IHx8IDApLnRvTG9jYWxlU3RyaW5nKCdwdC1CUicpfWBcclxuICBjb25zdCBjcmVkaXRVbml0ID0gKHVuaXQpID0+IE1hdGguZmxvb3IoTnVtYmVyKHVuaXQgfHwgMCkgKiAwLjUpXHJcblxyXG4gIGNvbnN0IGFkZCA9IChrLCBkZWx0YSkgPT4ge1xyXG4gICAgc2V0UXR5KHEgPT4ge1xyXG4gICAgICBjb25zdCByb2xlID0gbm9ybWFsaXplZC5maW5kKHIgPT4gci5rZXkgPT09IGspXHJcbiAgICAgIGlmICghcm9sZSkgcmV0dXJuIHFcclxuICAgICAgY29uc3QgY3VyID0gTnVtYmVyKHFba10gfHwgMClcclxuICAgICAgY29uc3QgbmV4dCA9IE1hdGgubWF4KDAsIE1hdGgubWluKHJvbGUub3duZWQsIGN1ciArIGRlbHRhKSlcclxuICAgICAgaWYgKG5leHQgPT09IGN1cikgcmV0dXJuIHFcclxuICAgICAgcmV0dXJuIHsgLi4ucSwgW2tdOiBuZXh0IH1cclxuICAgIH0pXHJcbiAgfVxyXG5cclxuICBjb25zdCBjcmVkaXRCeVJvbGUgPSB1c2VNZW1vKCgpID0+IHtcclxuICAgIGNvbnN0IG91dCA9IHt9XHJcbiAgICBub3JtYWxpemVkLmZvckVhY2gociA9PiB7XHJcbiAgICAgIGNvbnN0IHEgPSBOdW1iZXIocXR5W3Iua2V5XSB8fCAwKVxyXG4gICAgICBvdXRbci5rZXldID0gY3JlZGl0VW5pdChyLnVuaXQpICogcVxyXG4gICAgfSlcclxuICAgIHJldHVybiBvdXRcclxuICB9LCBbcXR5LCBub3JtYWxpemVkXSlcclxuXHJcbiAgY29uc3QgdG90YWxDcmVkaXQgPSB1c2VNZW1vKFxyXG4gICAgKCkgPT4gT2JqZWN0LnZhbHVlcyhjcmVkaXRCeVJvbGUpLnJlZHVjZSgoYSwgYikgPT4gYSArIGIsIDApLFxyXG4gICAgW2NyZWRpdEJ5Um9sZV1cclxuICApXHJcblxyXG4gIGNvbnN0IGNvbmZpcm0gPSAoKSA9PiB7XHJcbiAgICBpZiAodG90YWxDcmVkaXQgPD0gMCkgcmV0dXJuXHJcbiAgICBjb25zdCBpdGVtcyA9IHt9XHJcbiAgICBub3JtYWxpemVkLmZvckVhY2gociA9PiB7IGl0ZW1zW3Iua2V5XSA9IE51bWJlcihxdHlbci5rZXldIHx8IDApIH0pXHJcblxyXG4gICAgb25Db25maXJtPy4oe1xyXG4gICAgICB0eXBlOiAnRklSRScsXHJcbiAgICAgIGl0ZW1zLCAgICAgICAgICAgICAgICAgLy8gcXVhbnRpZGFkZXMgYSBkZW1pdGlyIHBvciBjYXJnb1xyXG4gICAgICBjcmVkaXRCeVJvbGUsICAgICAgICAgIC8vIGNyw6lkaXRvIHBvciBjYXJnb1xyXG4gICAgICB0b3RhbENyZWRpdCwgICAgICAgICAgIC8vIHRvdGFsIG5vIGNhaXhhXHJcbiAgICAgIGFtb3VudDogdG90YWxDcmVkaXQsICAgLy8gYWxpYXMgcC8gY29tcGF0XHJcbiAgICAgIG5vdGU6IGBEZW1pc3PDtWVzICske2ZtdCh0b3RhbENyZWRpdCl9YFxyXG4gICAgfSlcclxuICB9XHJcblxyXG4gIHJldHVybiAoXHJcbiAgICA8ZGl2IHN0eWxlPXtTLmJvZHl9PlxyXG4gICAgICA8ZGl2IHN0eWxlPXtTLnN1YkhlYWRlcn0+PGIgc3R5bGU9e3tmb250U2l6ZToyMH19PkRFTUlUSVIgRlVOQ0lPTsOBUklPUzwvYj48L2Rpdj5cclxuICAgICAgPHAgc3R5bGU9e3sgb3BhY2l0eTogMC45LCBtYXJnaW5Cb3R0b206IDEyLCBsaW5lSGVpZ2h0OiAxLjQ1IH19PlxyXG4gICAgICAgIFJlZHV6IGEgZXF1aXBlIGUgZGV2b2x2ZSA1MCUgZG8gdmFsb3IgYW8gY2FpeGEuIFVzZSBwYXJhIHJlY3VwZXJhciBzYWxkbyBlIGV2aXRhciBmYWzDqm5jaWEuXHJcbiAgICAgIDwvcD5cclxuXHJcbiAgICAgIHsvKiBDYWJlw6dhbGhvICovfVxyXG4gICAgICA8ZGl2IHN0eWxlPXt7ZGlzcGxheTonZ3JpZCcsIGdyaWRUZW1wbGF0ZUNvbHVtbnM6JzEuMmZyIDFmciAxLjJmciAxZnInLCBnYXA6OCwgb3BhY2l0eTouOSwgZm9udFdlaWdodDo3MDAsIG1hcmdpbkJvdHRvbTo2fX0+XHJcbiAgICAgICAgPGRpdj5DYXJnbzwvZGl2PlxyXG4gICAgICAgIDxkaXY+VmFsb3IgVW5pdMOhcmlvPC9kaXY+XHJcbiAgICAgICAgPGRpdj5RdGQgZGVtaXRpcjwvZGl2PlxyXG4gICAgICAgIDxkaXY+Q3LDqWRpdG88L2Rpdj5cclxuICAgICAgPC9kaXY+XHJcblxyXG4gICAgICA8ZGl2IHN0eWxlPXt7ZGlzcGxheTonZ3JpZCcsIGdhcDoxMn19PlxyXG4gICAgICAgIHtub3JtYWxpemVkLm1hcChyID0+IHtcclxuICAgICAgICAgIGNvbnN0IHEgPSBOdW1iZXIocXR5W3Iua2V5XSB8fCAwKVxyXG4gICAgICAgICAgY29uc3QgdW5pdCA9IE51bWJlcihyLnVuaXQgfHwgMClcclxuICAgICAgICAgIGNvbnN0IG93bmVkID0gTnVtYmVyKHIub3duZWQgfHwgMClcclxuICAgICAgICAgIGNvbnN0IGN1ID0gY3JlZGl0VW5pdCh1bml0KVxyXG4gICAgICAgICAgY29uc3QgY3JlZGl0ID0gY3UgKiBxXHJcbiAgICAgICAgICBjb25zdCBtaW51c0Rpc2FibGVkID0gcSA8PSAwXHJcbiAgICAgICAgICBjb25zdCBwbHVzRGlzYWJsZWQgPSBxID49IG93bmVkIHx8IG93bmVkIDw9IDBcclxuXHJcbiAgICAgICAgICByZXR1cm4gKFxyXG4gICAgICAgICAgICA8ZGl2XHJcbiAgICAgICAgICAgICAga2V5PXtyLmtleX1cclxuICAgICAgICAgICAgICBzdHlsZT17e1xyXG4gICAgICAgICAgICAgICAgZGlzcGxheTonZ3JpZCcsXHJcbiAgICAgICAgICAgICAgICBncmlkVGVtcGxhdGVDb2x1bW5zOicxLjJmciAxZnIgMS4yZnIgMWZyJyxcclxuICAgICAgICAgICAgICAgIGFsaWduSXRlbXM6J2NlbnRlcicsXHJcbiAgICAgICAgICAgICAgICBnYXA6OFxyXG4gICAgICAgICAgICAgIH19XHJcbiAgICAgICAgICAgID5cclxuICAgICAgICAgICAgICA8ZGl2PlxyXG4gICAgICAgICAgICAgICAgPGRpdiBzdHlsZT17e2ZvbnRXZWlnaHQ6ODAwfX0+e3IubGFiZWx9PC9kaXY+XHJcbiAgICAgICAgICAgICAgICA8ZGl2IHN0eWxlPXt7b3BhY2l0eTouNzUsIGZvbnRTaXplOjEyfX0+UG9zc3VpOiA8Yj57b3duZWR9PC9iPjwvZGl2PlxyXG4gICAgICAgICAgICAgIDwvZGl2PlxyXG5cclxuICAgICAgICAgICAgICA8ZGl2PlxyXG4gICAgICAgICAgICAgICAgPGRpdj48Yj57Zm10KHVuaXQpfTwvYj48L2Rpdj5cclxuICAgICAgICAgICAgICAgIDxkaXYgc3R5bGU9e3tvcGFjaXR5Oi43NSwgZm9udFNpemU6MTJ9fT5DcsOpZGl0byBwb3IgdW4uOiA8Yj57Zm10KGN1KX08L2I+PC9kaXY+XHJcbiAgICAgICAgICAgICAgPC9kaXY+XHJcblxyXG4gICAgICAgICAgICAgIDxkaXYgc3R5bGU9e3tkaXNwbGF5OidmbGV4JywgZ2FwOjYsIGFsaWduSXRlbXM6J2NlbnRlcid9fT5cclxuICAgICAgICAgICAgICAgIDxidXR0b25cclxuICAgICAgICAgICAgICAgICAgc3R5bGU9e3sgLi4uUy5zcGluLCBvcGFjaXR5OiBtaW51c0Rpc2FibGVkID8gLjUgOiAxLCBjdXJzb3I6IG1pbnVzRGlzYWJsZWQgPyAnbm90LWFsbG93ZWQnIDogJ3BvaW50ZXInIH19XHJcbiAgICAgICAgICAgICAgICAgIGRpc2FibGVkPXttaW51c0Rpc2FibGVkfVxyXG4gICAgICAgICAgICAgICAgICBvbkNsaWNrPXsoKSA9PiBhZGQoci5rZXksIC0xKX1cclxuICAgICAgICAgICAgICAgID4tPC9idXR0b24+XHJcbiAgICAgICAgICAgICAgICA8ZGl2IHN0eWxlPXt7bWluV2lkdGg6MjgsIHRleHRBbGlnbjonY2VudGVyJywgZm9udFdlaWdodDo4MDB9fT57cX08L2Rpdj5cclxuICAgICAgICAgICAgICAgIDxidXR0b25cclxuICAgICAgICAgICAgICAgICAgc3R5bGU9e3sgLi4uUy5zcGluLCBvcGFjaXR5OiBwbHVzRGlzYWJsZWQgPyAuNSA6IDEsIGN1cnNvcjogcGx1c0Rpc2FibGVkID8gJ25vdC1hbGxvd2VkJyA6ICdwb2ludGVyJyB9fVxyXG4gICAgICAgICAgICAgICAgICBkaXNhYmxlZD17cGx1c0Rpc2FibGVkfVxyXG4gICAgICAgICAgICAgICAgICBvbkNsaWNrPXsoKSA9PiBhZGQoci5rZXksICsxKX1cclxuICAgICAgICAgICAgICAgID4rPC9idXR0b24+XHJcbiAgICAgICAgICAgICAgPC9kaXY+XHJcblxyXG4gICAgICAgICAgICAgIDxkaXY+PGI+e2ZtdChjcmVkaXQpfTwvYj48L2Rpdj5cclxuICAgICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgICApXHJcbiAgICAgICAgfSl9XHJcbiAgICAgIDwvZGl2PlxyXG5cclxuICAgICAgPGRpdiBzdHlsZT17e21hcmdpblRvcDoxMiwgdGV4dEFsaWduOidyaWdodCcsIGZvbnRXZWlnaHQ6OTAwfX0+XHJcbiAgICAgICAgVG90YWwgYSByZXNnYXRhcjogPGI+e2ZtdCh0b3RhbENyZWRpdCl9PC9iPlxyXG4gICAgICA8L2Rpdj5cclxuXHJcbiAgICAgIDxkaXYgc3R5bGU9e1Mucm93QnRuc30+XHJcbiAgICAgICAgPGJ1dHRvbiBzdHlsZT17Uy5iYWNrfSBvbkNsaWNrPXtvbkJhY2t9PuKGkCBWb2x0YXI8L2J1dHRvbj5cclxuICAgICAgICA8YnV0dG9uXHJcbiAgICAgICAgICBzdHlsZT17ey4uLlMuY3RhLCBiYWNrZ3JvdW5kOicjZWY0NDQ0Jywgb3BhY2l0eTogdG90YWxDcmVkaXQ+MCA/IDEgOiAuNn19XHJcbiAgICAgICAgICBvbkNsaWNrPXtjb25maXJtfVxyXG4gICAgICAgICAgZGlzYWJsZWQ9e3RvdGFsQ3JlZGl0IDw9IDB9XHJcbiAgICAgICAgPlxyXG4gICAgICAgICAgREVNSVRJUlxyXG4gICAgICAgIDwvYnV0dG9uPlxyXG4gICAgICA8L2Rpdj5cclxuICAgIDwvZGl2PlxyXG4gIClcclxufVxyXG4iXSwiZmlsZSI6IkM6L1VzZXJzL2pwZm1hL0Rvd25sb2Fkcy9TQUxFU0dBTUVUVVIvc2FsZXMtZ2FtZS0vc3JjL21vZGFscy9SZWNvdmVyeUZpcmUuanN4In0=

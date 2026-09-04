@@ -1,0 +1,188 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/dev/TrackRecorder.jsx");import __vite__cjsImport0_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=0c66d85e"; const Fragment = __vite__cjsImport0_react_jsxDevRuntime["Fragment"]; const jsxDEV = __vite__cjsImport0_react_jsxDevRuntime["jsxDEV"];
+import * as RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;
+let prevRefreshReg;
+let prevRefreshSig;
+if (import.meta.hot && !inWebWorker) {
+  if (!window.$RefreshReg$) {
+    throw new Error(
+      "@vitejs/plugin-react can't detect preamble. Something is wrong."
+    );
+  }
+  prevRefreshReg = window.$RefreshReg$;
+  prevRefreshSig = window.$RefreshSig$;
+  window.$RefreshReg$ = RefreshRuntime.getRefreshReg("C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/dev/TrackRecorder.jsx");
+  window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
+}
+var _s = $RefreshSig$();
+import __vite__cjsImport3_react from "/node_modules/.vite/deps/react.js?v=0c66d85e"; const React = __vite__cjsImport3_react.__esModule ? __vite__cjsImport3_react.default : __vite__cjsImport3_react; const useState = __vite__cjsImport3_react["useState"]; const useMemo = __vite__cjsImport3_react["useMemo"];
+export default function TrackRecorder({
+  boardRef,
+  // ref do container .board
+  expected = 55,
+  // nº de casas que você quer gravar
+  onFinish,
+  // callback(pointsNorm)
+  initial = []
+  // se quiser continuar de onde parou
+}) {
+  _s();
+  const [pts, setPts] = useState(initial);
+  function handleClick(e) {
+    if (!boardRef?.current) return;
+    const rect = boardRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const nx = x / rect.width;
+    const ny = y / rect.height;
+    setPts((p) => p.length >= expected ? p : [...p, { nx, ny }]);
+  }
+  function undo() {
+    setPts((p) => p.slice(0, -1));
+  }
+  function clear() {
+    setPts([]);
+  }
+  const json = useMemo(() => JSON.stringify(pts, null, 2), [pts]);
+  async function copyJSON() {
+    try {
+      await navigator.clipboard.writeText(json);
+      alert("Copiado para a área de transferência!");
+    } catch {
+      alert("Não foi possível copiar. Use o botão Baixar.");
+    }
+  }
+  function downloadJSON() {
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "track-points-55.json";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+  function finish() {
+    onFinish?.(pts);
+    console.log("TRACK_POINTS_NORM (cole em src/data/track.js):\n", json);
+    alert("Finalizado! O JSON foi impresso no console. Copie e cole em src/data/track.js");
+  }
+  return /* @__PURE__ */ jsxDEV(Fragment, { children: [
+    /* @__PURE__ */ jsxDEV("div", { className: "recLayer", onClick: handleClick }, void 0, false, {
+      fileName: "C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/dev/TrackRecorder.jsx",
+      lineNumber: 81,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("div", { className: "recDotsLayer", pointerEvents: "none", children: pts.map(
+      (p, i) => /* @__PURE__ */ jsxDEV(
+        "div",
+        {
+          className: "recDot",
+          style: { left: `${p.nx * 100}%`, top: `${p.ny * 100}%` },
+          title: `Casa ${i + 1}`,
+          children: i + 1
+        },
+        i,
+        false,
+        {
+          fileName: "C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/dev/TrackRecorder.jsx",
+          lineNumber: 86,
+          columnNumber: 9
+        },
+        this
+      )
+    ) }, void 0, false, {
+      fileName: "C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/dev/TrackRecorder.jsx",
+      lineNumber: 84,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("div", { className: "recToolbar", children: [
+      /* @__PURE__ */ jsxDEV("div", { className: "recInfo", children: [
+        /* @__PURE__ */ jsxDEV("b", { children: "Gravando trilha" }, void 0, false, {
+          fileName: "C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/dev/TrackRecorder.jsx",
+          lineNumber: 100,
+          columnNumber: 11
+        }, this),
+        " — clique nas casas na ordem.",
+        /* @__PURE__ */ jsxDEV("span", { children: [
+          "Marcados: ",
+          /* @__PURE__ */ jsxDEV("b", { children: pts.length }, void 0, false, {
+            fileName: "C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/dev/TrackRecorder.jsx",
+            lineNumber: 101,
+            columnNumber: 27
+          }, this),
+          " / ",
+          expected
+        ] }, void 0, true, {
+          fileName: "C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/dev/TrackRecorder.jsx",
+          lineNumber: 101,
+          columnNumber: 11
+        }, this)
+      ] }, void 0, true, {
+        fileName: "C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/dev/TrackRecorder.jsx",
+        lineNumber: 99,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "recBtns", children: [
+        /* @__PURE__ */ jsxDEV("button", { onClick: undo, disabled: !pts.length, children: "Desfazer" }, void 0, false, {
+          fileName: "C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/dev/TrackRecorder.jsx",
+          lineNumber: 104,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("button", { onClick: clear, disabled: !pts.length, children: "Limpar" }, void 0, false, {
+          fileName: "C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/dev/TrackRecorder.jsx",
+          lineNumber: 105,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("button", { onClick: copyJSON, disabled: !pts.length, children: "Copiar JSON" }, void 0, false, {
+          fileName: "C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/dev/TrackRecorder.jsx",
+          lineNumber: 106,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("button", { onClick: downloadJSON, disabled: !pts.length, children: "Baixar .json" }, void 0, false, {
+          fileName: "C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/dev/TrackRecorder.jsx",
+          lineNumber: 107,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("button", { onClick: finish, disabled: pts.length !== expected, children: "Finalizar" }, void 0, false, {
+          fileName: "C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/dev/TrackRecorder.jsx",
+          lineNumber: 108,
+          columnNumber: 11
+        }, this)
+      ] }, void 0, true, {
+        fileName: "C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/dev/TrackRecorder.jsx",
+        lineNumber: 103,
+        columnNumber: 9
+      }, this)
+    ] }, void 0, true, {
+      fileName: "C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/dev/TrackRecorder.jsx",
+      lineNumber: 98,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/dev/TrackRecorder.jsx",
+    lineNumber: 79,
+    columnNumber: 5
+  }, this);
+}
+_s(TrackRecorder, "2+WGQFxd3DNGOgG5/XXtNYO997A=");
+_c = TrackRecorder;
+var _c;
+$RefreshReg$(_c, "TrackRecorder");
+if (import.meta.hot && !inWebWorker) {
+  window.$RefreshReg$ = prevRefreshReg;
+  window.$RefreshSig$ = prevRefreshSig;
+}
+if (import.meta.hot && !inWebWorker) {
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/dev/TrackRecorder.jsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("C:/Users/jpfma/Downloads/SALESGAMETUR/sales-game-/src/dev/TrackRecorder.jsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+
+//# sourceMappingURL=data:application/json;base64,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IlJlYWN0IiwidXNlU3RhdGUiLCJ1c2VNZW1vIiwiVHJhY2tSZWNvcmRlciIsImJvYXJkUmVmIiwiZXhwZWN0ZWQiLCJvbkZpbmlzaCIsImluaXRpYWwiLCJfcyIsInB0cyIsInNldFB0cyIsImhhbmRsZUNsaWNrIiwiZSIsImN1cnJlbnQiLCJyZWN0IiwiZ2V0Qm91bmRpbmdDbGllbnRSZWN0IiwieCIsImNsaWVudFgiLCJsZWZ0IiwieSIsImNsaWVudFkiLCJ0b3AiLCJueCIsIndpZHRoIiwibnkiLCJoZWlnaHQiLCJwIiwibGVuZ3RoIiwidW5kbyIsInNsaWNlIiwiY2xlYXIiLCJqc29uIiwiSlNPTiIsInN0cmluZ2lmeSIsImNvcHlKU09OIiwibmF2aWdhdG9yIiwiY2xpcGJvYXJkIiwid3JpdGVUZXh0IiwiYWxlcnQiLCJkb3dubG9hZEpTT04iLCJibG9iIiwiQmxvYiIsInR5cGUiLCJ1cmwiLCJVUkwiLCJjcmVhdGVPYmplY3RVUkwiLCJhIiwiZG9jdW1lbnQiLCJjcmVhdGVFbGVtZW50IiwiaHJlZiIsImRvd25sb2FkIiwiYm9keSIsImFwcGVuZENoaWxkIiwiY2xpY2siLCJyZW1vdmUiLCJyZXZva2VPYmplY3RVUkwiLCJmaW5pc2giLCJjb25zb2xlIiwibG9nIiwibWFwIiwiaSIsIl9jIiwiJFJlZnJlc2hSZWckIl0sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VzIjpbIlRyYWNrUmVjb3JkZXIuanN4Il0sInNvdXJjZXNDb250ZW50IjpbIi8vIHNyYy9kZXYvVHJhY2tSZWNvcmRlci5qc3hcclxuaW1wb3J0IFJlYWN0LCB7IHVzZVN0YXRlLCB1c2VNZW1vIH0gZnJvbSAncmVhY3QnXHJcblxyXG4vKipcclxuICogR3JhdmFkb3IgaW50ZXJhdGl2byBkbyB0cmFjazpcclxuICogLSBDbGlxdWUgZW0gY2FkYSBjYXNhIG5hIG9yZGVtICgxLi5OKVxyXG4gKiAtIEdlcmEgcG9udG9zIG5vcm1hbGl6YWRvcyBbe254LCBueX0sIC4uLl1cclxuICovXHJcbmV4cG9ydCBkZWZhdWx0IGZ1bmN0aW9uIFRyYWNrUmVjb3JkZXIoe1xyXG4gIGJvYXJkUmVmLCAgICAgICAgICAgICAvLyByZWYgZG8gY29udGFpbmVyIC5ib2FyZFxyXG4gIGV4cGVjdGVkID0gNTUsICAgICAgICAvLyBuwrogZGUgY2FzYXMgcXVlIHZvY8OqIHF1ZXIgZ3JhdmFyXHJcbiAgb25GaW5pc2gsICAgICAgICAgICAgIC8vIGNhbGxiYWNrKHBvaW50c05vcm0pXHJcbiAgaW5pdGlhbCA9IFtdLCAgICAgICAgIC8vIHNlIHF1aXNlciBjb250aW51YXIgZGUgb25kZSBwYXJvdVxyXG59KXtcclxuICBjb25zdCBbcHRzLCBzZXRQdHNdID0gdXNlU3RhdGUoaW5pdGlhbClcclxuXHJcbiAgZnVuY3Rpb24gaGFuZGxlQ2xpY2soZSl7XHJcbiAgICBpZiAoIWJvYXJkUmVmPy5jdXJyZW50KSByZXR1cm5cclxuICAgIGNvbnN0IHJlY3QgPSBib2FyZFJlZi5jdXJyZW50LmdldEJvdW5kaW5nQ2xpZW50UmVjdCgpXHJcbiAgICBjb25zdCB4ID0gZS5jbGllbnRYIC0gcmVjdC5sZWZ0XHJcbiAgICBjb25zdCB5ID0gZS5jbGllbnRZIC0gcmVjdC50b3BcclxuICAgIGNvbnN0IG54ID0geCAvIHJlY3Qud2lkdGhcclxuICAgIGNvbnN0IG55ID0geSAvIHJlY3QuaGVpZ2h0XHJcbiAgICBzZXRQdHMocCA9PiAocC5sZW5ndGggPj0gZXhwZWN0ZWQgPyBwIDogWy4uLnAsIHsgbngsIG55IH1dKSlcclxuICB9XHJcblxyXG4gIGZ1bmN0aW9uIHVuZG8oKXsgc2V0UHRzKHAgPT4gcC5zbGljZSgwLCAtMSkpIH1cclxuICBmdW5jdGlvbiBjbGVhcigpeyBzZXRQdHMoW10pIH1cclxuXHJcbiAgY29uc3QganNvbiA9IHVzZU1lbW8oKCkgPT4gSlNPTi5zdHJpbmdpZnkocHRzLCBudWxsLCAyKSwgW3B0c10pXHJcblxyXG4gIGFzeW5jIGZ1bmN0aW9uIGNvcHlKU09OKCl7XHJcbiAgICB0cnkge1xyXG4gICAgICBhd2FpdCBuYXZpZ2F0b3IuY2xpcGJvYXJkLndyaXRlVGV4dChqc29uKVxyXG4gICAgICBhbGVydCgnQ29waWFkbyBwYXJhIGEgw6FyZWEgZGUgdHJhbnNmZXLDqm5jaWEhJylcclxuICAgIH0gY2F0Y2gge1xyXG4gICAgICBhbGVydCgnTsOjbyBmb2kgcG9zc8OtdmVsIGNvcGlhci4gVXNlIG8gYm90w6NvIEJhaXhhci4nKVxyXG4gICAgfVxyXG4gIH1cclxuXHJcbiAgZnVuY3Rpb24gZG93bmxvYWRKU09OKCl7XHJcbiAgICBjb25zdCBibG9iID0gbmV3IEJsb2IoW2pzb25dLCB7IHR5cGU6ICdhcHBsaWNhdGlvbi9qc29uJyB9KVxyXG4gICAgY29uc3QgdXJsID0gVVJMLmNyZWF0ZU9iamVjdFVSTChibG9iKVxyXG4gICAgY29uc3QgYSA9IGRvY3VtZW50LmNyZWF0ZUVsZW1lbnQoJ2EnKVxyXG4gICAgYS5ocmVmID0gdXJsXHJcbiAgICBhLmRvd25sb2FkID0gJ3RyYWNrLXBvaW50cy01NS5qc29uJ1xyXG4gICAgZG9jdW1lbnQuYm9keS5hcHBlbmRDaGlsZChhKVxyXG4gICAgYS5jbGljaygpXHJcbiAgICBhLnJlbW92ZSgpXHJcbiAgICBVUkwucmV2b2tlT2JqZWN0VVJMKHVybClcclxuICB9XHJcblxyXG4gIGZ1bmN0aW9uIGZpbmlzaCgpe1xyXG4gICAgb25GaW5pc2g/LihwdHMpXHJcbiAgICBjb25zb2xlLmxvZygnVFJBQ0tfUE9JTlRTX05PUk0gKGNvbGUgZW0gc3JjL2RhdGEvdHJhY2suanMpOlxcbicsIGpzb24pXHJcbiAgICBhbGVydCgnRmluYWxpemFkbyEgTyBKU09OIGZvaSBpbXByZXNzbyBubyBjb25zb2xlLiBDb3BpZSBlIGNvbGUgZW0gc3JjL2RhdGEvdHJhY2suanMnKVxyXG4gIH1cclxuXHJcbiAgcmV0dXJuIChcclxuICAgIDw+XHJcbiAgICAgIHsvKiBjYW1hZGEgcXVlIGNhcHR1cmEgY2xpcXVlcyAqL31cclxuICAgICAgPGRpdiBjbGFzc05hbWU9XCJyZWNMYXllclwiIG9uQ2xpY2s9e2hhbmRsZUNsaWNrfSAvPlxyXG5cclxuICAgICAgey8qIHBvbnRvcyBqw6EgZ3JhdmFkb3MgKi99XHJcbiAgICAgIDxkaXYgY2xhc3NOYW1lPVwicmVjRG90c0xheWVyXCIgcG9pbnRlckV2ZW50cz1cIm5vbmVcIj5cclxuICAgICAgICB7cHRzLm1hcCgocCwgaSkgPT4gKFxyXG4gICAgICAgICAgPGRpdlxyXG4gICAgICAgICAgICBrZXk9e2l9XHJcbiAgICAgICAgICAgIGNsYXNzTmFtZT1cInJlY0RvdFwiXHJcbiAgICAgICAgICAgIHN0eWxlPXt7IGxlZnQ6IGAke3AubngqMTAwfSVgLCB0b3A6IGAke3AubnkqMTAwfSVgIH19XHJcbiAgICAgICAgICAgIHRpdGxlPXtgQ2FzYSAke2krMX1gfVxyXG4gICAgICAgICAgPlxyXG4gICAgICAgICAgICB7aSsxfVxyXG4gICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgKSl9XHJcbiAgICAgIDwvZGl2PlxyXG5cclxuICAgICAgey8qIHRvb2xiYXIgKi99XHJcbiAgICAgIDxkaXYgY2xhc3NOYW1lPVwicmVjVG9vbGJhclwiPlxyXG4gICAgICAgIDxkaXYgY2xhc3NOYW1lPVwicmVjSW5mb1wiPlxyXG4gICAgICAgICAgPGI+R3JhdmFuZG8gdHJpbGhhPC9iPiDigJQgY2xpcXVlIG5hcyBjYXNhcyBuYSBvcmRlbS5cclxuICAgICAgICAgIDxzcGFuPk1hcmNhZG9zOiA8Yj57cHRzLmxlbmd0aH08L2I+IC8ge2V4cGVjdGVkfTwvc3Bhbj5cclxuICAgICAgICA8L2Rpdj5cclxuICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInJlY0J0bnNcIj5cclxuICAgICAgICAgIDxidXR0b24gb25DbGljaz17dW5kb30gZGlzYWJsZWQ9eyFwdHMubGVuZ3RofT5EZXNmYXplcjwvYnV0dG9uPlxyXG4gICAgICAgICAgPGJ1dHRvbiBvbkNsaWNrPXtjbGVhcn0gZGlzYWJsZWQ9eyFwdHMubGVuZ3RofT5MaW1wYXI8L2J1dHRvbj5cclxuICAgICAgICAgIDxidXR0b24gb25DbGljaz17Y29weUpTT059IGRpc2FibGVkPXshcHRzLmxlbmd0aH0+Q29waWFyIEpTT048L2J1dHRvbj5cclxuICAgICAgICAgIDxidXR0b24gb25DbGljaz17ZG93bmxvYWRKU09OfSBkaXNhYmxlZD17IXB0cy5sZW5ndGh9PkJhaXhhciAuanNvbjwvYnV0dG9uPlxyXG4gICAgICAgICAgPGJ1dHRvbiBvbkNsaWNrPXtmaW5pc2h9IGRpc2FibGVkPXtwdHMubGVuZ3RoICE9PSBleHBlY3RlZH0+RmluYWxpemFyPC9idXR0b24+XHJcbiAgICAgICAgPC9kaXY+XHJcbiAgICAgIDwvZGl2PlxyXG4gICAgPC8+XHJcbiAgKVxyXG59XHJcbiJdLCJmaWxlIjoiQzovVXNlcnMvanBmbWEvRG93bmxvYWRzL1NBTEVTR0FNRVRVUi9zYWxlcy1nYW1lLS9zcmMvZGV2L1RyYWNrUmVjb3JkZXIuanN4In0=
