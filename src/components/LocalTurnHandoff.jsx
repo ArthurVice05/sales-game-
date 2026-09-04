@@ -9,6 +9,7 @@ export default function LocalTurnHandoff({
   turnKey,
   initial = false,
   readyToConfirm = true,
+  countdownSeconds = 0,
   onConfirm,
 }) {
   const buttonRef = useRef(null)
@@ -28,6 +29,8 @@ export default function LocalTurnHandoff({
   if (!open) return null
 
   const safeName = String(playerName || '').trim() || 'Próximo jogador'
+  const restante = Math.max(0, Math.ceil(Number(countdownSeconds) || 0))
+  const contando = !readyToConfirm && restante > 0
   const ui = (
     <div
       className="localHandoff"
@@ -43,9 +46,19 @@ export default function LocalTurnHandoff({
           {initial ? 'Primeiro turno' : 'Passe o dispositivo para'}
         </h1>
         <p id="localHandoffDescription" className="localHandoffName">{safeName}</p>
+
+        {contando && (
+          <div className="localHandoffCountdown" role="timer" aria-live="polite">
+            <span className="localHandoffCountdownLabel">Próximo turno em</span>
+            <span className="localHandoffCountdownValue">{restante}</span>
+          </div>
+        )}
+
         <p className="localHandoffHint">
           {readyToConfirm
             ? 'Confirme somente quando o dispositivo estiver com a pessoa certa.'
+            : contando
+            ? `Passe o dispositivo para ${safeName}.`
             : 'Finalizando a apresentação da jogada anterior…'}
         </p>
         <button

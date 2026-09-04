@@ -46,7 +46,7 @@ if (import.meta.env.DEV) {
 }
 
 // Identidade por aba
-import { getOrCreateTabPlayerId, setTabPlayerName, resolvePlayerIdForRoom, setMatchIdentity, clearMatchIdentity, getMatchIdentity } from './auth'
+import { getOrCreateTabPlayerId, setTabPlayerName, resolvePlayerIdForRoom, setMatchIdentity, clearMatchIdentity, getMatchIdentity, supabase } from './auth'
 
 // Net (opcional)
 import { useGameNet } from './net/GameNetProvider.jsx'
@@ -104,7 +104,9 @@ import {
   GAME_MODE,
   applyStarterKit,
   createLocalPlayers,
+  isLocalHandoffHoldSatisfied,
   isLocalTurnReady,
+  localHandoffCountdownSeconds,
   localTurnKey,
   resolveGameplayActorId,
   shouldCreateGameBroadcastChannel,
@@ -2694,8 +2696,36 @@ export default function App() {
     localTurnReady,
     acknowledgedTurnKey: acknowledgedLocalTurnKey,
   })
+  // ====== Apresentação da troca de turno (hot-seat): espera mínima de ~5s.
+  // NÃO atrasa o motor — turnPlayerId/turnSeq já foram commitados. Só adia a
+  // liberação do próximo jogador. Um único interval por chave de turno.
+  const [localHandoffStartedAt, setLocalHandoffStartedAt] = useState(null)
+  const [localHandoffNow, setLocalHandoffNow] = useState(() => Date.now())
+
+  useEffect(() => {
+    if (!localHandoffOpen || !currentLocalTurnKey) {
+      setLocalHandoffStartedAt(null)
+      return undefined
+    }
+    const inicio = Date.now()
+    setLocalHandoffStartedAt(inicio)
+    setLocalHandoffNow(inicio)
+    const id = setInterval(() => setLocalHandoffNow(Date.now()), 250)
+    return () => clearInterval(id)
+  }, [localHandoffOpen, currentLocalTurnKey])
+
+  const localHandoffHoldDone = isLocalHandoffHoldSatisfied({
+    startedAt: localHandoffStartedAt,
+    now: localHandoffNow,
+  })
+  const localHandoffCountdown = localHandoffCountdownSeconds({
+    startedAt: localHandoffStartedAt,
+    now: localHandoffNow,
+  })
+
   const localHandoffReadyToConfirm =
     localHandoffOpen &&
+    localHandoffHoldDone &&
     !diceFx &&
     !isRollingUI &&
     !turnLock &&
@@ -2706,12 +2736,14 @@ export default function App() {
     if (!currentLocalTurnKey || requestedTurnKey !== currentLocalTurnKey) return
     if (diceFxRef.current || diceInFlightRef.current || turnLockRef.current) return
     if (Number(modalLocks || 0) !== 0) return
+    // Guard duro: esconder o botão não basta (§13).
+    if (!isLocalHandoffHoldSatisfied({ startedAt: localHandoffStartedAt, now: Date.now() })) return
 
     const deadline = computeTurnDeadlineAt(Date.now(), turnTimeSecRef.current)
     setTurnDeadlineAt(deadline)
     turnDeadlineAtRef.current = deadline
     setAcknowledgedLocalTurnKey(currentLocalTurnKey)
-  }, [gameMode, gameOver, currentLocalTurnKey, modalLocks])
+  }, [gameMode, gameOver, currentLocalTurnKey, modalLocks, localHandoffStartedAt])
 
   useEffect(() => {
     if (!localHandoffOpen) return
@@ -3101,6 +3133,13 @@ export default function App() {
   // ====== fases ======
 
   // 1) Tela inicial: pega o nome e vai para Lobbies
+  // Sem client Supabase todo o fluxo online (lobbies, playersLobby, spectator)
+  // quebraria em supabase.from/channel. Bloqueia na entrada; o jogo local não
+  // depende de rede. Inerte quando o .env existe.
+  const onlineDisabledReason = supabase
+    ? ''
+    : 'Multiplayer online indisponível: defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY em um arquivo .env na raiz do projeto. O jogo neste dispositivo funciona normalmente.'
+
   if (phase === 'start') {
     if (spectatorBooting) {
       return (
@@ -3118,6 +3157,7 @@ export default function App() {
       <ModalProvider>
         <StartScreen
           currentName={myName}
+          onlineDisabledReason={onlineDisabledReason}
           onEnter={(typedName) => {
           const clean = String(typedName || '').trim()
           if (!clean) return
@@ -3712,6 +3752,7 @@ export default function App() {
         turnKey={currentLocalTurnKey}
         initial={turnSeq === 0}
         readyToConfirm={localHandoffReadyToConfirm}
+        countdownSeconds={localHandoffCountdown}
         onConfirm={confirmLocalTurn}
       />
 

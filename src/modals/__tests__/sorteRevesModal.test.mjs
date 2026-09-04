@@ -10,6 +10,9 @@ import { dirname, join } from 'node:path'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const modalSrc = readFileSync(join(here, '..', 'SorteRevesModal.jsx'), 'utf8')
+// O baralho e a resolução foram extraídos para um módulo puro (testável sem DOM);
+// o modal importa de lá. O contrato APPLY_CARD passou a viver neste arquivo.
+const deckSrc = readFileSync(join(here, '..', 'sorteRevesDeck.js'), 'utf8')
 const engineSrc = readFileSync(join(here, '..', '..', 'game', 'useTurnEngine.jsx'), 'utf8')
 
 test('SorteRevesModal não possui botão X / aria-label Fechar', () => {
@@ -24,7 +27,13 @@ test('SorteRevesModal não possui SKIP voluntário para fechar', () => {
 })
 
 test('SorteRevesModal confirma com APPLY_CARD via resolved.payload', () => {
-  assert.match(modalSrc, /action:\s*['"]APPLY_CARD['"]/)
+  // O payload APPLY_CARD é montado no baralho puro…
+  assert.match(deckSrc, /action:\s*['"]APPLY_CARD['"]/)
+  // …e o modal obrigatoriamente resolve por ele (sem baralho próprio).
+  assert.match(modalSrc, /import \{ SORTE_REVES_CARDS, resolveCardEffect \} from '\.\/sorteRevesDeck\.js'/)
+  assert.match(modalSrc, /resolveCardEffect\(card, player\)/)
+  assert.doesNotMatch(modalSrc, /_compute:/, 'o modal nao pode voltar a ter baralho proprio')
+
   assert.match(modalSrc, /onResolve\?\.\(resolved\.payload\)/)
   assert.match(modalSrc, /onClick=\{resolve\}/)
 })

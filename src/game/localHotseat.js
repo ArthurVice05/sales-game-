@@ -130,6 +130,39 @@ export function shouldEnableTurnTimer({ gameMode, localTurnReady } = {}) {
   return gameMode !== GAME_MODE.LOCAL || localTurnReady === true
 }
 
+/**
+ * Duração mínima da apresentação de troca de turno (hot-seat).
+ *
+ * É camada de APRESENTAÇÃO: o motor já commitou turnPlayerId/turnSeq: o que
+ * espera é só a liberação do próximo jogador. Durante a espera o cronômetro
+ * fica suspenso e gameplayActorId continua null.
+ */
+export const LOCAL_HANDOFF_MIN_DURATION_MS = 5000
+
+function resolveMinDuration(minDurationMs) {
+  const n = Number(minDurationMs)
+  if (!Number.isFinite(n)) return LOCAL_HANDOFF_MIN_DURATION_MS
+  return Math.max(0, n)
+}
+
+/** Milissegundos que ainda faltam. Sem timestamp válido → 0 (nunca prende). */
+export function localHandoffRemainingMs({ startedAt, now, minDurationMs } = {}) {
+  const inicio = Number(startedAt)
+  const agora = Number(now)
+  if (!Number.isFinite(inicio) || !Number.isFinite(agora)) return 0
+  const total = resolveMinDuration(minDurationMs)
+  return Math.max(0, Math.min(total, total - (agora - inicio)))
+}
+
+export function isLocalHandoffHoldSatisfied(args = {}) {
+  return localHandoffRemainingMs(args) <= 0
+}
+
+/** Segundos exibidos na contagem (5, 4, 3, 2, 1, 0). */
+export function localHandoffCountdownSeconds(args = {}) {
+  return Math.ceil(localHandoffRemainingMs(args) / 1000)
+}
+
 export function shouldCreateGameBroadcastChannel({ gameMode, sessionRole, lobbyId } = {}) {
   // Espectador lê apenas rooms.state: nada de canal bidirecional entre abas.
   if (isSpectatorRole(sessionRole)) return false

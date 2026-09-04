@@ -111,6 +111,26 @@ html, body {
   overflow-wrap: anywhere;
   text-transform: uppercase;
 }
+.localHandoffCountdown {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin: .5rem 0 .1rem;
+}
+.localHandoffCountdownLabel {
+  font-size: .75rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+.localHandoffCountdownValue {
+  font-size: clamp(2rem, 7vw, 3rem);
+  font-weight: 900;
+  line-height: 1.05;
+  color: #7dd3fc;
+  font-variant-numeric: tabular-nums;
+}
 .localHandoffHint { margin: 1rem auto; max-width: 34rem; color: #cbd5e1; }
 .localHandoffButton { width: 100%; padding: .8rem 1rem; }
 .localHandoffButton:disabled { cursor: wait; opacity: .6; }
@@ -3261,6 +3281,16 @@ img[src*="multiplier"]{
 }
 .lobbyJoinBtn--spectate:hover:not(:disabled){
   background: rgba(148,163,184,.26);
+}
+.startOnlineDisabled{
+  margin: 6px 0 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(148,163,184,.32);
+  background: rgba(148,163,184,.12);
+  color: #cbd5e1;
+  font-size: 12px;
+  line-height: 1.4;
 }
 .lobbySpectateNotice{
   margin: 0 0 14px;
