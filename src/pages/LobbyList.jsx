@@ -7,6 +7,7 @@ import {
   getMatchIdentity,
   countMatchIdentities,
 } from '../auth'
+import { resolveLobbyEntryAction } from '../game/spectatorMode.js'
 import {
   listLobbies,
   onLobbiesRealtime,
@@ -81,6 +82,15 @@ function IconEnter(props) {
   )
 }
 
+function IconEye(props) {
+  return (
+    <svg {...svgProps} {...props}>
+      <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  )
+}
+
 function IconClose(props) {
   return (
     <svg {...svgProps} {...props}>
@@ -107,7 +117,7 @@ function LobbySkeletonCard() {
   )
 }
 
-export default function LobbyList({ onEnterRoom, playerName }) {
+export default function LobbyList({ onEnterRoom, onSpectateRoom, playerName, spectateNotice = '' }) {
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(false)
   /** lobbyIds que passaram canResumeLockedMatch (identidade + snapshot). */
@@ -274,16 +284,31 @@ export default function LobbyList({ onEnterRoom, playerName }) {
   }
 
   // Entra em sala open (join) OU reentra em partida locked se identidade + rooms.state validarem.
+  // Assistir NÃO cria assento: sem nome, sem joinLobby, sem matchIdentity.
+  function handleSpectate(lobbyId) {
+    onSpectateRoom?.(lobbyId)
+  }
+
   async function handleJoin(lobbyId, roomStatus = 'open') {
     try {
+      const status = String(roomStatus || 'open')
+      const isOpen = status === 'open'
+
+      // Prioridade: quem tem identidade nesta sala retoma o assento; só quem não
+      // tem é encaminhado para o modo espectador.
+      if (!isOpen && !getMatchIdentity(lobbyId)?.playerId) {
+        const entry = resolveLobbyEntryAction({ status, hasLocalMatchIdentity: false })
+        if (entry.action === 'spectate') {
+          handleSpectate(lobbyId)
+          return
+        }
+      }
+
       const pn = String(playerName || '').trim()
       if (!pn) {
         alert('Digite seu nome na tela inicial antes de entrar em salas.')
         return
       }
-
-      const status = String(roomStatus || 'open')
-      const isOpen = status === 'open'
 
       if (!isOpen) {
         // Bypass de "Sala bloqueada" SOMENTE se identidade persistida + player no snapshot.
@@ -380,6 +405,12 @@ export default function LobbyList({ onEnterRoom, playerName }) {
           </div>
         </header>
 
+        {spectateNotice ? (
+          <div className="lobbySpectateNotice" role="status">
+            {spectateNotice}
+          </div>
+        ) : null}
+
         {resumableCount > 0 && (
           <div className="lobbyResumeBanner" role="status">
             <div className="lobbyResumeBannerText">
@@ -420,7 +451,16 @@ export default function LobbyList({ onEnterRoom, playerName }) {
                     const identity = !isOpen ? getMatchIdentity(r.id) : null
                     const hasLocalMatchIdentity = !!identity?.playerId
                     const canResume = !isOpen && resumableIds.has(String(r.id))
-                    const disabled = isFull || (!isOpen && !hasLocalMatchIdentity)
+                    // Fonte única da ação do card (join / resume / spectate / none).
+                    // Espectador não ocupa vaga: isFull nunca bloqueia "Assistir".
+                    const entry = resolveLobbyEntryAction({
+                      status: r.status ?? 'open',
+                      hasLocalMatchIdentity,
+                      canResume,
+                      isFull,
+                    })
+                    const canSpectate = entry.action === 'spectate'
+                    const disabled = entry.disabled
 
                     if (import.meta.env.DEV && !isOpen) {
                       // Diagnóstico do card locked — sem UUID completo / sem snapshot financeiro
@@ -457,17 +497,7 @@ export default function LobbyList({ onEnterRoom, playerName }) {
                     const filledSeats = Math.max(0, Math.min(players, seatCount))
 
                     // texto do botão conforme estado (apresentação; ação inalterada)
-                    const joinLabel = !disabled
-                      ? (canResume
-                          ? 'Retomar partida'
-                          : (!isOpen && hasLocalMatchIdentity ? 'Reentrar na partida' : 'Entrar agora'))
-                      : isPlaying
-                      ? 'Partida em andamento'
-                      : rawStatus === 'locked'
-                      ? 'Sala bloqueada'
-                      : isFull
-                      ? 'Sala lotada'
-                      : 'Sala indisponível'
+                    const joinLabel = entry.label
 
                     return (
                       <div
@@ -510,12 +540,20 @@ export default function LobbyList({ onEnterRoom, playerName }) {
 
                         <button
                           type="button"
-                          className={`lobbyJoinBtn${canResume ? ' lobbyJoinBtn--resume' : ''}`}
+                          className={`lobbyJoinBtn${canResume ? ' lobbyJoinBtn--resume' : ''}${canSpectate ? ' lobbyJoinBtn--spectate' : ''}`}
                           disabled={disabled}
-                          onClick={() => handleJoin(r.id, rawStatus)}
-                          title={!disabled ? (canResume ? 'Retomar partida' : (isOpen ? 'Entrar na sala' : 'Reentrar na partida')) : joinLabel}
+                          onClick={() => (canSpectate ? handleSpectate(r.id) : handleJoin(r.id, rawStatus))}
+                          title={
+                            disabled
+                              ? joinLabel
+                              : canSpectate
+                              ? 'Assistir esta partida (não ocupa vaga)'
+                              : canResume
+                              ? 'Retomar partida'
+                              : (isOpen ? 'Entrar na sala' : 'Reentrar na partida')
+                          }
                         >
-                          {!disabled && <IconEnter />}
+                          {!disabled && (canSpectate ? <IconEye /> : <IconEnter />)}
                           {joinLabel}
                         </button>
                       </div>

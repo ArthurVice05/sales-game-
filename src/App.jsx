@@ -52,7 +52,7 @@ import { getOrCreateTabPlayerId, setTabPlayerName, resolvePlayerIdForRoom, setMa
 import { useGameNet } from './net/GameNetProvider.jsx'
 
 // Gerenciamento de salas
-import { leaveRoom, getLobby, onLobbyRealtime, touchLobbyPlayer } from './lib/lobbies'
+import { leaveRoom, getLobby, onLobbyRealtime, touchLobbyPlayer, findAuthoritativeRoomMeta } from './lib/lobbies'
 import {
   confirmSharedSkipKey,
   releaseSharedSkipKey,
@@ -111,6 +111,17 @@ import {
   shouldEnableTurnTimer,
   shouldOpenLocalHandoff,
 } from './game/localHotseat.js'
+import {
+  SESSION_ROLE,
+  SPECTATOR_READ_ONLY,
+  buildSpectateSearch,
+  clearSpectateFromSearch,
+  isSpectatorSession,
+  parseSpectateRequest,
+  resolveSpectatorEntry,
+  resolveSpectatorViewPlayerId,
+} from './game/spectatorMode.js'
+import SpectatorPanel from './components/SpectatorPanel.jsx'
 
 // -------------------------------------------------------------
 // App raiz – concentra roteamento de fases e estado global leve
@@ -232,6 +243,23 @@ export default function App() {
   // ====== fases da UI
   const [phase, setPhase] = useState('start') // 'start' | 'localSetup' | 'lobbies' | 'playersLobby' | 'game'
   const [gameMode, setGameMode] = useState(null)
+  // Papel da sessão — ortogonal a gameMode. PLAYER é o fluxo normal (online e
+  // local); SPECTATOR é read-only e só existe em online.
+  const [sessionRole, setSessionRole] = useState(SESSION_ROLE.PLAYER)
+  const isSpectator = isSpectatorSession({ gameMode, sessionRole })
+  const canMutateGame = !isSpectator
+  const isSpectatorRef = useRef(isSpectator)
+  useEffect(() => { isSpectatorRef.current = isSpectator }, [isSpectator])
+  const [spectatorEntryError, setSpectatorEntryError] = useState('')
+  // Reconhecido de forma síncrona no primeiro render: evita piscar a StartScreen
+  // enquanto a sala autoritativa está sendo validada.
+  const [spectatorBooting, setSpectatorBooting] = useState(() => {
+    try {
+      return parseSpectateRequest(window.location.search).requested
+    } catch {
+      return false
+    }
+  })
   const [currentLobbyId, setCurrentLobbyId] = useState(null)
   const [roomId, setRoomId] = useState(null)
   const [boardVersion, setBoardVersion] = useState(getNewGameBoardVersion)
@@ -535,10 +563,21 @@ export default function App() {
   })
   const gameplayActorId = useMemo(() => resolveGameplayActorId({
     gameMode,
+    sessionRole,
     localTurnReady,
     turnPlayerId,
     myUid,
-  }), [gameMode, localTurnReady, turnPlayerId, myUid])
+  }), [gameMode, sessionRole, localTurnReady, turnPlayerId, myUid])
+
+  // SOMENTE apresentação: jogador observado pelo espectador. Nunca alimenta
+  // isMine / isMyTurn / Controls / motor / commits.
+  const spectatorViewPlayerId = useMemo(() => (
+    isSpectator ? resolveSpectatorViewPlayerId({ turnPlayerId, players }) : null
+  ), [isSpectator, turnPlayerId, players])
+  const spectatorViewPlayer = useMemo(() => {
+    if (!spectatorViewPlayerId) return null
+    return (players || []).find((p) => String(p?.id) === String(spectatorViewPlayerId)) || null
+  }, [players, spectatorViewPlayerId])
 
   // ====== “quem opera o jogo” no array de players
   const isMine = React.useCallback(
@@ -551,13 +590,26 @@ export default function App() {
     [gameplayActorId, players]
   )
   // Sem fallback silencioso para 0 quando o assento não está no roster (identidade quebrada).
-  const myCash = myCashInfo.found ? myCashInfo.cash : (identityMismatch ? null : 0)
+  // Espectador não tem caixa próprio: exibe o caixa (público) do jogador observado.
+  const myCash = isSpectator
+    ? (spectatorViewPlayer ? (spectatorViewPlayer.cash ?? null) : null)
+    : (myCashInfo.found ? myCashInfo.cash : (identityMismatch ? null : 0))
 
   // ====== bootstrap de contexto (NÃO muda fase automaticamente)
   // ✅ OBJ 1: StartScreen NUNCA deve ser pulada automaticamente.
   useEffect(() => {
     try {
       const url = new URL(window.location.href)
+
+      // ?room=<id>&spectate=1 → volta direto como espectador (sem StartScreen,
+      // sem PlayersLobby, sem joinLobby). A entrada valida rooms.state antes de
+      // assumir phase='game'; se a sala não existir mais, cai na lista de salas.
+      const spectateRequest = parseSpectateRequest(url.search)
+      if (spectateRequest.requested) {
+        enterSpectatorMode(spectateRequest.roomCode)
+        return
+      }
+
       const roomFromUrl = url.searchParams.get('room')
       const roomFromStorage = localStorage.getItem('sg:lastRoomName')
       const room = roomFromUrl || roomFromStorage
@@ -582,10 +634,10 @@ export default function App() {
 
   // ====== BroadcastChannel para sync entre abas (mesmo navegador)
   const syncKey = useMemo(() => (
-    shouldCreateGameBroadcastChannel({ gameMode, lobbyId: currentLobbyId })
+    shouldCreateGameBroadcastChannel({ gameMode, sessionRole, lobbyId: currentLobbyId })
       ? `sg-sync:${currentLobbyId}`
       : null
-  ), [gameMode, currentLobbyId])
+  ), [gameMode, sessionRole, currentLobbyId])
 
   useEffect(() => {
     try {
@@ -954,6 +1006,9 @@ export default function App() {
   // Mantemos o efeito vazio documentado para não reintroduzir o bug.
 
   const setTurnLockBroadcast = (value, owner = undefined) => {
+    // READ-ONLY: espectador não adquire/libera cadeado nem propaga nada.
+    // Contrato desta função é void — mantém void.
+    if (isSpectatorRef.current) return
     const v = !!value
     const nextOwner =
       v
@@ -1082,6 +1137,9 @@ export default function App() {
   // ✅ CORREÇÃO MULTIPLAYER: Helper para commitar patch/delta (não snapshot completo)
   // Permite fazer merge por ID sem sobrescrever estado completo
   const commitGamePatch = React.useCallback(({ playersDeltaById = {}, statePatch = {} }) => {
+    // READ-ONLY: espectador nunca chega ao netCommit.
+    // Contrato desta função é Promise<result> — mantém Promise<result>.
+    if (isSpectatorRef.current) return Promise.resolve(SPECTATOR_READ_ONLY)
     const expectTurnId = statePatch?._expectTurnPlayerId
     const expectTurnSeq = statePatch?._expectTurnSeq
     const commitKind = inferCommitKind(statePatch)
@@ -1432,7 +1490,9 @@ export default function App() {
         }
 
         // Rebind canônico: matchIdentity → myUid (nunca inventa player)
-        try {
+        // Espectador não tem assento: não faz rebind, não grava matchIdentity
+        // e não toca presença. Só consome o snapshot.
+        if (!isSpectatorRef.current) try {
           const roomKey = currentLobbyId || roomId
           const persisted = roomKey ? getMatchIdentity(roomKey) : null
           const seat = resolveSeatIdentity({
@@ -1634,6 +1694,8 @@ export default function App() {
 
   // ✅ BUG 2 FIX: Watchdog anti-trava - libera turnLock se travado por muito tempo
   useEffect(() => {
+    // Espectador nunca rouba/libera cadeado: watchdog é coisa de jogador.
+    if (isSpectator) return undefined
     if (gameMode === GAME_MODE.LOCAL) return undefined
     if (!turnLock) {
       lockSinceRef.current = null
@@ -1669,9 +1731,12 @@ export default function App() {
     }, 1000)
 
     return () => clearInterval(checkInterval)
-  }, [gameMode, turnLock, isMyTurn, turnIdx, players, lockOwner, myUid, netCommit])
+  }, [isSpectator, gameMode, turnLock, isMyTurn, turnIdx, players, lockOwner, myUid, netCommit])
 
   async function commitRemoteState(nextStatePartial) {
+    // READ-ONLY: espectador nunca escreve em rooms.state.
+    // Contrato desta função é Promise<result> — mantém Promise<result>.
+    if (isSpectatorRef.current) return SPECTATOR_READ_ONLY
     if (gameMode === GAME_MODE.LOCAL || typeof netCommit !== 'function') {
       return { ok: true, local: true }
     }
@@ -1796,6 +1861,9 @@ export default function App() {
   }
 
   function broadcastState(nextPlayers, nextTurnIdx, nextRound, gameOverState = gameOver, winnerState = winner, patch = {}) {
+    // READ-ONLY: espectador não emite estado (nem Supabase, nem BroadcastChannel).
+    // Contrato desta função é o retorno do commit (Promise<result>) — mantém.
+    if (isSpectatorRef.current) return Promise.resolve(SPECTATOR_READ_ONLY)
     // Baseline para diff: último roster commitado (ou estado atual se ainda não houver)
     const baselineSnapshot = (
       Array.isArray(playersBeforeRef.current) && playersBeforeRef.current.length > 0
@@ -2245,6 +2313,9 @@ export default function App() {
   }
 
   function broadcastStart(nextPlayers, configuredMaxRounds = maxRoundsRef.current, configuredTurnTimeSec = turnTimeSecRef.current, startOpts = {}) {
+    // READ-ONLY: espectador nunca inicia partida (nem chega ao PlayersLobby).
+    // Contrato desta função é o retorno de broadcastState — mantém.
+    if (isSpectatorRef.current) return Promise.resolve(SPECTATOR_READ_ONLY)
     let normalized = normalizePlayers(nextPlayers)
     const startBoardVersion = getNewGameBoardVersion()
     setBoardVersion(startBoardVersion)
@@ -2328,7 +2399,8 @@ export default function App() {
 
   // ====== HUD ao vivo (sem 1 render de atraso via useEffect)
   const meHudLive = useMemo(() => {
-    const mine = players.find(isMine)
+    // Espectador: perspectiva visual = jogador da vez. NUNCA vira isMine/myUid.
+    const mine = isSpectator ? spectatorViewPlayer : players.find(isMine)
     if (!mine) return meHud
     const { cap, inAtt } = capacityAndAttendance(mine)
     return {
@@ -2339,10 +2411,14 @@ export default function App() {
       possibAt: cap,
       clientsAt: inAtt,
     }
-  }, [players, isMine, meHud])
+  }, [players, isMine, meHud, isSpectator, spectatorViewPlayer])
 
   // ====== Totais do HUD (faturamento/ despesas / etc.)
-  const me = useMemo(() => players.find(isMine) || players[0] || null, [players, isMine])
+  const me = useMemo(() => (
+    isSpectator
+      ? spectatorViewPlayer
+      : (players.find(isMine) || players[0] || null)
+  ), [players, isMine, isSpectator, spectatorViewPlayer])
   const totals = useMemo(() => {
     if (!me) {
       return {
@@ -2646,7 +2722,80 @@ export default function App() {
     setTutorialOpen(false)
   }, [localHandoffOpen, currentLocalTurnKey])
 
+  // ====== Modo espectador: entrada e saída
+  // O espectador NUNCA cria assento, identidade ou presença. Toda a entrada é
+  // validada contra o snapshot autoritativo de rooms.state antes de virar 'game'.
+  const enterSpectatorMode = React.useCallback(async (lobbyId) => {
+    const roomCode = String(lobbyId ?? '').trim()
+    let meta = null
+    try {
+      meta = roomCode ? await findAuthoritativeRoomMeta(roomCode) : null
+    } catch (error) {
+      console.warn('[spectator] falha ao consultar sala autoritativa:', error)
+      meta = null
+    }
+
+    const entry = resolveSpectatorEntry({ roomCode, meta })
+    if (!entry.ok) {
+      // Nunca criar jogador como fallback: apenas recusa e volta às salas.
+      window.__setRoomCode?.(null)
+      setSpectatorBooting(false)
+      setSessionRole(SESSION_ROLE.PLAYER)
+      setSpectatorEntryError(entry.message)
+      try {
+        const url = new URL(window.location.href)
+        url.search = clearSpectateFromSearch(url.search)
+        history.replaceState(null, '', url.toString())
+      } catch {}
+      setPhase('lobbies')
+      return { ok: false, reason: entry.reason }
+    }
+
+    setSpectatorBooting(false)
+    setSpectatorEntryError('')
+    setGameMode(GAME_MODE.ONLINE)
+    setSessionRole(SESSION_ROLE.SPECTATOR)
+    isSpectatorRef.current = true
+    setCurrentLobbyId(roomCode)
+    setRoomId(roomCode)
+    // GameNetProvider continua ENABLED: o espectador precisa de rooms.state,
+    // realtime e polling fallback para RECEBER estado. A flag `spectate` o
+    // coloca em read-only (não cria sala, não aceita commit).
+    window.__setRoomCode?.(roomCode, { spectate: true })
+    try {
+      const url = new URL(window.location.href)
+      url.search = buildSpectateSearch(url.search, { roomCode })
+      history.replaceState(null, '', url.toString())
+    } catch {}
+    setPhase('game')
+    return { ok: true }
+  }, [])
+
+  // Sair do modo espectador: nunca forfeit / leaveRoom / clearMatchIdentity,
+  // porque o espectador jamais entrou como jogador.
+  const exitSpectatorMode = React.useCallback(() => {
+    isSpectatorRef.current = false
+    setSpectatorBooting(false)
+    setSessionRole(SESSION_ROLE.PLAYER)
+    setSpectatorEntryError('')
+    setCurrentLobbyId(null)
+    setRoomId(null)
+    window.__setRoomCode?.(null)
+    try {
+      const url = new URL(window.location.href)
+      url.search = clearSpectateFromSearch(url.search)
+      history.replaceState(null, '', url.toString())
+      localStorage.removeItem('sg:lastRoomName')
+    } catch {}
+    resetMatchLocalUi()
+    setPhase('lobbies')
+  }, [resetMatchLocalUi])
+
   async function exitCurrentGame() {
+    if (isSpectator) {
+      exitSpectatorMode()
+      return
+    }
     if (gameMode === GAME_MODE.LOCAL) {
       window.__setRoomCode?.(null)
       setCurrentLobbyId(null)
@@ -2699,7 +2848,9 @@ export default function App() {
   const prevLobbyHostIdRef = useRef(null)
 
   useGamePresenceAutoSkip({
-    enabled: gameMode !== GAME_MODE.LOCAL && phase === 'game' && !!net?.enabled && !!net?.ready,
+    // Espectador não participa da coordenação de presença: sem heartbeat, sem
+    // skip coordinator, sem host transfer. Só jogadores mantêm esse processo.
+    enabled: !isSpectator && gameMode !== GAME_MODE.LOCAL && phase === 'game' && !!net?.enabled && !!net?.ready,
     lobbyId: currentLobbyId,
     // Canônico: sem fallback para sg_tab_player_id/meId na presença do game
     myUid: myUid || null,
@@ -2716,7 +2867,10 @@ export default function App() {
   // Cronômetro autoritativo: presence-coordinator ou lobby-host-fallback; CAS compartilhado.
   // Bloqueia também enquanto o dado 3D ainda não aplicou o ROLL no motor.
   useTurnTimerAutoPass({
+    // O TurnTimer visual continua rodando para o espectador (ele vê 30→29→…),
+    // mas ele nunca é autoridade para executar o auto-pass.
     enabled:
+      !isSpectator &&
       phase === 'game' &&
       !gameOver &&
       shouldEnableTurnTimer({ gameMode, localTurnReady }) &&
@@ -2775,6 +2929,7 @@ export default function App() {
   }, [lobbyHostId, myUid, meId])
 
   const iAmLobbyHost =
+    !isSpectator &&
     !!lobbyHostId &&
     !!myUid &&
     String(lobbyHostId) === String(myUid || meId)
@@ -2815,6 +2970,10 @@ export default function App() {
   // ====== Faixa de próximo passo (somente exibição; não altera turno/ações)
   const nextStepHint = gameOver
     ? 'Partida encerrada — veja o resultado.'
+    : isSpectator
+    ? (current?.name
+        ? `Assistindo — vez de ${current.name}.`
+        : 'Assistindo a partida...')
     : hostPromotedHint
     ? 'Você agora é o Host da sala.'
     : turnAbsenceStatus === 'waiting'
@@ -2832,9 +2991,12 @@ export default function App() {
     : current?.name
     ? `Aguarde a jogada de ${current.name}.`
     : 'Aguarde o próximo jogador.'
-  const nextStepIsMyTurn = !gameOver && !me?.bankrupt && isMyTurn && controlsCanRoll && !turnAbsenceStatus && !hostPromotedHint
+  const nextStepIsMyTurn = !isSpectator && !gameOver && !me?.bankrupt && isMyTurn && controlsCanRoll && !turnAbsenceStatus && !hostPromotedHint
 
   const onControlsAction = (act) => {
+    // READ-ONLY: espectador não executa ROLL nem qualquer ação de turno.
+    // Contrato desta função é void — mantém void.
+    if (isSpectator) return
     // Dado 3D é só visual. O motor aplica o ROLL na hora — senão o peão
     // não anda e o host pode passar a vez no meio da animação.
     if (act?.type === 'ROLL' && controlsCanRoll) {
@@ -2940,6 +3102,18 @@ export default function App() {
 
   // 1) Tela inicial: pega o nome e vai para Lobbies
   if (phase === 'start') {
+    if (spectatorBooting) {
+      return (
+        <ModalProvider>
+          <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff' }}>
+            <div style={{ maxWidth: 520, padding: 16, textAlign: 'center' }}>
+              <div style={{ fontSize: 18, marginBottom: 8 }}>👁 Entrando como espectador…</div>
+              <div style={{ opacity: .75 }}>Validando a partida nesta sala.</div>
+            </div>
+          </div>
+        </ModalProvider>
+      )
+    }
     return (
       <ModalProvider>
         <StartScreen
@@ -3000,7 +3174,13 @@ export default function App() {
       <ModalProvider>
         <LobbyList
           playerName={myName}
+          spectateNotice={spectatorEntryError}
+          onSpectateRoom={(id) => {
+            setSpectatorEntryError('')
+            enterSpectatorMode(id)
+          }}
           onEnterRoom={(id) => {
+          setSpectatorEntryError('')
           const resolvedId = resolvePlayerIdForRoom(id, { playerName: myName })
           setMyUid(String(resolvedId))
           setCurrentLobbyId(id)
@@ -3249,6 +3429,7 @@ export default function App() {
               Aguardando snapshot do Supabase (START). Se ficar preso, volte para Lobbies e entre novamente.
             </div>
             <button onClick={() => {
+              if (isSpectator) { exitSpectatorMode(); return }
               // NÃO clearMatchIdentity aqui: voltar da tela de loading NÃO é abandonar a partida.
               // Apagar a identidade impede "Reentrar" no card locked.
               if (isDevVerbose()) {
@@ -3292,6 +3473,11 @@ export default function App() {
             >
               👤 {meHudLive.name}
             </span>
+            {isSpectator && (
+              <span className="spectatorBadge" title="Você está assistindo esta partida">
+                👁 Modo espectador
+              </span>
+            )}
             {iAmLobbyHost && (
               <span className="gameHostBadge" title="Você é o Host da sala">
                 👑 Você é o Host
@@ -3412,25 +3598,40 @@ export default function App() {
             </div>
             {/* Sempre acima do rolar: não depende do grid/scroll do controlsSticky */}
             <div className="sideQuickActions">
-              <Controls
-                section="secondary"
-                onAction={onControlsAction}
-                current={current}
-                isMyTurn={isMyTurn}
-                myUid={gameplayActorId}
-                turnPlayerId={turnPlayerId}
-                turnLock={turnLock}
-                lockOwner={lockOwner}
-                modalLocks={modalLocks}
-                gameOver={gameOver}
-              />
-              <button
-                type="button"
-                className="btn dark"
-                onClick={exitCurrentGame}
-              >
-                {gameMode === GAME_MODE.LOCAL ? 'Sair da partida' : 'Sair para Lobbies'}
-              </button>
+              {isSpectator ? (
+                <SpectatorPanel
+                  turnPlayerName={current?.name || ''}
+                  round={round}
+                  maxRounds={maxRounds}
+                  gameOver={gameOver}
+                  turnLock={turnLock}
+                  modalLocks={modalLocks}
+                  onExit={exitSpectatorMode}
+                  exitLabel="Sair do modo espectador"
+                />
+              ) : (
+                <>
+                  <Controls
+                    section="secondary"
+                    onAction={onControlsAction}
+                    current={current}
+                    isMyTurn={isMyTurn}
+                    myUid={gameplayActorId}
+                    turnPlayerId={turnPlayerId}
+                    turnLock={turnLock}
+                    lockOwner={lockOwner}
+                    modalLocks={modalLocks}
+                    gameOver={gameOver}
+                  />
+                  <button
+                    type="button"
+                    className="btn dark"
+                    onClick={exitCurrentGame}
+                  >
+                    {gameMode === GAME_MODE.LOCAL ? 'Sair da partida' : 'Sair para Lobbies'}
+                  </button>
+                </>
+              )}
               <button
                 type="button"
                 className="btn dark"
@@ -3446,18 +3647,20 @@ export default function App() {
             >
               Ver resumo / placar
             </button>
-            <Controls
-              section="primary"
-              onAction={onControlsAction}
-              current={current}
-              isMyTurn={isMyTurn}
-              myUid={gameplayActorId}
-              turnPlayerId={turnPlayerId}
-              turnLock={turnLock}
-              lockOwner={lockOwner}
-              modalLocks={modalLocks}
-              gameOver={gameOver}
-            />
+            {!isSpectator && (
+              <Controls
+                section="primary"
+                onAction={onControlsAction}
+                current={current}
+                isMyTurn={isMyTurn}
+                myUid={gameplayActorId}
+                turnPlayerId={turnPlayerId}
+                turnLock={turnLock}
+                lockOwner={lockOwner}
+                modalLocks={modalLocks}
+                gameOver={gameOver}
+              />
+            )}
           </div>
         </aside>
       </main>
@@ -3518,7 +3721,11 @@ export default function App() {
           players={players}
           maxRounds={maxRounds}
           endedRound={round}
-          exitLabel={gameMode === GAME_MODE.LOCAL ? 'Sair da partida' : 'Voltar aos Lobbies'}
+          exitLabel={
+            isSpectator
+              ? 'Voltar às salas'
+              : (gameMode === GAME_MODE.LOCAL ? 'Sair da partida' : 'Voltar aos Lobbies')
+          }
           onExit={exitCurrentGame}
         />
       )}

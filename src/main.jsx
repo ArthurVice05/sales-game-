@@ -8,6 +8,7 @@ import GameNetProvider from './net/GameNetProvider.jsx'
 import { ModalProvider } from './modals/ModalContext'
 
 import { isVercelDebugEnabled } from './game/debugFlags.js'
+import { parseSpectateRequest } from './game/spectatorMode.js'
 
 // ✅ Funções globais para export de logs
 import {
@@ -26,8 +27,19 @@ function initialRoomFromURL () {
   return (q && String(q).trim()) || null   // null = sem sync remoto até escolher uma sala
 }
 
+function initialSpectateFromURL () {
+  try {
+    return parseSpectateRequest(window.location.search).requested
+  } catch {
+    return false
+  }
+}
+
 function Root() {
   const [roomCode, setRoomCode] = React.useState(initialRoomFromURL())
+  // Espectador: o Provider continua ENABLED (precisa de rooms.state, realtime e
+  // polling), mas em modo read-only — não cria sala nem aceita commit.
+  const [netReadOnly, setNetReadOnly] = React.useState(initialSpectateFromURL())
   // iOS only: html.sg-ios + --sg-vv-height (não altera Android/desktop)
   useIosVisualViewport()
   // Mobile touch: pinch-zoom + pan quando ampliado
@@ -35,9 +47,11 @@ function Root() {
 
   // expõe um setter global para o App trocar a sala dinamicamente
   React.useEffect(() => {
-    window.__setRoomCode = (code) => {
+    window.__setRoomCode = (code, options = {}) => {
       const c = String(code || '').trim() || null
       setRoomCode(c)
+      // Sem a flag, qualquer troca de sala volta ao modo jogador (padrão atual).
+      setNetReadOnly(!!c && !!options.spectate)
       // mantém a URL coerente com a sala atual
       const url = new URL(window.location.href)
       if (c) url.searchParams.set('room', c)
@@ -119,7 +133,7 @@ function Root() {
 
   return (
     <ModalProvider>
-      <GameNetProvider roomCode={roomCode}>
+      <GameNetProvider roomCode={roomCode} readOnly={netReadOnly}>
         <App />
       </GameNetProvider>
     </ModalProvider>

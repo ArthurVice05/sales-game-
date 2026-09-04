@@ -3252,6 +3252,27 @@ img[src*="multiplier"]{
   filter: brightness(1.06);
 }
 
+/* Modo espectador: assistir nao ocupa vaga (sala cheia continua assistivel) */
+.lobbyJoinBtn--spectate{
+  background: rgba(148,163,184,.18);
+  color: #e2e8f0;
+  border: 1px solid rgba(148,163,184,.38);
+  box-shadow: none;
+}
+.lobbyJoinBtn--spectate:hover:not(:disabled){
+  background: rgba(148,163,184,.26);
+}
+.lobbySpectateNotice{
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(148,163,184,.32);
+  background: rgba(148,163,184,.12);
+  color: #e2e8f0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
 /* botão principal do card (largura total) */
 .lobbyJoinBtn{
   display: inline-flex;
@@ -3811,6 +3832,74 @@ img[src*="multiplier"]{
   background: rgba(251,191,36,.08);
   border-color: rgba(251,191,36,.28);
   font-weight: 700;
+}
+
+/* Indicador de sessao read-only durante a partida */
+.spectatorBadge{
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 6px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .02em;
+  line-height: 1.2;
+  white-space: nowrap;
+  color: #cbd5e1;
+  background: rgba(148,163,184,.14);
+  border: 1px solid rgba(148,163,184,.35);
+  vertical-align: middle;
+}
+
+/* Painel read-only que substitui os Controls do jogador */
+.spectatorPanel{
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(148,163,184,.28);
+  background: rgba(15,20,32,.72);
+}
+.spectatorPanelHeader{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.spectatorPanelBadge{
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .02em;
+  color: #cbd5e1;
+}
+.spectatorPanelRound{
+  font-size: 12px;
+  color: #94a3b8;
+}
+.spectatorPanelTurn{
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.spectatorPanelTurnLabel{
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: #94a3b8;
+}
+.spectatorPanelTurnName{
+  font-size: 16px;
+  font-weight: 800;
+  color: #f1f5f9;
+}
+.spectatorPanelStatus{
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.35;
+  color: #cbd5e1;
 }
 .playerLobbyBadge--me{
   color: #93c5fd;

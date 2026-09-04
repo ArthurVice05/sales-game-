@@ -6,6 +6,15 @@ export const GAME_MODE = Object.freeze({
   LOCAL: 'local',
 })
 
+// Papéis de sessão (ortogonais a GAME_MODE). A superfície pública — SESSION_ROLE
+// e os predicados de espectador — vive em ./spectatorMode.js; os literais ficam
+// aqui para que este módulo não dependa daquele (evita import circular).
+export const PLAYER_SESSION_ROLE = 'player'
+export const SPECTATOR_SESSION_ROLE = 'spectator'
+
+const isSpectatorRole = (sessionRole) =>
+  String(sessionRole ?? '') === SPECTATOR_SESSION_ROLE
+
 export const LOCAL_PLAYER_COLORS = Object.freeze([
   '#FFD600',
   '#2196F3',
@@ -71,10 +80,13 @@ export function createLocalPlayers(values, options = {}) {
 
 export function resolveGameplayActorId({
   gameMode,
+  sessionRole,
   localTurnReady,
   turnPlayerId,
   myUid,
 } = {}) {
+  // Espectador não tem assento: nenhuma autoridade de gameplay, em modo algum.
+  if (isSpectatorRole(sessionRole)) return null
   if (gameMode !== GAME_MODE.LOCAL) {
     return myUid != null && String(myUid) !== '' ? String(myUid) : null
   }
@@ -118,6 +130,8 @@ export function shouldEnableTurnTimer({ gameMode, localTurnReady } = {}) {
   return gameMode !== GAME_MODE.LOCAL || localTurnReady === true
 }
 
-export function shouldCreateGameBroadcastChannel({ gameMode, lobbyId } = {}) {
+export function shouldCreateGameBroadcastChannel({ gameMode, sessionRole, lobbyId } = {}) {
+  // Espectador lê apenas rooms.state: nada de canal bidirecional entre abas.
+  if (isSpectatorRole(sessionRole)) return false
   return gameMode === GAME_MODE.ONLINE && !!String(lobbyId || '')
 }

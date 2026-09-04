@@ -75,7 +75,7 @@ function pickAuthoritativeRoom(rows) {
  *  - roomCode: string que identifica a sala (use o UUID do lobby!)
  *  - hostId: opcional
  */
-function GameNetProvider({ roomCode, hostId, children }) {
+function GameNetProvider({ roomCode, hostId, readOnly = false, children }) {
   const enabled = !!supabase && !!roomCode
   const code = String(roomCode || '').trim()
 
@@ -228,6 +228,18 @@ function GameNetProvider({ roomCode, hostId, children }) {
       }
 
       let current = lookup.status === 'ok' ? lookup.row : null
+
+      if (!current && lookup.status === 'empty' && readOnly) {
+        // Sessão read-only (espectador): observa a sala, nunca a cria.
+        netLog('[NET] bootstrap ready', {
+          code: bootCode,
+          ready: true,
+          hasPlayers: false,
+          reason: 'read-only-session',
+        })
+        setReady(true)
+        return
+      }
 
       if (!current && lookup.status === 'empty') {
         // Só INSERT quando SELECT confirmou ZERO rows (nunca após erro)
@@ -412,6 +424,8 @@ function GameNetProvider({ roomCode, hostId, children }) {
   // Retorna { ok: true } se o UPDATE venceu o CAS; { ok: false } se falhou/esgotou retries.
   const commit = async (updater) => {
     if (!enabled || !ready) return { ok: false, skipped: true }
+    // Sessão read-only (espectador): recebe estado, nunca escreve.
+    if (readOnly) return { ok: false, skipped: true, reason: 'read-only-session' }
 
     const MAX_ATTEMPTS = 3
     const nowISO = new Date().toISOString()
