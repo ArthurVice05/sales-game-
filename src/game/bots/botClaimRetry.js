@@ -1,8 +1,8 @@
 /**
  * Retry de BOT_CLAIM — falhas transitórias (406/CAS) não encerram o turno da máquina.
  */
-import { botLeaseExpired } from './botTurnClaim.js'
 import { evaluateBotTurnAuthoritativeReadiness } from './botTurnReadiness.js'
+import { classifyExecutorTakeover } from './botReloadRecovery.js'
 import { sleepCancellable } from './botRollRetry.js'
 import { enrichSuccessfulClaimResult } from './botClaimProof.js'
 
@@ -66,10 +66,13 @@ export function validateClaimRetryContinue({
     return { ok: false, reason: 'already-rolled', terminal: true }
   }
 
-  const localExec = localExecutorId != null ? String(localExecutorId) : ''
-  const remoteExec = remoteExecutorId != null ? String(remoteExecutorId) : ''
-  if (remoteExec && localExec && remoteExec !== localExec && !botLeaseExpired(lockTs)) {
-    return { ok: false, reason: 'other-executor', terminal: true }
+  const takeover = classifyExecutorTakeover({
+    localExecutorId,
+    remoteExecutorId,
+    lockTs,
+  })
+  if (takeover.action === 'wait') {
+    return { ok: false, reason: 'other-executor', terminal: false, waiting: true }
   }
 
   return { ok: true }

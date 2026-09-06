@@ -1,6 +1,11 @@
 import { botTurnKey } from './botTypes.js'
-import { botLeaseExpired } from './botTurnClaim.js'
 import { isDevVerbose } from '../debugFlags.js'
+import {
+  classifyBotTurnRecovery,
+  classifyExecutorTakeover,
+  waitForConfirmedBotMove,
+  LATE_BOT_MOVE_WAIT_MS,
+} from './botReloadRecovery.js'
 import { isValidClaimProof, enrichSuccessfulClaimResult } from './botClaimProof.js'
 import { evaluateBotCoordinatorGate } from './botAuthority.js'
 import { createBotSeed, createBotRng, rollFairDie } from './botRandom.js'
@@ -203,10 +208,13 @@ export function shouldContinueBotTurnCycle({
   if (!coord.ok) {
     return { ok: false, reason: coord.reason || 'not-coordinator', terminal: false, waiting: true }
   }
-  const localExec = localExecutorId != null ? String(localExecutorId) : ''
-  const remoteExec = live.botClaimExecutor != null ? String(live.botClaimExecutor) : ''
-  if (remoteExec && localExec && remoteExec !== localExec && !botLeaseExpired(live.lockTs)) {
-    return { ok: false, reason: 'other-executor', terminal: true }
+  const takeover = classifyExecutorTakeover({
+    localExecutorId,
+    remoteExecutorId: live.botClaimExecutor,
+    lockTs: live.lockTs,
+  })
+  if (takeover.action === 'wait') {
+    return { ok: false, reason: 'other-executor', terminal: false, waiting: true }
   }
   return { ok: true }
 }
@@ -340,6 +348,7 @@ export async function runBotTurnPipeline({
   onThinking,
   stopHeartbeat,
   startHeartbeat,
+  onRecoverHandoff = null,
   thinkDelayMs = null,
   waitDelayMs = BOT_CLAIM_RETRY_MS,
   claimDelayMs = BOT_CLAIM_RETRY_MS,
@@ -347,6 +356,7 @@ export async function runBotTurnPipeline({
   rollMaxBackoffMs = 4000,
   handoffPollMs = 100,
   handoffMaxWaitMs = 120_000,
+  lateMoveWaitMs = LATE_BOT_MOVE_WAIT_MS,
 } = {}) {
   const expectedTurnKey = botTurnKey(matchId, turnPlayerId, turnSeq)
   const logCtx = (extra = {}) => ({
@@ -524,10 +534,180 @@ export async function runBotTurnPipeline({
     return { ok: false, reason: authWait.reason, rollSucceeded }
   }
 
+  const classifyLiveRecovery = () => {
+    const live = liveRef.current || {}
+    return classifyBotTurnRecovery({
+      expectedTurnPlayerId: turnPlayerId,
+      expectedTurnSeq: turnSeq,
+      turnPlayerId: live.turnPlayerId,
+      turnSeq: live.turnSeq,
+      lastRollTurnKey: live.lastRollTurnKey,
+      lastRoll: live.lastRoll,
+      players: playersRef?.current || live.players,
+      lastActions: live.lastActions,
+      matchId,
+      gameOver: live.gameOver === true,
+    })
+  }
+
+  const lateMoveSnapshot = () => {
+    const live = liveRef.current || {}
+    return {
+      matchId,
+      turnPlayerId: live.turnPlayerId,
+      turnSeq: live.turnSeq,
+      gameOver: live.gameOver === true,
+      players: playersRef?.current || live.players,
+      lastActions: live.lastActions,
+      lastRoll: live.lastRoll,
+    }
+  }
+
+  const recoverConfirmedMove = async (recovery) => {
+    const live = liveRef.current || {}
+    if (
+      String(live.turnPlayerId ?? '') !== String(turnPlayerId) ||
+      Number(live.turnSeq) !== Number(turnSeq)
+    ) {
+      logBotPipeline('cancelled', logCtx({ reason: 'turn-advanced' }))
+      return { ok: true, reason: 'turn-advanced', rollSucceeded: false, recovered: 'obsolete' }
+    }
+    if (typeof onThinking === 'function') {
+      onThinking(botPlayer?.name || 'Máquina')
+    }
+    logBotPipeline('reload-handoff-recovery', logCtx({ reason: recovery.reason }))
+    if (typeof onRecoverHandoff === 'function') {
+      try {
+        await onRecoverHandoff(recovery)
+      } catch {
+        return { ok: false, reason: 'handoff-recovery-failed', rollSucceeded: false }
+      }
+    }
+    const handoff = await waitForBotPipelineHandoff({
+      signal,
+      getLive: () => liveRef.current,
+      expectedTurnPlayerId: turnPlayerId,
+      expectedTurnSeq: turnSeq,
+      pollMs: handoffPollMs,
+      maxWaitMs: handoffMaxWaitMs,
+    })
+    if (handoff.ok) {
+      logBotPipeline('handoff-complete', logCtx({ reason: 'reload-handoff' }))
+      return {
+        ok: true,
+        reason: 'handoff-recovered',
+        rollSucceeded: false,
+        recovered: 'handoff',
+        rollCalls: 0,
+      }
+    }
+    return {
+      ok: false,
+      reason: handoff.reason || 'handoff-timeout',
+      rollSucceeded: false,
+      recovered: 'handoff',
+      rollCalls: 0,
+    }
+  }
+
+  const waitForLateConfirmedMove = async () =>
+    waitForConfirmedBotMove({
+      signal,
+      sleep: sleepCancellable,
+      getSnapshot: lateMoveSnapshot,
+      expectedTurnPlayerId: turnPlayerId,
+      expectedTurnSeq: turnSeq,
+      timeoutMs: lateMoveWaitMs,
+      pollMs: Math.max(20, Number(waitDelayMs) || 50),
+    })
+
+  const recoverIfAlreadyMoved = async (reason) => {
+    if (reason !== 'already-rolled') return null
+    const rec = classifyLiveRecovery()
+    if (rec.case === 'C') return recoverConfirmedMove(rec)
+    if (rec.case === 'D') {
+      return { ok: true, reason: rec.reason, rollSucceeded: false, recovered: 'obsolete' }
+    }
+    if (Number(lateMoveWaitMs) > 0) {
+      const late = await waitForLateConfirmedMove()
+      if (late.case === 'D') {
+        return { ok: true, reason: late.reason, rollSucceeded: false, recovered: 'obsolete' }
+      }
+      const again = classifyLiveRecovery()
+      if (again.case === 'C') return recoverConfirmedMove(again)
+      if (again.case === 'D') {
+        return { ok: true, reason: again.reason, rollSucceeded: false, recovered: 'obsolete' }
+      }
+    }
+    return {
+      ok: false,
+      reason: rec.reason || 'reload-recovery-unsafe',
+      rollSucceeded: false,
+      rollCalls: 0,
+    }
+  }
+
+  const recovery = classifyLiveRecovery()
+  if (recovery.case === 'D') {
+    logBotPipeline('cancelled', logCtx({ reason: recovery.reason }))
+    return { ok: true, reason: recovery.reason, rollSucceeded: false, recovered: 'obsolete' }
+  }
+  if (recovery.case === 'C') {
+    return recoverConfirmedMove(recovery)
+  }
+  if (recovery.case === 'B') {
+    if (Number(lateMoveWaitMs) > 0) {
+      const late = await waitForLateConfirmedMove()
+      if (late.case === 'D') {
+        return { ok: true, reason: late.reason, rollSucceeded: false, recovered: 'obsolete' }
+      }
+      const again = classifyLiveRecovery()
+      if (again.case === 'C') return recoverConfirmedMove(again)
+      if (again.case === 'D') {
+        return { ok: true, reason: again.reason, rollSucceeded: false, recovered: 'obsolete' }
+      }
+    }
+    logBotPipeline('cancelled', logCtx({ reason: recovery.reason }))
+    return {
+      ok: false,
+      reason: recovery.reason || 'reload-recovery-unsafe',
+      rollSucceeded: false,
+      rollCalls: 0,
+    }
+  }
+
+  const remoteExecAtStart = liveRef.current?.botClaimExecutor
+  if (
+    remoteExecAtStart &&
+    String(remoteExecAtStart) !== String(executorId) &&
+    Number(lateMoveWaitMs) > 0
+  ) {
+    const late = await waitForLateConfirmedMove()
+    if (late.case === 'D') {
+      return { ok: true, reason: late.reason, rollSucceeded: false, recovered: 'obsolete' }
+    }
+    const again = classifyLiveRecovery()
+    if (again.case === 'C') return recoverConfirmedMove(again)
+    if (again.case === 'D') {
+      return { ok: true, reason: again.reason, rollSucceeded: false, recovered: 'obsolete' }
+    }
+  }
+
   let cas = null
   while (!signal?.aborted) {
     const cycle = shouldContinueTurn()
     if (!cycle.ok) {
+      if (cycle.waiting) {
+        logBotPipeline('waiting-executor-lease', logCtx({ reason: cycle.reason }))
+        try {
+          await sleepCancellable(claimDelayMs, signal)
+        } catch {
+          return { ok: false, reason: 'cancelled', rollSucceeded }
+        }
+        continue
+      }
+      const recoveredCycle = await recoverIfAlreadyMoved(cycle.reason)
+      if (recoveredCycle) return recoveredCycle
       logBotPipeline('cancelled', logCtx({ reason: cycle.reason }))
       return { ok: false, reason: cycle.reason, rollSucceeded }
     }
@@ -535,6 +715,8 @@ export async function runBotTurnPipeline({
     cas = evaluateBotClaimCas({ remote, claim, now: Date.now() })
     if (cas.ok) break
     if (TERMINAL_CAS_REASONS.has(cas.reason)) {
+      const recoveredCas = await recoverIfAlreadyMoved(cas.reason)
+      if (recoveredCas) return recoveredCas
       logBotPipeline('claim-rejected', logCtx({ reason: cas.reason }))
       return { ok: false, reason: cas.reason, rollSucceeded }
     }
@@ -591,6 +773,8 @@ export async function runBotTurnPipeline({
   )
   const proof = enriched?.claimProof ?? null
   if (!claimResult.ok || !isSuccessfulClaimResult(enriched) || !isValidClaimProof(proof)) {
+    const recoveredClaim = await recoverIfAlreadyMoved(claimResult.reason)
+    if (recoveredClaim) return recoveredClaim
     logBotPipeline('claim-rejected', {
       ...logCtx(),
       reason: claimResult.reason || enriched?.reason || 'claim-failed',
@@ -630,8 +814,26 @@ export async function runBotTurnPipeline({
   }
 
   try {
+    if (
+      remoteExecAtStart &&
+      String(remoteExecAtStart) !== String(executorId) &&
+      Number(lateMoveWaitMs) > 0
+    ) {
+      const lateAfterClaim = await waitForLateConfirmedMove()
+      if (lateAfterClaim.case === 'D') {
+        return { ok: true, reason: lateAfterClaim.reason, rollSucceeded: false, recovered: 'obsolete' }
+      }
+      const again = classifyLiveRecovery()
+      if (again.case === 'C') return recoverConfirmedMove(again)
+      if (again.case === 'D') {
+        return { ok: true, reason: again.reason, rollSucceeded: false, recovered: 'obsolete' }
+      }
+    }
+
     const preRoll = shouldContinueRoll(cas.turnKey)
     if (!preRoll.ok) {
+      const recoveredRoll = await recoverIfAlreadyMoved(preRoll.reason)
+      if (recoveredRoll) return recoveredRoll
       logBotPipeline('roll-rejected', logCtx({ reason: preRoll.reason }))
       return { ok: false, reason: preRoll.reason, rollSucceeded, reservedPhaseKey }
     }
@@ -700,6 +902,8 @@ export async function runBotTurnPipeline({
       return { ok: true, rollSucceeded, rollCalls: rollResult.rollCalls }
     }
 
+    const recoveredAfterRoll = await recoverIfAlreadyMoved(rollResult.reason)
+    if (recoveredAfterRoll) return recoveredAfterRoll
     logBotPipeline('roll-rejected', logCtx({ reason: rollResult.reason }))
     return {
       ok: false,
