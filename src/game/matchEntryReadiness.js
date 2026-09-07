@@ -85,6 +85,34 @@ export function shouldApplyRoomStateForMatch(incomingState, expectedMatchId) {
   return incoming === expected
 }
 
+/**
+ * Reset transitório A→B: só quando o matchId autoritativo realmente muda.
+ * Sem next identificado, conserva o id anterior (lobby não dispara reset).
+ * Não olha gameOver — START/false sozinho não é boundary.
+ */
+export function decideMatchTransientEndgameReset({
+  previousMatchId,
+  nextMatchId,
+} = {}) {
+  const prev = idStr(previousMatchId)
+  const next = idStr(nextMatchId)
+  if (!next) {
+    return { reset: false, rememberMatchId: prev }
+  }
+  if (prev && prev !== next) {
+    return { reset: true, rememberMatchId: next }
+  }
+  return { reset: false, rememberMatchId: next }
+}
+
+export function applyMatchTransientEndgameReset(refs = {}) {
+  refs.endGameFinalized = false
+  refs.endGamePending = false
+  refs.pendingTurnData = null
+  refs.turnChangeInProgress = false
+  return refs
+}
+
 export function isStartCommitSuccess(result, { netEnabled = false } = {}) {
   if (!netEnabled) return true
   return result?.ok === true

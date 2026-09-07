@@ -9,6 +9,53 @@ import { DEFAULT_MAX_ROUNDS, normalizeMaxRounds } from './roundConfig'
 import { shouldFinishAfterRoundTransition } from './roundEndDecision.js'
 import { planOfflineTurnSkip } from './offlineTurnSkip.js'
 import { shouldRejectAbsentTurnSkip } from './presenceSkipLogic.js'
+import { isBotPlayer } from './bots/botTypes.js'
+import { evaluateBotRollAuthorization } from './bots/botRollAuth.js'
+import { requestTurnDecision } from './bots/botDecisionProvider.js'
+import { inferBotDecisionKindFromElement, resolveBotModalContext, buildBotModalTypeIndex, BOT_KIND_UNKNOWN } from './bots/botDecisionKind.js'
+import { createBotRng } from './bots/botRandom.js'
+import { isValidClaimProof } from './bots/botClaimProof.js'
+import {
+  ADVANCE_PENDING,
+  resolveAdvanceWhenModalsBusy,
+  shouldMarkLastRollTurnKeyNow,
+  toBotOnActionRollResult,
+} from './bots/botRollGate.js'
+import {
+  BOT_MOVE_CONFIRMED,
+  BOT_MOVE_PENDING,
+  buildBotMoveActionId,
+  createBotMoveBarrier,
+  resolveBotTickHandoffGate,
+  logBotCommit,
+  setLiveBotMoveBarrier,
+  shouldEmitLockAcquireAfterBotClaim,
+} from './bots/botMoveBarrier.js'
+import { getSharedBotCommitSerializer } from './bots/botForegroundCommit.js'
+import { persistBotMove } from './bots/botMovePersist.js'
+import {
+  buildBotMoveCrossing,
+  buildLocallyStartedBotTurnKey,
+  classifyBotTurnRecovery,
+  readBotMoveCrossing,
+  rebuildBotPendingAfterConfirmedMove,
+  shouldAllowBotReloadRecovery,
+} from './bots/botReloadRecovery.js'
+import {
+  buildBotEconomicPlayerDelta,
+  buildBotTurnEffectPlan,
+  isBotTurnEffectsSettled,
+  nextPlayersWith,
+  readBotTurnEffects,
+  runBotEconomicEffectsLoop,
+  shouldAcceptBotEconomicJob,
+  shouldBlockBotHandoffForEffects,
+  shouldRescheduleBotEconomicEffects,
+  shouldResumeLeftoverBotEffects,
+  shouldRunBotEconomicEffects,
+  botEconomicJobKey,
+} from './bots/botEconomicRuntime.js'
+import { shouldRejectEngineBotTimerAutoPass } from './turnCommitValidation.js'
 import {
   bumpModalLockCount,
   releaseModalLockCount,
@@ -21,11 +68,14 @@ import {
   decideTickForceUnlock,
   canSafelyHandoffTurn,
 } from './turnLockSafety.js'
-import { isHandoffPendingObsolete } from './turnStateMonotonic.js'
+import { isHandoffPendingObsolete, shouldDiscardSameSeatHandoffPending } from './turnStateMonotonic.js'
+import { decideMatchTransientEndgameReset } from './matchEntryReadiness.js'
 import {
   applyBankruptcyState,
   planMatchForfeit,
   decideEndgameAfterBankruptcy as decideEndgameAfterBankruptcyPure,
+  resolveAftermathAfterBankruptcy,
+  commitBankruptcyAftermath,
 } from './matchForfeit.js'
 
 // Modal system
@@ -48,12 +98,33 @@ import InsufficientFundsModal from '../modals/InsufficientFundsModal'
 import RecoveryModal from '../modals/RecoveryModal'
 import BankruptcyModal from '../modals/BankruptcyModal'
 
+const BOT_MODAL_TYPE_INDEX = buildBotModalTypeIndex({
+  InsufficientFundsModal,
+  RecoveryModal,
+  BankruptcyModal,
+  MixProductsModal,
+  ERPSystemsModal,
+  BuyClientsModal: ClientsModal,
+  ClientsModal,
+  BuyCommonSellersModal,
+  BuyFieldSalesModal: FieldSalesModal,
+  FieldSalesModal,
+  InsideSalesModal,
+  BuyManagerModal: ManagerModal,
+  ManagerModal,
+  TrainingModal,
+  DirectBuyModal,
+  FaturamentoMesModal: FaturamentoDoMesModal,
+  FaturamentoDoMesModal,
+  DespesasOperacionaisModal,
+  SorteRevesModal,
+})
+
 // Regras & helpers puros
 import {
   applyDeltas,
   applyTrainingPurchase,
   crossedTile,
-  countManagerCerts,
   hasBlue,
   hasPurple,
   hasYellow,
@@ -64,6 +135,7 @@ import {
   findNextAliveIdx,
 } from './gameMath'
 import { resolveFinalRoundMove } from './resolveFinalRoundMove.js'
+import { applySorteRevesPayloadToPlayer } from './sorteRevesApply.js'
 import { pickWinnerByPatrimonio } from './patrimonio.js'
 import {
   canTakeLoan,
@@ -142,7 +214,7 @@ export function useTurnEngine({
   myUid, meId,
   myCash,
   current,
-  broadcastState,
+  broadcastState: broadcastStateProp,
   appendLog,
   turnLock,
   setTurnLockBroadcast,
@@ -156,6 +228,11 @@ export function useTurnEngine({
   maxRounds: maxRoundsProp,
   boardVersion,
   onTileVisit = null,
+  claimProofRef = null,
+  botCoordinatorIdRef = null,
+  authoritativeMatchId = null,
+  remoteBotClaimExecutor = null,
+  remoteLockOwner = null,
 }) {
   const DEBUG_LOGS = isDebugLogsEnabled()
   const MAX_ROUNDS = normalizeMaxRounds(maxRoundsProp, DEFAULT_MAX_ROUNDS)
@@ -196,6 +273,21 @@ export function useTurnEngine({
   React.useEffect(() => {
     turnSeqRef.current = typeof turnSeq === 'number' ? turnSeq : 0
   }, [turnSeq])
+
+  const botMoveBarrierRef = React.useRef(null)
+  const botMovePersistPromiseRef = React.useRef(null)
+  const botCommitSerializerRef = React.useRef(null)
+  botCommitSerializerRef.current = getSharedBotCommitSerializer()
+  const broadcastState = React.useCallback((...args) => {
+    const barrier = botMoveBarrierRef.current
+    if (
+      barrier &&
+      (barrier.status === BOT_MOVE_PENDING || barrier.status === BOT_MOVE_CONFIRMED)
+    ) {
+      return botCommitSerializerRef.current.enqueue(() => broadcastStateProp(...args))
+    }
+    return broadcastStateProp(...args)
+  }, [broadcastStateProp])
 
   // ✅ CORREÇÃO: Flag para indicar que uma modal está sendo aberta (evita race condition)
   const openingModalRef = React.useRef(false)
@@ -504,6 +596,35 @@ export function useTurnEngine({
   // ✅ ENDGAME: pendente + idempotência
   const endGamePendingRef = React.useRef(false)
   const endGameFinalizedRef = React.useRef(false)
+  const seenMatchIdRef = React.useRef('')
+  const recoveredBotHandoffKeyRef = React.useRef('')
+  const locallyStartedBotTurnKeyRef = React.useRef('')
+  const botEconomicBusyRef = React.useRef(false)
+  const botEconomicJobKeyRef = React.useRef('')
+  const botEconomicJobPromiseRef = React.useRef(null)
+  const remoteLockOwnerRef = React.useRef(remoteLockOwner)
+  const remoteBotClaimExecutorRef = React.useRef(remoteBotClaimExecutor)
+  React.useEffect(() => { remoteLockOwnerRef.current = remoteLockOwner }, [remoteLockOwner])
+  React.useEffect(() => { remoteBotClaimExecutorRef.current = remoteBotClaimExecutor }, [remoteBotClaimExecutor])
+  const scheduleTurnCompletionTickRef = React.useRef(null)
+  React.useEffect(() => {
+    const decision = decideMatchTransientEndgameReset({
+      previousMatchId: seenMatchIdRef.current,
+      nextMatchId: authoritativeMatchId,
+    })
+    if (decision.reset) {
+      endGameFinalizedRef.current = false
+      endGamePendingRef.current = false
+      pendingTurnDataRef.current = null
+      turnChangeInProgressRef.current = false
+      recoveredBotHandoffKeyRef.current = ''
+      locallyStartedBotTurnKeyRef.current = ''
+      botEconomicBusyRef.current = false
+      botEconomicJobKeyRef.current = ''
+      botEconomicJobPromiseRef.current = null
+    }
+    seenMatchIdRef.current = decision.rememberMatchId
+  }, [authoritativeMatchId])
 
   // ✅ IMPORTANT: lockOwner deve vir do estado replicado (Supabase/BC TURNLOCK),
   // não de heurística local "é minha vez".
@@ -513,8 +634,15 @@ export function useTurnEngine({
     if (currentPlayer && String(currentPlayer.id) === String(myUid)) {
     } else {
       // ✅ NÃO limpe pendências futuras aqui.
-      // Só limpa se por algum motivo já for da vez atual (stale).
-      if (pendingTurnDataRef.current && pendingTurnDataRef.current.nextTurnIdx === turnIdx) {
+      // Só limpa se o pending same-seat for realmente obsoleto vs o turno de origem.
+      const pending = pendingTurnDataRef.current
+      if (
+        shouldDiscardSameSeatHandoffPending(pending, {
+          turnIdx,
+          turnPlayerId: turnPlayerIdRef.current,
+          turnSeq: turnSeqRef.current,
+        })
+      ) {
         pendingTurnDataRef.current = null
       }
     }
@@ -523,6 +651,32 @@ export function useTurnEngine({
   // helper: abrir modal e "travar"/"destravar" o contador
   // ✅ CORREÇÃO OBRIGATÓRIA 1: Serialização via fila + decremento único no finally
   const openModalAndWait = React.useCallback((element) => {
+    const roster = Array.isArray(playersRef.current) ? playersRef.current : []
+    const turnId = turnPlayerIdRef.current != null ? String(turnPlayerIdRef.current) : ''
+    const actor = roster.find((p) => String(p?.id) === turnId)
+    if (isBotPlayer(actor)) {
+      const kind = inferBotDecisionKindFromElement(element, BOT_MODAL_TYPE_INDEX)
+      if (kind === BOT_KIND_UNKNOWN) {
+        console.error('[BOT] modal não classificada por referência de componente', {
+          type: element?.type,
+        })
+        return Promise.resolve(null)
+      }
+      const rng = createBotRng(claimProofRef?.current?.seed)
+      return Promise.resolve(
+        requestTurnDecision({
+          kind,
+          actor,
+          gameState: {
+            players: roster,
+            round: currentRoundRef.current,
+            maxRounds: MAX_ROUNDS,
+          },
+          context: resolveBotModalContext(element, { rng }),
+        })
+      )
+    }
+
     if (!pushModal || !awaitTop) return Promise.resolve(null)
 
     const job = async () => {
@@ -578,6 +732,382 @@ export function useTurnEngine({
     return p
   }, [pushModal, awaitTop, safeCloseTop])
 
+  const enqueueBotEconomicEffects = React.useCallback((opts = {}) => {
+    const matchId = opts.matchId ?? authoritativeMatchId
+    const botId = String(opts.turnPlayerId ?? turnPlayerIdRef.current ?? '')
+    const seq = Number(opts.turnSeq ?? turnSeqRef.current) || 0
+    const jobKey = botEconomicJobKey({ matchId, turnPlayerId: botId, turnSeq: seq })
+    const accept = shouldAcceptBotEconomicJob({
+      activeKey: botEconomicJobKeyRef.current,
+      nextKey: jobKey,
+      busy: botEconomicBusyRef.current === true || !!botEconomicJobPromiseRef.current,
+    })
+    if (!accept.ok) {
+      return botEconomicJobPromiseRef.current || Promise.resolve({ ok: false, reason: accept.reason })
+    }
+    botEconomicJobKeyRef.current = jobKey
+    const job = enqueueAction(async () => {
+      botEconomicBusyRef.current = true
+      try {
+        const persistP = botMovePersistPromiseRef.current
+        if (persistP) {
+          const moved = await persistP
+          if (moved && moved.ok === false) {
+            return { ok: false, reason: moved.reason || 'bot-move-failed' }
+          }
+        }
+
+        const extrasFor = (kind, player) => {
+          if (kind === 'REVENUE') {
+            const fat = Math.max(0, Math.floor(computeFaturamentoFor(player)))
+            const lp = player?.loanPending || null
+            const shouldArm =
+              lp &&
+              Number(lp.amount) > 0 &&
+              lp.charged !== true &&
+              lp.eligibleOnExpenses !== true
+            return {
+              revenue: fat,
+              loanPending: shouldArm ? armLoanAfterRevenue(lp) : lp,
+            }
+          }
+          if (kind === 'EXPENSES') {
+            const expense = Math.max(0, Math.floor(computeDespesasFor(player)))
+            const lp = player?.loanPending || null
+            const shouldCharge = shouldChargeLoan({
+              loanPending: lp,
+              lastChargedLoanId: player?.lastChargedLoanId,
+              currentRound: currentRoundRef.current,
+            })
+            const loanCharge = shouldCharge ? loanChargeAmount(lp) : 0
+            return {
+              expense,
+              loanCharge,
+              totalCharge: expense + loanCharge,
+              loanPending: shouldCharge ? null : lp,
+              lastChargedLoanId: shouldCharge
+                ? (lp?.loanId || player?.lastChargedLoanId)
+                : player?.lastChargedLoanId,
+            }
+          }
+          return {}
+        }
+
+        const buildElement = (kind, player, extras = {}) => {
+          const cash = Number(player?.cash || 0)
+          const k = String(kind || '').toUpperCase()
+          if (k === 'REVENUE') return <FaturamentoDoMesModal value={extras.revenue || 0} />
+          if (k === 'EXPENSES') {
+            return (
+              <DespesasOperacionaisModal
+                expense={extras.expense || 0}
+                loanCharge={extras.loanCharge || 0}
+              />
+            )
+          }
+          if (k === 'LUCK') return <SorteRevesModal player={player} />
+          if (k === 'ERP') {
+            return (
+              <ERPSystemsModal
+                currentCash={cash}
+                currentLevel={player?.erpLevel || null}
+                erpOwned={player?.erpOwned || player?.erp || {}}
+                currentPlayer={player || null}
+                horizonRounds={MAX_ROUNDS}
+              />
+            )
+          }
+          if (k === 'TRAINING') {
+            return (
+              <TrainingModal
+                currentCash={cash}
+                currentPlayer={player || null}
+                canTrain={{
+                  comum: Number(player?.vendedoresComuns) || 0,
+                  field: Number(player?.fieldSales) || 0,
+                  inside: Number(player?.insideSales) || 0,
+                  gestor: Number(player?.gestores ?? player?.gestoresComerciais ?? player?.managers) || 0,
+                }}
+                ownedByType={{
+                  comum: player?.trainingsByVendor?.comum || [],
+                  field: player?.trainingsByVendor?.field || [],
+                  inside: player?.trainingsByVendor?.inside || [],
+                  gestor: player?.trainingsByVendor?.gestor || [],
+                }}
+              />
+            )
+          }
+          if (k === 'DIRECT_BUY') return <DirectBuyModal currentCash={cash} />
+          if (k === 'INSIDE') {
+            return <InsideSalesModal currentCash={cash} currentPlayer={player || null} />
+          }
+          if (k === 'CLIENTS') {
+            return <ClientsModal currentCash={cash} currentPlayer={player || null} />
+          }
+          if (k === 'MANAGER' || k === 'MANAGERS') {
+            return <ManagerModal currentCash={cash} currentPlayer={player || null} />
+          }
+          if (k === 'FIELD') {
+            return <FieldSalesModal currentCash={cash} currentPlayer={player || null} />
+          }
+          if (k === 'COMMON') {
+            return <BuyCommonSellersModal currentCash={cash} currentPlayer={player || null} />
+          }
+          if (k === 'MIX') {
+            return (
+              <MixProductsModal
+                currentCash={cash}
+                currentLevel={player?.mixProdutos || null}
+                mixOwned={player?.mixOwned || player?.mix || {}}
+                currentPlayer={player || null}
+                horizonRounds={MAX_ROUNDS}
+              />
+            )
+          }
+          if (k === 'INSUFFICIENT_FUNDS') {
+            return (
+              <InsufficientFundsModal
+                requiredAmount={extras.requiredAmount || 0}
+                currentCash={extras.currentCash != null ? extras.currentCash : cash}
+                showRecoveryOptions={extras.showRecoveryOptions !== false}
+                canClose={extras.canClose === true}
+              />
+            )
+          }
+          if (k === 'RECOVERY') {
+            return <RecoveryModal currentPlayer={player} canClose={false} />
+          }
+          if (k === 'BANKRUPT') {
+            return <BankruptcyModal playerName={player?.name || 'Máquina'} />
+          }
+          return null
+        }
+
+        const result = await runBotEconomicEffectsLoop({
+          matchId,
+          turnPlayerId: botId,
+          turnSeq: seq,
+          myUid,
+          getLive: () => {
+            const roster = Array.isArray(playersRef.current) ? playersRef.current : []
+            const current = roster.find((p) => String(p?.id) === String(botId))
+            const proof = claimProofRef?.current || null
+            return {
+              players: roster,
+              lastActions: current?.lastActions || {},
+              lockOwner: remoteLockOwnerRef.current || proof?.lockOwner || lockOwnerRef.current,
+              remoteLockOwner: remoteLockOwnerRef.current,
+              turnPlayerId: turnPlayerIdRef.current,
+              turnSeq: turnSeqRef.current,
+              matchId,
+              gameOver: gameOverRef.current === true,
+              currentPlayer: current,
+              extrasFor,
+              executorId: proof?.executorId || null,
+              remoteExecutorId: remoteBotClaimExecutorRef.current,
+              botClaimExecutor: remoteBotClaimExecutorRef.current,
+              claimProof: proof,
+              botTurnSeed: proof?.seed || null,
+              round: currentRoundRef.current,
+            }
+          },
+          decide: async ({ kind, player, extras }) => {
+            const extra = extras || extrasFor(kind, player)
+            const element = buildElement(kind, player, extra)
+            if (!element) return { action: 'SKIP' }
+            return openModalAndWait(element)
+          },
+          commit: async ({ before, after, actionId, effects, alreadyApplied }) => {
+            if (alreadyApplied) {
+              if (effects) {
+                const roster = Array.isArray(playersRef.current) ? playersRef.current : []
+                const latest = roster.find((p) => String(p?.id) === String(before.id)) || before
+                const stamped = nextPlayersWith(roster, before.id, {
+                  ...latest,
+                  botTurnEffects: effects,
+                })
+                commitLocalPlayers(stamped)
+                if (pendingTurnDataRef.current) pendingTurnDataRef.current.nextPlayers = stamped
+              }
+              return { ok: true, alreadyApplied: true }
+            }
+            if (gameOverRef.current) return { ok: false, reason: 'game-over' }
+            if (String(turnPlayerIdRef.current || '') !== String(botId)) {
+              return { ok: false, reason: 'turn-player-changed' }
+            }
+            if (Number(turnSeqRef.current) !== Number(seq)) {
+              return { ok: false, reason: 'turn-seq-changed' }
+            }
+            const latestRoster = Array.isArray(playersRef.current) ? playersRef.current : []
+            const latestBefore =
+              latestRoster.find((p) => String(p?.id) === String(before.id)) || before
+            if (latestBefore?.lastActions && actionId && latestBefore.lastActions[actionId]) {
+              return { ok: true, alreadyApplied: true }
+            }
+            const delta = buildBotEconomicPlayerDelta(latestBefore, after, actionId)
+            delta.botTurnEffects = effects
+            const nextRoster = nextPlayersWith(latestRoster, before.id, after)
+            const result = await botCommitSerializerRef.current.enqueue(() =>
+              Promise.resolve(
+                broadcastStateProp(
+                  nextRoster,
+                  turnIdxRef.current,
+                  currentRoundRef.current,
+                  false,
+                  null,
+                  {
+                    kind: 'PLAYER_DELTA',
+                    playersDeltaById: { [String(before.id)]: delta },
+                    actionId,
+                    _commitKind: 'BOT_EFFECT',
+                    _expectMatchId: matchId,
+                    _expectTurnPlayerId: botId,
+                    _expectTurnSeq: seq,
+                    _expectLockOwner: claimProofRef?.current?.lockOwner || remoteLockOwnerRef.current || String(myUid),
+                    _expectBotExecutor: claimProofRef?.current?.executorId || null,
+                    deferLocalUntilCommit: true,
+                  },
+                ),
+              ),
+            )
+            if (result?.ok) {
+              const withActions = nextPlayersWith(nextRoster, before.id, {
+                ...after,
+                lastActions: {
+                  ...(after.lastActions || latestBefore.lastActions || {}),
+                  [actionId]: Date.now(),
+                },
+              })
+              commitLocalPlayers(withActions)
+              if (pendingTurnDataRef.current) pendingTurnDataRef.current.nextPlayers = withActions
+            }
+            return result && typeof result === 'object' ? result : { ok: !!result }
+          },
+          shouldContinue: () => {
+            if (gameOverRef.current) return { ok: false, reason: 'game-over', terminal: true }
+            if (String(turnPlayerIdRef.current || '') !== String(botId)) {
+              return { ok: false, reason: 'turn-player-changed', terminal: true }
+            }
+            if (Number(turnSeqRef.current) !== Number(seq)) {
+              return { ok: false, reason: 'turn-seq-changed', terminal: true }
+            }
+            const proof = claimProofRef?.current || null
+            const execGate = shouldRunBotEconomicEffects({
+              currentPlayer: (Array.isArray(playersRef.current) ? playersRef.current : [])
+                .find((p) => String(p?.id) === String(botId)),
+              turnPlayerId: botId,
+              myUid,
+              lockOwner: remoteLockOwnerRef.current || proof?.lockOwner || lockOwnerRef.current,
+              gameOver: gameOverRef.current === true,
+              executorId: proof?.executorId,
+              remoteExecutorId: remoteBotClaimExecutorRef.current,
+              claimProof: proof,
+              matchId,
+              turnSeq: seq,
+            })
+            if (execGate.ok) return { ok: true }
+            return {
+              ok: false,
+              reason: execGate.reason,
+              terminal: execGate.terminal === true,
+              retry: execGate.retry === true,
+            }
+          },
+        })
+
+        const liveRoster = Array.isArray(playersRef.current) ? playersRef.current : []
+        const liveActor = liveRoster.find((p) => String(p?.id) === String(botId))
+        if (result?.bankrupt === true || liveActor?.bankrupt === true) {
+          const aftermath = resolveAftermathAfterBankruptcy({
+            players: liveRoster,
+            initialPlayerCount: initialPlayerCountRef.current,
+            bankruptPlayerId: botId,
+          })
+          const commitPlan = commitBankruptcyAftermath({
+            aftermath,
+            endGameFinalized: endGameFinalizedRef.current === true,
+            gameOver: gameOverRef.current === true,
+          })
+          if (commitPlan.emitEndgame) {
+            endGameFinalizedRef.current = true
+            endGamePendingRef.current = false
+            gameOverRef.current = true
+
+            const winnerPlayer = commitPlan.winner
+            const currIdx = Number(turnIdxRef.current ?? 0) || 0
+            const baseTurnSeq = Number(turnSeqRef.current ?? seq ?? 0) || 0
+            const nextTurnSeq = baseTurnSeq + 1
+
+            if (typeof setTurnSeq === 'function') setTurnSeq(nextTurnSeq)
+            turnSeqRef.current = nextTurnSeq
+            if (typeof setLastRollTurnKey === 'function') setLastRollTurnKey(null)
+            lastRollTurnKeyRef.current = null
+
+            setWinner(winnerPlayer)
+            setGameOver(true)
+            pendingTurnDataRef.current = null
+            turnChangeInProgressRef.current = false
+
+            broadcastState(
+              liveRoster,
+              currIdx,
+              currentRoundRef.current,
+              true,
+              winnerPlayer,
+              {
+                kind: 'ENDGAME',
+                lastAction: 'BANKRUPT',
+                gameOver: true,
+                winner: winnerPlayer,
+                round: currentRoundRef.current,
+                turnPlayerId: winnerPlayer?.id ?? botId ?? (turnPlayerIdRef.current ?? turnPlayerId),
+                turnSeq: nextTurnSeq,
+                lastRollTurnKey: null,
+                lastTurnAt: Date.now(),
+              },
+            )
+            setTurnLockBroadcast(false)
+          } else if (commitPlan.alreadyFinalized) {
+            pendingTurnDataRef.current = null
+            turnChangeInProgressRef.current = false
+          } else if (commitPlan.rewritePending && pendingTurnDataRef.current) {
+            pendingTurnDataRef.current = {
+              ...pendingTurnDataRef.current,
+              nextPlayers: commitPlan.rewritePending.nextPlayers,
+              nextTurnIdx: commitPlan.rewritePending.nextTurnIdx,
+              nextTurnPlayerId: commitPlan.rewritePending.nextTurnPlayerId,
+              meta: { kind: 'BANKRUPT', source: 'bot-economic' },
+            }
+          }
+        }
+        return result
+      } finally {
+        botEconomicBusyRef.current = false
+        openingModalRef.current = false
+        if (botEconomicJobKeyRef.current === jobKey) {
+          botEconomicJobPromiseRef.current = null
+        }
+      }
+    })
+    botEconomicJobPromiseRef.current = job
+    return job
+  }, [
+    enqueueAction,
+    openModalAndWait,
+    authoritativeMatchId,
+    myUid,
+    MAX_ROUNDS,
+    broadcastState,
+    broadcastStateProp,
+    commitLocalPlayers,
+    remoteBotClaimExecutor,
+    setWinner,
+    setGameOver,
+    setTurnSeq,
+    setLastRollTurnKey,
+    setTurnLockBroadcast,
+    turnPlayerId,
+  ])
 
   // ========= regras auxiliares de saldo =========
   const canPay = React.useCallback((idx, amount) => {
@@ -632,8 +1162,9 @@ export function useTurnEngine({
   }, [MAX_ROUNDS])
 
   // ========= ação de andar no tabuleiro (inclui TODA a lógica de casas/modais) =========
-  const advanceAndMaybeLap = React.useCallback((steps, deltaCash, note) => {
+  const advanceAndMaybeLap = React.useCallback((steps, deltaCash, note, options) => {
     console.log('[DEBUG] 🎯 advanceAndMaybeLap chamada - steps:', steps, 'deltaCash:', deltaCash, 'note:', note)
+    const scheduleInternalRetry = options?.scheduleInternalRetry !== false
     if (gameOverRef.current || endGamePendingRef.current || endGameFinalizedRef.current || !players.length) return false
 
     // ✅ CORREÇÃO: Verifica se já há uma mudança de turno em progresso
@@ -648,6 +1179,10 @@ export function useTurnEngine({
         modalLocks: modalLocksRef.current,
         opening: openingModalRef.current
       })
+      const blocked = resolveAdvanceWhenModalsBusy(scheduleInternalRetry)
+      if (blocked === ADVANCE_PENDING) {
+        return ADVANCE_PENDING
+      }
       // Consolida retries até liberar (antes: 1 tentativa de 200ms descartava o movimento)
       pendingAdvanceArgsRef.current = { steps, deltaCash, note }
       if (advanceRetryTimerRef.current) return true
@@ -686,7 +1221,18 @@ export function useTurnEngine({
     // ✅ BUG 2 FIX: try/finally para garantir liberação de turnLock em caso de erro
     // Bloqueia os próximos jogadores até esta ação (e todas as modais) terminar
     turnChangeInProgressRef.current = true
-    setTurnLockBroadcast(true, String(myUid))
+    const turnActorForLock = (Array.isArray(playersRef.current) && playersRef.current.length
+      ? playersRef.current
+      : players
+    ).find((p) => String(p?.id) === String(turnPlayerIdRef.current || ''))
+    if (
+      shouldEmitLockAcquireAfterBotClaim({
+        isBotTurn: isBotPlayer(turnActorForLock),
+        claimHoldsLock: isValidClaimProof(claimProofRef?.current),
+      })
+    ) {
+      setTurnLockBroadcast(true, String(myUid))
+    }
     setLockOwner(String(myUid))
     
     try {
@@ -722,6 +1268,14 @@ export function useTurnEngine({
       setTurnLockBroadcast(false)
       turnChangeInProgressRef.current = false
       return false
+    }
+
+    if (isBotPlayer(cur)) {
+      locallyStartedBotTurnKeyRef.current = buildLocallyStartedBotTurnKey({
+        matchId: authoritativeMatchId,
+        turnPlayerId: ownerId,
+        turnSeq: turnSeqRef.current,
+      })
     }
     
     console.log('[DEBUG] 📍 POSIÇÃO INICIAL - Jogador:', cur.name, 'Posição:', cur.pos, 'Saldo:', cur.cash)
@@ -1346,6 +1900,128 @@ export function useTurnEngine({
     // ✅ OBJ 4: movimento precisa refletir para todos imediatamente (pos/cash/flags)
     // WHY: commitLocalPlayers atualiza playersRef.current imediatamente, evitando snapshot stale
     commitLocalPlayers(nextPlayers)
+    const curIsBot = isBotPlayer(cur)
+    let botEffectsPlan = null
+    if (curIsBot) {
+      const proof = claimProofRef?.current
+      const originSeq = typeof turnSeqRef.current === 'number' ? turnSeqRef.current : 0
+      const actionId = buildBotMoveActionId({
+        matchId: authoritativeMatchId,
+        turnPlayerId: ownerId,
+        turnSeq: originSeq,
+        executorId: proof?.executorId,
+      })
+      const nextMe = (nextPlayers || []).find((p) => String(p?.id) === String(ownerId))
+      const fromPos = Number(cur?.pos)
+      const toPos = Number(nextMe?.pos)
+      const playerDelta = { pos: toPos, _actionId: actionId }
+      if (nextMe && Number(nextMe.cash) !== Number(cur?.cash)) {
+        playerDelta.cash = nextMe.cash
+      }
+      if (
+        nextMe &&
+        Number(nextMe.lastRevenueRound) !== Number(cur?.lastRevenueRound)
+      ) {
+        playerDelta.lastRevenueRound = Number(nextMe.lastRevenueRound)
+      }
+      if (
+        nextMe &&
+        Boolean(nextMe.waitingAtRevenue) !== Boolean(cur?.waitingAtRevenue)
+      ) {
+        playerDelta.waitingAtRevenue = Boolean(nextMe.waitingAtRevenue)
+      }
+      playerDelta.botMoveCrossing = buildBotMoveCrossing({
+        matchId: authoritativeMatchId,
+        turnPlayerId: ownerId,
+        turnSeq: originSeq,
+        actionId,
+        crossedStart: crossedStart1ForRound === true,
+      })
+      const landTileForPlan = stopAtRevenue
+        ? 'NONE'
+        : getTileType(Number(moveResolved.landPos) + 1, resolvedBoardVersion)
+      const crossedExpensesForPlan = stopAtRevenue
+        ? false
+        : crossedTile(oldPos, newPos, expensesIndex)
+      playerDelta.botTurnEffects = buildBotTurnEffectPlan({
+        matchId: authoritativeMatchId,
+        turnPlayerId: ownerId,
+        turnSeq: originSeq,
+        fromPos,
+        toPos,
+        steps,
+        crossedStart: crossedStart1ForRound === true,
+        crossedExpenses: crossedExpensesForPlan === true,
+        landTile: landTileForPlan,
+        processLandTile: !stopAtRevenue,
+        settled: false,
+        done: [],
+      })
+      botEffectsPlan = playerDelta.botTurnEffects
+      const delta = { [String(ownerId)]: playerDelta }
+      const moveBarrier = createBotMoveBarrier({
+        actionId,
+        steps,
+        fromPos,
+        toPos,
+        playerId: ownerId,
+        turnSeq: originSeq,
+        matchId: authoritativeMatchId,
+        executorId: proof?.executorId,
+        delta,
+        lastRollTurnKey: String(originSeq),
+      })
+      botMoveBarrierRef.current = moveBarrier
+      setLiveBotMoveBarrier(moveBarrier)
+      const lastRoll = {
+        playerId: String(cur.id),
+        playerName: String(cur.name || '').trim() || 'Jogador',
+        steps: Number(steps),
+        turnKey: String(originSeq),
+        crossedStart: crossedStart1ForRound === true,
+      }
+      const persistP = persistBotMove({
+        barrier: moveBarrier,
+        delayMs: 200,
+        commit: ({ actionId: aid, delta: dlt }) =>
+          botCommitSerializerRef.current.enqueue(() =>
+            Promise.resolve(
+              broadcastStateProp(nextPlayers, turnIdx, currentRoundRef.current, false, null, {
+                kind: 'PLAYER_DELTA',
+                playersDeltaById: dlt,
+                actionId: aid,
+                lastRoll,
+                lastRollTurnKey: String(originSeq),
+                _commitKind: 'BOT_MOVE',
+                _expectTurnPlayerId: ownerId,
+                _expectTurnSeq: originSeq,
+                _expectMatchId: authoritativeMatchId,
+                _expectLockOwner: String(myUid),
+                deferLocalUntilCommit: true,
+              }),
+            ),
+          ),
+        shouldContinue: () => {
+          if (gameOverRef.current) return { ok: false, reason: 'game-over' }
+          if (String(turnPlayerIdRef.current || '') !== String(ownerId)) {
+            return { ok: false, reason: 'turn-player-changed' }
+          }
+          if (Number(turnSeqRef.current) !== Number(originSeq)) {
+            return { ok: false, reason: 'turn-seq-changed' }
+          }
+          return { ok: true }
+        },
+      })
+      botMovePersistPromiseRef.current = persistP.then((r) => {
+        const nextBarrier = r?.barrier || botMoveBarrierRef.current
+        botMoveBarrierRef.current = nextBarrier
+        setLiveBotMoveBarrier(nextBarrier || null)
+        if (!r?.ok) {
+          pendingTurnDataRef.current = null
+        }
+        return r
+      })
+    } else {
     // Broadcast imediatamente como PLAYER_DELTA (não mexe em turno aqui)
     // ✅ CORREÇÃO CRÍTICA: PLAYER_DELTA nunca inclui gameOver/winner (evita vazamento de estado antigo)
     broadcastState(nextPlayers, turnIdx, currentRoundRef.current, false, null, {
@@ -1362,6 +2038,7 @@ export function useTurnEngine({
             : null,
       },
     })
+    }
     
     // ✅ CORREÇÃO CRÍTICA: Atualiza a rodada garantindo que o incremento aconteça corretamente
     // Usa função de atualização para sempre pegar o valor mais recente do estado
@@ -1399,12 +2076,22 @@ export function useTurnEngine({
     const nextTurnPlayerId = nextPlayer?.id ? String(nextPlayer.id) : null
     const originTurnPlayerId = String(turnPlayerIdRef.current || turnPlayerId || '')
     const originTurnSeq = Number(turnSeqRef.current ?? turnSeq ?? 0)
+    let playersForPending = nextPlayers
+    if (botEffectsPlan) {
+      const moved = nextPlayers.find((p) => String(p?.id) === String(ownerId))
+      playersForPending = nextPlayersWith(nextPlayers, ownerId, {
+        ...moved,
+        botTurnEffects: botEffectsPlan,
+      })
+      commitLocalPlayers(playersForPending)
+    }
     pendingTurnDataRef.current = {
-      nextPlayers,
+      nextPlayers: playersForPending,
       nextTurnIdx,
       nextTurnPlayerId, // ✅ CORREÇÃO: turnPlayerId do próximo jogador
       originTurnPlayerId,
       originTurnSeq,
+      matchId: authoritativeMatchId || null,
       nextRound: finalNextRound,
       nextRoundFlags: finalNextFlags,
       timestamp: Date.now(),
@@ -2202,65 +2889,27 @@ export function useTurnEngine({
             }
 
             let cashDelta = Number.isFinite(res.cashDelta) ? Number(res.cashDelta) : 0
-            const clientsDelta = Number.isFinite(res.clientsDelta) ? Number(res.clientsDelta) : 0
+            let luckCashCharged = false
 
             // ✅ Revés sem cash: usa recuperação e, se falhar, pode levar a falência
             // WHY: handleInsufficientFunds retorna { ok, players } para manter snapshot consistente
             if (cashDelta < 0) {
               const luckRes = await handleInsufficientFunds(Math.abs(cashDelta), 'Sorte & Revés', 'pagar', localPlayers)
               if (!luckRes?.ok) return
-              cashDelta = 0 // ✅ evita cobrar 2x (já foi cobrado em handleInsufficientFunds)
+              luckCashCharged = true
               // ✅ CRÍTICO: Usa o snapshot retornado, não playersRef.current
               localPlayers = luckRes.players
             }
 
-            // ✅ CORREÇÃO: Aplica cashDelta e clientsDelta
             localPlayers = mapById(localPlayers, ownerId, (p) => {
-              let next = { ...p }
-              // ✅ CORREÇÃO: Aplica cashDelta (positivo ou negativo) - removido "if (cashDelta)" pois 0 é válido
-              if (cashDelta !== 0) {
-                next.cash = Math.max(0, (Number(next.cash) || 0) + cashDelta)
-              }
-              if (clientsDelta !== 0) {
-                next.clients = Math.max(0, (Number(next.clients) || 0) + clientsDelta)
-              }
-            if (res.gainSpecialCell) {
-              next.fieldSales = (next.fieldSales || 0) + (res.gainSpecialCell.fieldSales || 0)
-                next.support = (next.support || 0) + (res.gainSpecialCell.support || 0)
-                next.gestores = (next.gestores || 0) + (res.gainSpecialCell.manager || 0)
-              next.gestoresComerciais = (next.gestoresComerciais || 0) + (res.gainSpecialCell.manager || 0)
-                next.managers = (next.managers || 0) + (res.gainSpecialCell.manager || 0)
-            }
-            if (res.id === 'casa_change_cert_blue') {
-              next.az = (next.az || 0) + 1
-              const curSet = new Set((next.trainingsByVendor?.comum || []))
-              curSet.add('personalizado')
-              next.trainingsByVendor = { ...(next.trainingsByVendor || {}), comum: Array.from(curSet) }
-            }
-            return next
-          })
+              const applied = applySorteRevesPayloadToPlayer(p, res, {
+                skipNegativeCash: luckCashCharged,
+              })
+              return applied.applied ? applied.player : p
+            })
             commitLocalPlayers(localPlayers)
             broadcastState(localPlayers, turnIdxRef.current, currentRoundRef.current)
             if (pendingTurnDataRef.current) pendingTurnDataRef.current.nextPlayers = localPlayers
-
-            // ✅ Bônus derivados (por cliente, por gestor certificado, por mix A/B)
-            const anyDerived = res.perClientBonus || res.perCertifiedManagerBonus || res.mixLevelBonusABOnly
-            if (anyDerived) {
-              const me2 = getById(localPlayers, ownerId) || {}
-              let extra = 0
-              if (res.perClientBonus) extra += (Number(me2.clients) || 0) * Number(res.perClientBonus || 0)
-              if (res.perCertifiedManagerBonus) extra += countManagerCerts(me2) * Number(res.perCertifiedManagerBonus || 0)
-              if (res.mixLevelBonusABOnly) {
-                const level = String(me2.mixProdutos || '').toUpperCase()
-                if (level === 'A' || level === 'B') extra += Number(res.mixLevelBonusABOnly || 0)
-              }
-              if (extra) {
-                localPlayers = mapById(localPlayers, ownerId, (p) => ({ ...p, cash: (Number(p.cash) || 0) + extra }))
-                commitLocalPlayers(localPlayers)
-                broadcastState(localPlayers, turnIdxRef.current, currentRoundRef.current)
-                if (pendingTurnDataRef.current) pendingTurnDataRef.current.nextPlayers = localPlayers
-              }
-            }
             await tickAfterModal()
             await waitForLocksClear()
             continue
@@ -2645,6 +3294,38 @@ export function useTurnEngine({
       } // fim do if (events.length > 0)
     }
 
+    if (curIsBot) {
+      const proof = claimProofRef?.current || null
+      const auth = shouldRunBotEconomicEffects({
+        currentPlayer: cur,
+        turnPlayerId: ownerId,
+        myUid,
+        lockOwner: remoteLockOwnerRef.current || proof?.lockOwner || lockOwnerRef.current,
+        gameOver: gameOverRef.current === true,
+        executorId: proof?.executorId,
+        remoteExecutorId: remoteBotClaimExecutorRef.current,
+        claimProof: proof,
+        matchId: authoritativeMatchId,
+        turnSeq: originTurnSeq,
+      })
+      const plan =
+        botEffectsPlan ||
+        readBotTurnEffects({
+          players: playersForPending,
+          matchId: authoritativeMatchId,
+          turnPlayerId: ownerId,
+          turnSeq: originTurnSeq,
+        }).effects
+      const mayStart = plan && !isBotTurnEffectsSettled(plan) && (auth.ok || auth.retry === true)
+      if (mayStart) {
+        enqueueBotEconomicEffects({
+          matchId: authoritativeMatchId,
+          turnPlayerId: ownerId,
+          turnSeq: originTurnSeq,
+        })
+      }
+    }
+
     // fail-safe: solta o cadeado quando todas as modais fecharem
     const start = Date.now()
     let tickAttempts = 0
@@ -2654,7 +3335,7 @@ export function useTurnEngine({
       tickAttempts++
       
       const currentModalLocks = modalLocksRef.current
-      const currentOpening = openingModalRef.current || eventsInProgressRef.current
+      const currentOpening = openingModalRef.current || eventsInProgressRef.current || botEconomicBusyRef.current
       const currentLockOwner = lockOwnerRef.current
       const isLockOwner = String(currentLockOwner || '') === String(myUid)
 
@@ -2719,6 +3400,81 @@ export function useTurnEngine({
         (timeSinceLastModalClosed >= minTimeAfterModalClose || !lastModalClosedTimeRef.current)
       
       if (canChangeTurn) {
+        const liveMoveBarrier = botMoveBarrierRef.current
+        if (liveMoveBarrier) {
+          const moveGate = resolveBotTickHandoffGate({
+            isBotTurn: true,
+            barrier: liveMoveBarrier,
+            inflightCommits: botCommitSerializerRef.current?.inflight || 0,
+          })
+          if (moveGate.action === 'wait') {
+            setTimeout(tick, 150)
+            return
+          }
+          if (moveGate.action === 'abort') {
+            logBotCommit('BOT_MOVE', {
+              matchId: authoritativeMatchId,
+              turnPlayerId: liveMoveBarrier.playerId,
+              turnSeq: liveMoveBarrier.turnSeq,
+              actionId: liveMoveBarrier.actionId,
+              executorId: liveMoveBarrier.executorId,
+              ok: false,
+              casLost: false,
+              fromPos: liveMoveBarrier.fromPos,
+              toPos: liveMoveBarrier.toPos,
+            })
+            pendingTurnDataRef.current = null
+            turnChangeInProgressRef.current = false
+            return
+          }
+        }
+        const tickRoster = Array.isArray(playersRef.current) ? playersRef.current : (players || [])
+        const tickTurnId = String(turnPlayerIdRef.current || '')
+        const tickActor = tickRoster.find((p) => String(p?.id) === tickTurnId)
+        const tickEffects = readBotTurnEffects({
+          players: tickRoster,
+          matchId: authoritativeMatchId,
+          turnPlayerId: tickTurnId,
+          turnSeq: turnSeqRef.current,
+        })
+        const effectGate = shouldBlockBotHandoffForEffects({
+          isBotTurn: isBotPlayer(tickActor),
+          effects: tickEffects.effects,
+          economicBusy: botEconomicBusyRef.current === true,
+        })
+        if (effectGate.block) {
+          if (isBotPlayer(tickActor) && !botEconomicBusyRef.current && !eventsInProgressRef.current) {
+            const proof = claimProofRef?.current || null
+            const gate = shouldRunBotEconomicEffects({
+              currentPlayer: tickActor,
+              turnPlayerId: tickTurnId,
+              myUid,
+              lockOwner: remoteLockOwnerRef.current || proof?.lockOwner || lockOwnerRef.current,
+              gameOver: gameOverRef.current === true,
+              executorId: proof?.executorId,
+              remoteExecutorId: remoteBotClaimExecutorRef.current,
+              claimProof: proof,
+              matchId: authoritativeMatchId,
+              turnSeq: turnSeqRef.current,
+            })
+            const resched = shouldRescheduleBotEconomicEffects({
+              isBotTurn: true,
+              effects: tickEffects.effects,
+              economicBusy: false,
+              eventsInProgress: false,
+              gate,
+            })
+            if (resched.ok) {
+              enqueueBotEconomicEffects({
+                matchId: authoritativeMatchId,
+                turnPlayerId: tickTurnId,
+                turnSeq: turnSeqRef.current,
+              })
+            }
+          }
+          setTimeout(tick, 150)
+          return
+        }
         // ✅ ENDGAME autoritativo: finaliza assim que não houver modais
         const td = pendingTurnDataRef.current
         const shouldEnd = !!(
@@ -2924,6 +3680,17 @@ export function useTurnEngine({
                 })
                 pendingTurnDataRef.current = null
                 turnChangeInProgressRef.current = false
+                botMoveBarrierRef.current = null
+                setLiveBotMoveBarrier(null)
+                botMovePersistPromiseRef.current = null
+                logBotCommit('NORMAL_HANDOFF', {
+                  matchId: authoritativeMatchId,
+                  turnPlayerId: turnData.originTurnPlayerId,
+                  turnSeq: turnData.originTurnSeq,
+                  actionId: liveMoveBarrier?.actionId,
+                  executorId: claimProofRef?.current?.executorId,
+                  ok: true,
+                })
                 console.log('[DEBUG] ✅ Turno mudado com sucesso - Rodada:', roundToBroadcast)
               }).catch(() => {
                 turnChangeInProgressRef.current = false
@@ -2997,7 +3764,8 @@ export function useTurnEngine({
       checkAttempts++
       const hasOpening = openingModalRef.current
       const hasLocks = modalLocksRef.current > 0
-      if ((hasOpening || hasLocks) && checkAttempts < maxCheckAttempts) {
+      const hasEconomic = botEconomicBusyRef.current || eventsInProgressRef.current
+      if ((hasOpening || hasLocks || hasEconomic) && checkAttempts < maxCheckAttempts) {
         // reduz spam: loga só a cada 5 tentativas
         if (DEBUG_LOGS && checkAttempts % 5 === 1) {
           console.log('[DEBUG] ⚠️ checkBeforeTick - aguardando modais...', {
@@ -3016,6 +3784,7 @@ export function useTurnEngine({
         const stillActive =
           openingModalRef.current ||
           eventsInProgressRef.current ||
+          botEconomicBusyRef.current ||
           modalLocksRef.current > 0
         console.warn('[DEBUG] ⚠️ checkBeforeTick - excedeu tentativas', {
           hasOpening,
@@ -3036,9 +3805,14 @@ export function useTurnEngine({
     // Delay inicial curto: só o necessário para IIFEs de modal marcarem openingModalRef.
     // Se não houver modal, o handoff não fica +500ms parado (solo/multiplayer).
     const initialDelay =
-      (openingModalRef.current || modalLocksRef.current > 0 || eventsInProgressRef.current)
+      (openingModalRef.current || modalLocksRef.current > 0 || eventsInProgressRef.current || botEconomicBusyRef.current)
         ? 60
         : 90
+    scheduleTurnCompletionTickRef.current = () => {
+      tickAttempts = 0
+      checkAttempts = 0
+      setTimeout(checkBeforeTick, 90)
+    }
     setTimeout(checkBeforeTick, initialDelay)
   } catch (error) {
     console.error('[DEBUG] Erro em advanceAndMaybeLap:', error)
@@ -3053,6 +3827,7 @@ export function useTurnEngine({
       turnChangeInProgressRef.current = false
     }
   }
+  return true
   }, [
     players, round, turnIdx, roundFlags, isMyTurn, isMine,
     myUid, myCash, gameOver,
@@ -3060,7 +3835,8 @@ export function useTurnEngine({
     setPlayers, setRound, setTurnIdx, setRoundFlags,
     setTurnLockBroadcast, requireFunds, maybeFinishGame,
     pushModal, awaitTop, closeTop,
-    resolvedBoardVersion, trackLen, expensesIndex, boardDefinition
+    resolvedBoardVersion, trackLen, expensesIndex, boardDefinition,
+    enqueueBotEconomicEffects,
   ])
 
   // ========= handlers menores =========
@@ -3097,6 +3873,14 @@ export function useTurnEngine({
     if (!expectId) return false
     if (String(turnPlayerIdRef.current || '') !== expectId) return false
     if ((Number(turnSeqRef.current) || 0) !== expectSeq) return false
+
+    const skipRoster = Array.isArray(playersRef.current) && playersRef.current.length
+      ? playersRef.current
+      : (Array.isArray(players) ? players : [])
+    const skipTurnPlayer = skipRoster.find((p) => String(p?.id) === expectId)
+    const botTimerReject = shouldRejectEngineBotTimerAutoPass(skipTurnPlayer, reason)
+    if (botTimerReject) return botTimerReject
+    if (isBotPlayer(skipTurnPlayer)) return false
 
     const skipGuard = shouldRejectAbsentTurnSkip({
       turnLock: !!turnLockRef.current,
@@ -3196,6 +3980,345 @@ export function useTurnEngine({
     setLastRollTurnKey,
     setTurnLockBroadcast,
     appendLog,
+  ])
+
+  /**
+   * Conclusão do pending com as mesmas regras do tick:
+   * ENDGAME via pickWinnerByPatrimonio / maybeFinishGame, ou NORMAL_HANDOFF.
+   * Usado após F5 quando o tick de advanceAndMaybeLap não está montado.
+   */
+  const commitPendingTurnFromTickRules = React.useCallback(() => {
+    if (gameOverRef.current) return false
+    const turnData = pendingTurnDataRef.current
+    if (!turnData) return false
+    if (String(lockOwnerRef.current || '') !== String(myUid)) return false
+    if (openingModalRef.current || modalLocksRef.current > 0 || eventsInProgressRef.current) {
+      return false
+    }
+
+    const latestPlayers =
+      (Array.isArray(playersRef.current) && playersRef.current.length)
+        ? playersRef.current
+        : (turnData.nextPlayers || [])
+
+    const shouldEnd = !!(
+      turnData.endGame ||
+      endGamePendingRef.current ||
+      shouldFinishAfterRoundTransition({
+        endGame: turnData.endGame,
+        shouldIncrementRound: turnData.shouldIncrementRound,
+        nextRound: turnData.nextRound,
+        maxRounds: MAX_ROUNDS,
+      })
+    )
+
+    if (shouldEnd && !endGameFinalizedRef.current) {
+      endGameFinalizedRef.current = true
+      endGamePendingRef.current = false
+      const champ = pickWinnerByPatrimonio(latestPlayers)
+      setPlayers(latestPlayers || [])
+      setGameOver(true)
+      setWinner(champ)
+      setRound(MAX_ROUNDS)
+      currentRoundRef.current = MAX_ROUNDS
+      pendingTurnDataRef.current = null
+      turnChangeInProgressRef.current = false
+      openingModalRef.current = false
+      setTurnLockBroadcast(false)
+      broadcastState(latestPlayers || [], turnIdxRef.current, MAX_ROUNDS, true, champ, {
+        kind: 'ENDGAME',
+        lastAction: 'ENDGAME',
+        round: MAX_ROUNDS,
+        maxRounds: MAX_ROUNDS,
+        gameOver: true,
+        winner: champ,
+      })
+      return true
+    }
+
+    if (shouldFinishAfterRoundTransition({
+      endGame: turnData.endGame,
+      shouldIncrementRound: turnData.shouldIncrementRound,
+      nextRound: turnData.nextRound,
+      maxRounds: MAX_ROUNDS,
+    })) {
+      const finishResult = maybeFinishGame(
+        latestPlayers,
+        turnData.nextRound,
+        { forceFinish: turnData.endGame === true },
+      )
+      if (finishResult.finished) {
+        setPlayers(latestPlayers)
+        setWinner(finishResult.winner)
+        setGameOver(true)
+        setRound(finishResult.finalRound)
+        currentRoundRef.current = finishResult.finalRound
+        pendingTurnDataRef.current = null
+        setTurnLockBroadcast(false)
+        turnChangeInProgressRef.current = false
+        const patch = {
+          kind: 'ENDGAME',
+          round: finishResult.finalRound,
+          maxRounds: MAX_ROUNDS,
+          gameOver: true,
+          winner: finishResult.winner,
+        }
+        if (turnData.nextRoundFlags) patch.roundFlags = turnData.nextRoundFlags
+        broadcastState(latestPlayers, turnIdxRef.current, finishResult.finalRound, true, finishResult.winner, patch)
+        return true
+      }
+    }
+
+    turnChangeInProgressRef.current = true
+    const roundToBroadcast = turnData.nextRound
+    const nextTurnSeq = (typeof turnSeqRef.current === 'number' ? turnSeqRef.current : 0) + 1
+    const patch = {
+      kind: 'TURN',
+      roundFlags: turnData.nextRoundFlags ?? undefined,
+      round: turnData.shouldIncrementRound ? roundToBroadcast : undefined,
+      turnPlayerId: turnData.nextTurnPlayerId,
+      turnSeq: nextTurnSeq,
+      lastRollTurnKey: null,
+      turnLock: false,
+      lockOwner: null,
+      _expectTurnPlayerId: turnData.originTurnPlayerId,
+      _expectTurnSeq: turnData.originTurnSeq,
+      _commitKind: 'NORMAL_HANDOFF',
+      deferLocalUntilCommit: true,
+    }
+    if (turnData.nextRoundFlags) patch.roundFlags = turnData.nextRoundFlags
+    if (turnData.shouldIncrementRound) patch.round = roundToBroadcast
+    if (turnData.nextTurnPlayerId) patch.turnPlayerId = turnData.nextTurnPlayerId
+
+    Promise.resolve(
+      broadcastState(latestPlayers, turnData.nextTurnIdx, roundToBroadcast, gameOverRef.current, null, patch)
+    ).then((r) => {
+      if (r?.ok === false || r?.applied === false) {
+        turnChangeInProgressRef.current = false
+        return
+      }
+      if (typeof setTurnSeq === 'function') setTurnSeq(nextTurnSeq)
+      turnSeqRef.current = nextTurnSeq
+      setTurnIdx(turnData.nextTurnIdx)
+      turnIdxRef.current = turnData.nextTurnIdx
+      if (setTurnPlayerId) setTurnPlayerId(turnData.nextTurnPlayerId ?? null)
+      turnPlayerIdRef.current = turnData.nextTurnPlayerId ?? null
+      setRound((prevRound) => {
+        const safeRoundToBroadcast = Math.min(MAX_ROUNDS, roundToBroadcast)
+        const finalRound = Math.min(MAX_ROUNDS, Math.max(prevRound, safeRoundToBroadcast))
+        currentRoundRef.current = finalRound
+        return finalRound
+      })
+      pendingTurnDataRef.current = null
+      turnChangeInProgressRef.current = false
+      botMoveBarrierRef.current = null
+      setLiveBotMoveBarrier(null)
+      botMovePersistPromiseRef.current = null
+      logBotCommit('NORMAL_HANDOFF', {
+        matchId: authoritativeMatchId,
+        turnPlayerId: turnData.originTurnPlayerId,
+        turnSeq: turnData.originTurnSeq,
+        actionId: null,
+        executorId: claimProofRef?.current?.executorId,
+        ok: true,
+      })
+    }).catch(() => {
+      turnChangeInProgressRef.current = false
+    })
+    return true
+  }, [
+    MAX_ROUNDS,
+    authoritativeMatchId,
+    broadcastState,
+    maybeFinishGame,
+    myUid,
+    setGameOver,
+    setPlayers,
+    setRound,
+    setTurnIdx,
+    setTurnPlayerId,
+    setTurnLockBroadcast,
+    setTurnSeq,
+    setWinner,
+    claimProofRef,
+  ])
+
+  React.useEffect(() => {
+    if (typeof scheduleTurnCompletionTickRef.current === 'function') return undefined
+    scheduleTurnCompletionTickRef.current = () => {
+      setTimeout(() => {
+        commitPendingTurnFromTickRules()
+      }, 90)
+    }
+    return undefined
+  }, [commitPendingTurnFromTickRules])
+
+  /**
+   * F5 após BOT_MOVE: reconstrói o pending e entrega ao mesmo tick.
+   * Não emite NORMAL_HANDOFF/ENDGAME aqui.
+   */
+  React.useEffect(() => {
+    const currentKey = buildLocallyStartedBotTurnKey({
+      matchId: authoritativeMatchId,
+      turnPlayerId,
+      turnSeq,
+    })
+    const started = locallyStartedBotTurnKeyRef.current
+    if (started && currentKey && started !== currentKey) {
+      locallyStartedBotTurnKeyRef.current = ''
+    }
+  }, [authoritativeMatchId, turnPlayerId, turnSeq])
+
+  const resumeConfirmedBotPending = React.useCallback(() => {
+    if (gameOverRef.current) return false
+    const expectId = String(turnPlayerIdRef.current || '')
+    const expectSeq = Number(turnSeqRef.current) || 0
+    if (!expectId) return false
+
+    const roster = Array.isArray(playersRef.current) && playersRef.current.length
+      ? playersRef.current
+      : (Array.isArray(players) ? players : [])
+    const current = roster.find((p) => String(p?.id) === expectId)
+    if (!isBotPlayer(current)) return false
+    const proof = claimProofRef?.current || null
+    const resumeAuth = shouldRunBotEconomicEffects({
+      currentPlayer: current,
+      turnPlayerId: expectId,
+      myUid,
+      lockOwner: remoteLockOwnerRef.current || proof?.lockOwner || lockOwnerRef.current,
+      gameOver: gameOverRef.current === true,
+      executorId: proof?.executorId,
+      remoteExecutorId: remoteBotClaimExecutorRef.current,
+      claimProof: proof,
+      matchId: authoritativeMatchId,
+      turnSeq: expectSeq,
+    })
+    if (!resumeAuth.ok && resumeAuth.retry !== true) return false
+
+    const recovery = classifyBotTurnRecovery({
+      expectedTurnPlayerId: expectId,
+      expectedTurnSeq: expectSeq,
+      turnPlayerId: expectId,
+      turnSeq: expectSeq,
+      lastRollTurnKey: lastRollTurnKeyRef.current,
+      lastRoll: null,
+      players: roster,
+      matchId: authoritativeMatchId,
+    })
+    if (recovery.case !== 'C') return false
+
+    const gate = shouldAllowBotReloadRecovery({
+      matchId: authoritativeMatchId,
+      turnPlayerId: expectId,
+      turnSeq: expectSeq,
+      pending: pendingTurnDataRef.current,
+      locallyStartedTurnKey: locallyStartedBotTurnKeyRef.current,
+    })
+    if (!gate.ok) return false
+
+    const originKey = `${authoritativeMatchId || ''}|${expectId}|${expectSeq}`
+    if (recoveredBotHandoffKeyRef.current === originKey) {
+      return !!pendingTurnDataRef.current
+    }
+
+    const crossing = readBotMoveCrossing({
+      players: roster,
+      matchId: authoritativeMatchId,
+      turnPlayerId: expectId,
+      turnSeq: expectSeq,
+    })
+    const pending = rebuildBotPendingAfterConfirmedMove({
+      players: roster,
+      turnPlayerId: expectId,
+      turnSeq: expectSeq,
+      turnIdx: turnIdxRef.current,
+      round: currentRoundRef.current,
+      maxRounds: MAX_ROUNDS,
+      roundFlags: roundFlagsRef.current,
+      crossedStart: crossing.ok ? crossing.crossedStart : false,
+      matchId: authoritativeMatchId,
+    })
+    if (!pending) return false
+
+    recoveredBotHandoffKeyRef.current = originKey
+    pendingTurnDataRef.current = pending
+    botMoveBarrierRef.current = null
+    setLiveBotMoveBarrier(null)
+    openingModalRef.current = false
+    const leftover = shouldResumeLeftoverBotEffects({
+      players: roster,
+      matchId: authoritativeMatchId,
+      turnPlayerId: expectId,
+      turnSeq: expectSeq,
+      myUid,
+      lockOwner: remoteLockOwnerRef.current || claimProofRef?.current?.lockOwner || lockOwnerRef.current,
+      gameOver: gameOverRef.current === true,
+      currentPlayer: current,
+      executorId: claimProofRef?.current?.executorId,
+      remoteExecutorId: remoteBotClaimExecutorRef.current,
+      claimProof: claimProofRef?.current || null,
+    })
+    if (leftover.ok || leftover.retry === true) {
+      enqueueBotEconomicEffects({
+        matchId: authoritativeMatchId,
+        turnPlayerId: expectId,
+        turnSeq: expectSeq,
+      })
+    }
+    const kick = scheduleTurnCompletionTickRef.current
+    if (typeof kick === 'function') {
+      kick()
+    } else {
+      setTimeout(() => {
+        const later = scheduleTurnCompletionTickRef.current
+        if (typeof later === 'function') later()
+      }, 90)
+    }
+    return true
+  }, [
+    players,
+    myUid,
+    MAX_ROUNDS,
+    authoritativeMatchId,
+    enqueueBotEconomicEffects,
+  ])
+
+  React.useEffect(() => {
+    const expectId = String(turnPlayerId || '')
+    const expectSeq = Number(turnSeq) || 0
+    const roster = Array.isArray(players) ? players : []
+    const current = roster.find((p) => String(p?.id) === expectId)
+    if (!isBotPlayer(current) || gameOver) return undefined
+    const recovery = classifyBotTurnRecovery({
+      expectedTurnPlayerId: expectId,
+      expectedTurnSeq: expectSeq,
+      turnPlayerId: expectId,
+      turnSeq: expectSeq,
+      lastRollTurnKey,
+      lastRoll: null,
+      players: roster,
+      matchId: authoritativeMatchId,
+    })
+    if (recovery.case !== 'C') return undefined
+    const gate = shouldAllowBotReloadRecovery({
+      matchId: authoritativeMatchId,
+      turnPlayerId: expectId,
+      turnSeq: expectSeq,
+      pending: pendingTurnDataRef.current,
+      locallyStartedTurnKey: locallyStartedBotTurnKeyRef.current,
+    })
+    if (!gate.ok) return undefined
+    resumeConfirmedBotPending()
+    return undefined
+  }, [
+    authoritativeMatchId,
+    gameOver,
+    lastRollTurnKey,
+    lockOwner,
+    players,
+    resumeConfirmedBotPending,
+    turnPlayerId,
+    turnSeq,
   ])
 
   const applyCommittedForfeit = React.useCallback((plan, { reason } = {}) => {
@@ -3325,34 +4448,58 @@ export function useTurnEngine({
     if (!act?.type || gameOverRef.current || endGamePendingRef.current || endGameFinalizedRef.current) return
 
     if (act.type === 'ROLL'){
-      // ✅ HARD GUARD (ENGINE): turnPlayerId é a verdade. Sem isso, nunca executa ROLL.
       const liveTurnId = String(turnPlayerIdRef.current || turnPlayerId || '')
-      if (!liveTurnId || liveTurnId !== String(myUid)) {
-        console.warn('[ROLL_BLOCK] not my turn (turnPlayerId mismatch)', { turnPlayerId: liveTurnId, myUid })
-        return
-      }
-      // ✅ CORREÇÃO: Single-writer - apenas o jogador da vez pode rolar
-      if (!isMyTurn && liveTurnId !== String(myUid)) {
-        console.warn('[DEBUG] ⚠️ onAction ROLL - não é minha vez, ignorando')
-        return
-      }
-      // Lock compartilhado (dado 3D / movimento): o dono pode aplicar o ROLL.
-      if (turnLockRef.current) {
-        const lo = lockOwnerRef.current != null ? String(lockOwnerRef.current) : ''
-        if (lo && lo !== String(myUid)) {
-          console.warn('[ROLL_BLOCK] locked by other', { lockOwner: lo, myUid })
+      const rosterNow = Array.isArray(playersRef.current) && playersRef.current.length
+        ? playersRef.current
+        : (Array.isArray(players) ? players : [])
+      const turnPlayer = rosterNow.find((p) => String(p?.id) === liveTurnId)
+      const isBotRoll = isBotPlayer(turnPlayer)
+
+      if (isBotRoll) {
+        const proof = claimProofRef?.current || act?.botClaim?.claimProof || null
+        const auth = evaluateBotRollAuthorization({
+          act,
+          myUid,
+          authoritativeMatchId,
+          authoritativeRemoteExecutor: remoteBotClaimExecutor,
+          claimProof: proof,
+          coordinatorId: botCoordinatorIdRef?.current,
+          lockOwner: lockOwnerRef.current,
+          turnPlayerId: liveTurnId,
+          turnSeq: turnSeqRef.current,
+          lastRollTurnKey: lastRollTurnKeyRef.current,
+          gameOver: gameOverRef.current,
+          currentPlayer: turnPlayer,
+        })
+        if (!auth.ok) {
+          console.warn('[ROLL_BLOCK] bot roll rejected', auth.reason)
+          return { ok: false, reason: auth.reason }
+        }
+      } else {
+        if (!liveTurnId || liveTurnId !== String(myUid)) {
+          console.warn('[ROLL_BLOCK] not my turn (turnPlayerId mismatch)', { turnPlayerId: liveTurnId, myUid })
           return
         }
+        if (!isMyTurn && liveTurnId !== String(myUid)) {
+          console.warn('[DEBUG] ⚠️ onAction ROLL - não é minha vez, ignorando')
+          return
+        }
+        if (turnLockRef.current) {
+          const lo = lockOwnerRef.current != null ? String(lockOwnerRef.current) : ''
+          if (lo && lo !== String(myUid)) {
+            console.warn('[ROLL_BLOCK] locked by other', { lockOwner: lo, myUid })
+            return
+          }
+        }
       }
-      // ✅ CORREÇÃO: Verifica modalLocks antes de executar
-      if (modalLocksRef.current > 0) {
+      if (modalLocksRef.current > 0 && !isBotRoll) {
         console.warn('[DEBUG] ⚠️ onAction ROLL - há modais abertas, ignorando')
         return
       }
 
       if (turnChangeInProgressRef.current) {
         console.log('[DEBUG] 🚫 onAction bloqueado - turnChangeInProgress')
-        return
+        return isBotRoll ? { ok: false, reason: 'turn-change-in-progress', retry: true } : undefined
       }
 
       const currentTurnKey =
@@ -3361,9 +4508,13 @@ export function useTurnEngine({
           : null
       if (currentTurnKey && lastRollTurnKeyRef.current === currentTurnKey) {
         console.warn('[ROLL_BLOCK] already rolled this turn', { currentTurnKey })
-        return
+        return isBotRoll ? { ok: false, reason: 'already-rolled' } : undefined
       }
-      if (currentTurnKey) {
+      if (
+        !isBotRoll &&
+        currentTurnKey &&
+        shouldMarkLastRollTurnKeyNow({ isBotRoll: false, phase: 'before-advance' })
+      ) {
         lastRollTurnKeyRef.current = currentTurnKey
         try {
           if (typeof setLastRollTurnKey === 'function') setLastRollTurnKey(currentTurnKey)
@@ -3425,22 +4576,65 @@ export function useTurnEngine({
       }
 
       // ✅ BUG 2 FIX: try/finally para garantir liberação de turnLock
+      let started
       try {
-        const started = advanceAndMaybeLap(act.steps, act.cashDelta, act.note)
-        if (started === false && currentTurnKey && lastRollTurnKeyRef.current === currentTurnKey) {
+        started = isBotRoll
+          ? advanceAndMaybeLap(act.steps, act.cashDelta, act.note, { scheduleInternalRetry: false })
+          : advanceAndMaybeLap(act.steps, act.cashDelta, act.note)
+        if (!isBotRoll && started === false && currentTurnKey && lastRollTurnKeyRef.current === currentTurnKey) {
           lastRollTurnKeyRef.current = null
           try {
             if (typeof setLastRollTurnKey === 'function') setLastRollTurnKey(null)
           } catch {}
         }
       } catch (error) {
+        started = false
         console.error('[DEBUG] Erro em advanceAndMaybeLap:', error)
-        // Libera turnLock em caso de erro
         if (lockOwnerRef.current === String(myUid)) {
           setTurnLockBroadcast(false)
         }
       }
-      return
+      if (!isBotRoll) return undefined
+
+      const mapped = toBotOnActionRollResult(started)
+      if (!mapped.ok) return mapped
+
+      const persistP = botMovePersistPromiseRef.current
+      if (persistP) {
+        return Promise.resolve(persistP).then(
+          (move) => {
+            if (!move?.ok) {
+              return {
+                ok: false,
+                reason: move?.reason || 'bot-move-unconfirmed',
+                retry: false,
+              }
+            }
+            if (currentTurnKey) {
+              lastRollTurnKeyRef.current = currentTurnKey
+              try {
+                if (typeof setLastRollTurnKey === 'function') setLastRollTurnKey(currentTurnKey)
+              } catch {}
+            }
+            return { ok: true }
+          },
+          () => ({ ok: false, reason: 'bot-move-unconfirmed', retry: false }),
+        )
+      }
+      if (
+        currentTurnKey &&
+        shouldMarkLastRollTurnKeyNow({
+          isBotRoll: true,
+          phase: 'after-advance',
+          advanceResult: started,
+        })
+      ) {
+        lastRollTurnKeyRef.current = currentTurnKey
+        try {
+          if (typeof setLastRollTurnKey === 'function') setLastRollTurnKey(currentTurnKey)
+        } catch {}
+      }
+      return { ok: true }
     }
 
     if (act.type === 'RECOVERY'){

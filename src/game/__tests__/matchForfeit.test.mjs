@@ -11,6 +11,8 @@ import {
   applyBankruptcyState,
   planMatchForfeit,
   decideEndgameAfterBankruptcy,
+  resolveAftermathAfterBankruptcy,
+  commitBankruptcyAftermath,
 } from '../matchForfeit.js'
 
 const p = (id, over = {}) => ({
@@ -109,6 +111,61 @@ test('endgame: 3 jogadores, 1 vivo restante', () => {
   )
   assert.equal(decision.shouldEnd, true)
   assert.equal(decision.winner?.id, 'B')
+})
+
+test('aftermath após falência já aplicada: 2 vivos → ENDGAME no sobrevivente', () => {
+  const players = [p('Arthur'), applyBankruptcyState(p('bot:1'))]
+  const human = decideEndgameAfterBankruptcy(players, 2)
+  const aftermath = resolveAftermathAfterBankruptcy({
+    players,
+    initialPlayerCount: 2,
+    bankruptPlayerId: 'bot:1',
+  })
+  assert.equal(human.shouldEnd, true)
+  assert.equal(human.winner?.id, 'Arthur')
+  assert.equal(aftermath.shouldEnd, true)
+  assert.equal(aftermath.winner?.id, human.winner?.id)
+  assert.equal(aftermath.action, 'ENDGAME')
+  assert.equal(aftermath.emitHandoff, false)
+
+  const first = commitBankruptcyAftermath({ aftermath })
+  assert.equal(first.emitEndgame, true)
+  assert.equal(first.emitHandoff, false)
+  assert.equal(first.clearPending, true)
+  assert.equal(first.kind, 'ENDGAME')
+  assert.equal(first.lastAction, 'BANKRUPT')
+  assert.equal(first.winner?.id, 'Arthur')
+
+  const second = commitBankruptcyAftermath({
+    aftermath,
+    endGameFinalized: first.endGameFinalized,
+    gameOver: first.gameOver,
+  })
+  assert.equal(second.emitEndgame, false)
+  assert.equal(second.alreadyFinalized, true)
+  assert.equal(second.emitHandoff, false)
+})
+
+test('aftermath após falência já aplicada: 3 vivos → 2 restam, partida continua', () => {
+  const players = [p('Arthur'), applyBankruptcyState(p('bot:1')), p('Carol')]
+  const human = decideEndgameAfterBankruptcy(players, 3)
+  const aftermath = resolveAftermathAfterBankruptcy({
+    players,
+    initialPlayerCount: 3,
+    bankruptPlayerId: 'bot:1',
+  })
+  assert.equal(human.shouldEnd, false)
+  assert.equal(aftermath.shouldEnd, false)
+  assert.equal(aftermath.action, 'CONTINUE')
+  assert.equal(aftermath.emitHandoff, true)
+  assert.equal(aftermath.nextTurnPlayerId, 'Carol')
+  assert.equal(aftermath.nextPlayers.filter((x) => !x.bankrupt).length, 2)
+
+  const commit = commitBankruptcyAftermath({ aftermath })
+  assert.equal(commit.emitEndgame, false)
+  assert.equal(commit.emitHandoff, true)
+  assert.equal(commit.clearPending, false)
+  assert.equal(commit.rewritePending.nextTurnPlayerId, 'Carol')
 })
 
 test('App aplica forfeitMatch antes de leaveRoom no Sair para Lobbies', () => {

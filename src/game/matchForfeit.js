@@ -175,3 +175,107 @@ export function planMatchForfeit({
     nextRound: Number(round) || 1,
   }
 }
+
+/**
+ * Depois de applyBankruptcyState já aplicado no roster.
+ * Mesma regra de decideEndgameAfterBankruptcy (humano) — sem segundo winner.
+ */
+export function resolveAftermathAfterBankruptcy({
+  players,
+  initialPlayerCount = 0,
+  bankruptPlayerId,
+} = {}) {
+  const list = Array.isArray(players) ? players : []
+  const decision = decideEndgameAfterBankruptcy(list, initialPlayerCount)
+  if (decision.shouldEnd) {
+    return {
+      action: 'ENDGAME',
+      shouldEnd: true,
+      winner: decision.winner,
+      emitHandoff: false,
+      nextPlayers: list,
+      nextTurnIdx: list.findIndex((p) => String(p?.id) === String(bankruptPlayerId ?? '')),
+      nextTurnPlayerId: decision.winner?.id != null
+        ? String(decision.winner.id)
+        : (bankruptPlayerId != null ? String(bankruptPlayerId) : null),
+    }
+  }
+
+  const idx = list.findIndex((p) => String(p?.id) === String(bankruptPlayerId ?? ''))
+  const fromIdx = idx >= 0 ? idx : 0
+  const nextTurnIdx = findNextAliveIdx(list, fromIdx)
+  const nextPlayer = list[nextTurnIdx]
+  return {
+    action: 'CONTINUE',
+    shouldEnd: false,
+    winner: null,
+    emitHandoff: true,
+    nextPlayers: list,
+    nextTurnIdx: nextTurnIdx >= 0 ? nextTurnIdx : 0,
+    nextTurnPlayerId: nextPlayer?.id != null ? String(nextPlayer.id) : null,
+  }
+}
+
+/**
+ * Consumo idempotente do aftermath. ENDGAME no máximo uma vez.
+ */
+export function commitBankruptcyAftermath({
+  aftermath,
+  endGameFinalized = false,
+  gameOver = false,
+} = {}) {
+  if (!aftermath) {
+    return {
+      emitEndgame: false,
+      emitHandoff: false,
+      clearPending: false,
+      endGameFinalized: !!endGameFinalized,
+      gameOver: !!gameOver,
+      winner: null,
+      alreadyFinalized: false,
+    }
+  }
+
+  if (aftermath.shouldEnd) {
+    if (endGameFinalized || gameOver) {
+      return {
+        emitEndgame: false,
+        emitHandoff: false,
+        clearPending: true,
+        endGameFinalized: true,
+        gameOver: true,
+        winner: aftermath.winner,
+        alreadyFinalized: true,
+        kind: 'ENDGAME',
+        lastAction: 'BANKRUPT',
+      }
+    }
+    return {
+      emitEndgame: true,
+      emitHandoff: false,
+      clearPending: true,
+      endGameFinalized: true,
+      gameOver: true,
+      winner: aftermath.winner,
+      alreadyFinalized: false,
+      kind: 'ENDGAME',
+      lastAction: 'BANKRUPT',
+    }
+  }
+
+  return {
+    emitEndgame: false,
+    emitHandoff: true,
+    clearPending: false,
+    endGameFinalized: !!endGameFinalized,
+    gameOver: false,
+    winner: null,
+    alreadyFinalized: false,
+    rewritePending: {
+      nextPlayers: aftermath.nextPlayers,
+      nextTurnIdx: aftermath.nextTurnIdx,
+      nextTurnPlayerId: aftermath.nextTurnPlayerId,
+      meta: { kind: 'BANKRUPT' },
+    },
+  }
+}
