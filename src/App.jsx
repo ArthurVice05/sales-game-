@@ -1474,8 +1474,12 @@ export default function App() {
     }
 
     // --- aplica turno (turnPlayerId é a fonte de verdade) ---
-    if (incomingTurnId && String(turnPlayerId || '') !== incomingTurnId) {
-      setTurnPlayerId(incomingTurnId)
+    if (incomingTurnId) {
+      setTurnPlayerId((prev) =>
+        String(prev || '') === incomingTurnId
+          ? prev
+          : incomingTurnId
+      )
     }
 
     // --- aplica players (merge seguro; [] não apaga; parcial não zera ausentes) ---
