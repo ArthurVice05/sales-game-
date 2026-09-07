@@ -6,6 +6,7 @@
 import { findNextAliveIdx } from '../gameMath.js'
 import { botLeaseExpired } from './botTurnClaim.js'
 import { isBotPlayer } from './botTypes.js'
+import { isBotTurnEffectsSettled, readBotTurnEffects } from './botEconomicRuntime.js'
 
 export const BOT_RECOVERY_NEEDS_ROLL = 'needs-roll'
 export const BOT_RECOVERY_NEEDS_MOVE = 'already-rolled-needs-move'
@@ -187,6 +188,13 @@ export function classifyBotTurnRecovery({
     : null
 
   if (confirmed.ok) {
+    const fx = readBotTurnEffects({
+      players,
+      matchId,
+      turnPlayerId: expectedTurnPlayerId,
+      turnSeq: expectedTurnSeq,
+    })
+    const effectsSettled = fx.ok ? isBotTurnEffectsSettled(fx.effects) : false
     return {
       case: 'C',
       kind: BOT_RECOVERY_NEEDS_HANDOFF,
@@ -197,7 +205,7 @@ export function classifyBotTurnRecovery({
       actionId: confirmed.actionId || crossing.actionId,
       steps,
       crossedStart: crossing.ok ? crossing.crossedStart : null,
-      effectsSettled: false,
+      effectsSettled,
     }
   }
 
@@ -319,6 +327,7 @@ export function rebuildBotPendingAfterConfirmedMove({
   maxRounds,
   roundFlags,
   crossedStart,
+  matchId = null,
 } = {}) {
   const list = Array.isArray(players) ? players : []
   const next = planBotReloadNextPlayer({
@@ -352,6 +361,14 @@ export function rebuildBotPendingAfterConfirmedMove({
     endGame = true
   }
 
+  const fx = readBotTurnEffects({
+    players: list,
+    matchId,
+    turnPlayerId,
+    turnSeq,
+  })
+  const effectsSettled = fx.ok ? isBotTurnEffectsSettled(fx.effects) : false
+
   return {
     nextPlayers: list,
     nextTurnIdx: next.nextTurnIdx,
@@ -366,7 +383,7 @@ export function rebuildBotPendingAfterConfirmedMove({
     endGame,
     sameSeat: next.sameSeat,
     recovered: true,
-    effectsSettled: false,
+    effectsSettled,
   }
 }
 

@@ -62,7 +62,7 @@ import {
   normalizeTurnTime,
 } from './game/turnTimeConfig.js'
 import { computeTurnDeadlineAt, sanitizeTurnDeadlineOnHandoff, resolveTurnDeadlineAfterHandoff } from './game/turnTimerLogic.js'
-import { validateTurnCommit, stripCommitMeta, inferCommitKind, resolveSkipGuardAction } from './game/turnCommitValidation.js'
+import { validateTurnCommit, stripCommitMeta, inferCommitKind, resolveSkipGuardAction, applyBroadcastCommitExpect } from './game/turnCommitValidation.js'
 import {
   getLiveBotMoveBarrier,
   shouldApplyRemotePlayersDuringBotMove,
@@ -2173,18 +2173,7 @@ export default function App() {
       if (patch && patch.turnSeq !== undefined) {
         statePatch.turnSeq = Number(patch.turnSeq)
       }
-      if (patch && patch._expectTurnPlayerId !== undefined) {
-        statePatch._expectTurnPlayerId = patch._expectTurnPlayerId
-      }
-      if (patch && patch._expectTurnSeq !== undefined) {
-        statePatch._expectTurnSeq = patch._expectTurnSeq
-      }
-      if (patch && patch._expectLockOwner !== undefined) {
-        statePatch._expectLockOwner = patch._expectLockOwner
-      }
-      if (patch && patch._commitKind !== undefined) {
-        statePatch._commitKind = patch._commitKind
-      }
+      applyBroadcastCommitExpect(statePatch, patch)
       if (patch && patch.lastRoll !== undefined) {
         statePatch.lastRoll =
           patch.lastRoll === null
@@ -2555,6 +2544,7 @@ export default function App() {
     botCoordinatorIdRef,
     authoritativeMatchId: netState?.matchId || expectedMatchIdRef.current,
     remoteBotClaimExecutor: netState?.botClaimExecutor ?? null,
+    remoteLockOwner: lockOwner,
   })
 
   // Presença + auto-skip (Etapa 2) — só durante game multiplayer

@@ -194,7 +194,8 @@ export function validateTurnCommit(prevState = {}, statePatch = {}, { now = Date
       return { ok: true, reason: 'bot-claim-ok' }
     }
 
-    case 'BOT_MOVE': {
+    case 'BOT_MOVE':
+    case 'BOT_EFFECT': {
       if (prev.gameOver) return { ok: false, reason: 'game-over' }
       const current = remoteTurnPlayer(prev)
       if (!isBotPlayer(current)) return { ok: false, reason: 'not-bot-turn' }
@@ -204,7 +205,16 @@ export function validateTurnCommit(prevState = {}, statePatch = {}, { now = Date
       if (expectOwner && remoteOwner && remoteOwner !== expectOwner) {
         return { ok: false, reason: 'lock-owner-mismatch' }
       }
-      return { ok: true, reason: 'bot-move-ok' }
+      if (kind === 'BOT_EFFECT') {
+        const expectExec =
+          statePatch._expectBotExecutor != null ? String(statePatch._expectBotExecutor) : null
+        const remoteExec =
+          prev.botClaimExecutor != null ? String(prev.botClaimExecutor) : ''
+        if (expectExec && remoteExec && remoteExec !== expectExec) {
+          return { ok: false, reason: 'executor-mismatch' }
+        }
+      }
+      return { ok: true, reason: kind === 'BOT_EFFECT' ? 'bot-effect-ok' : 'bot-move-ok' }
     }
 
     case 'LOCK_ACQUIRE': {
@@ -274,7 +284,21 @@ export function stripCommitMeta(statePatch = {}) {
     _expectLockOwner: _e3,
     _commitKind: _e4,
     _expectMatchId: _e5,
+    _expectBotExecutor: _e6,
     ...publicPatch
   } = statePatch || {}
   return publicPatch
+}
+
+/** Caminho real de broadcastState: encaminha expectativas de CAS sem inventar valores. */
+export function applyBroadcastCommitExpect(statePatch = {}, patch = {}) {
+  const next = statePatch && typeof statePatch === 'object' ? statePatch : {}
+  const src = patch && typeof patch === 'object' ? patch : {}
+  if (src._expectTurnPlayerId !== undefined) next._expectTurnPlayerId = src._expectTurnPlayerId
+  if (src._expectTurnSeq !== undefined) next._expectTurnSeq = src._expectTurnSeq
+  if (src._expectLockOwner !== undefined) next._expectLockOwner = src._expectLockOwner
+  if (src._expectMatchId !== undefined) next._expectMatchId = src._expectMatchId
+  if (src._expectBotExecutor !== undefined) next._expectBotExecutor = src._expectBotExecutor
+  if (src._commitKind !== undefined) next._commitKind = src._commitKind
+  return next
 }

@@ -41,6 +41,20 @@ import {
   rebuildBotPendingAfterConfirmedMove,
   shouldAllowBotReloadRecovery,
 } from './bots/botReloadRecovery.js'
+import {
+  buildBotEconomicPlayerDelta,
+  buildBotTurnEffectPlan,
+  isBotTurnEffectsSettled,
+  nextPlayersWith,
+  readBotTurnEffects,
+  runBotEconomicEffectsLoop,
+  shouldAcceptBotEconomicJob,
+  shouldBlockBotHandoffForEffects,
+  shouldRescheduleBotEconomicEffects,
+  shouldResumeLeftoverBotEffects,
+  shouldRunBotEconomicEffects,
+  botEconomicJobKey,
+} from './bots/botEconomicRuntime.js'
 import { shouldRejectEngineBotTimerAutoPass } from './turnCommitValidation.js'
 import {
   bumpModalLockCount,
@@ -60,6 +74,8 @@ import {
   applyBankruptcyState,
   planMatchForfeit,
   decideEndgameAfterBankruptcy as decideEndgameAfterBankruptcyPure,
+  resolveAftermathAfterBankruptcy,
+  commitBankruptcyAftermath,
 } from './matchForfeit.js'
 
 // Modal system
@@ -109,7 +125,6 @@ import {
   applyDeltas,
   applyTrainingPurchase,
   crossedTile,
-  countManagerCerts,
   hasBlue,
   hasPurple,
   hasYellow,
@@ -120,6 +135,7 @@ import {
   findNextAliveIdx,
 } from './gameMath'
 import { resolveFinalRoundMove } from './resolveFinalRoundMove.js'
+import { applySorteRevesPayloadToPlayer } from './sorteRevesApply.js'
 import { pickWinnerByPatrimonio } from './patrimonio.js'
 import {
   canTakeLoan,
@@ -216,6 +232,7 @@ export function useTurnEngine({
   botCoordinatorIdRef = null,
   authoritativeMatchId = null,
   remoteBotClaimExecutor = null,
+  remoteLockOwner = null,
 }) {
   const DEBUG_LOGS = isDebugLogsEnabled()
   const MAX_ROUNDS = normalizeMaxRounds(maxRoundsProp, DEFAULT_MAX_ROUNDS)
@@ -582,6 +599,13 @@ export function useTurnEngine({
   const seenMatchIdRef = React.useRef('')
   const recoveredBotHandoffKeyRef = React.useRef('')
   const locallyStartedBotTurnKeyRef = React.useRef('')
+  const botEconomicBusyRef = React.useRef(false)
+  const botEconomicJobKeyRef = React.useRef('')
+  const botEconomicJobPromiseRef = React.useRef(null)
+  const remoteLockOwnerRef = React.useRef(remoteLockOwner)
+  const remoteBotClaimExecutorRef = React.useRef(remoteBotClaimExecutor)
+  React.useEffect(() => { remoteLockOwnerRef.current = remoteLockOwner }, [remoteLockOwner])
+  React.useEffect(() => { remoteBotClaimExecutorRef.current = remoteBotClaimExecutor }, [remoteBotClaimExecutor])
   const scheduleTurnCompletionTickRef = React.useRef(null)
   React.useEffect(() => {
     const decision = decideMatchTransientEndgameReset({
@@ -595,6 +619,9 @@ export function useTurnEngine({
       turnChangeInProgressRef.current = false
       recoveredBotHandoffKeyRef.current = ''
       locallyStartedBotTurnKeyRef.current = ''
+      botEconomicBusyRef.current = false
+      botEconomicJobKeyRef.current = ''
+      botEconomicJobPromiseRef.current = null
     }
     seenMatchIdRef.current = decision.rememberMatchId
   }, [authoritativeMatchId])
@@ -705,6 +732,382 @@ export function useTurnEngine({
     return p
   }, [pushModal, awaitTop, safeCloseTop])
 
+  const enqueueBotEconomicEffects = React.useCallback((opts = {}) => {
+    const matchId = opts.matchId ?? authoritativeMatchId
+    const botId = String(opts.turnPlayerId ?? turnPlayerIdRef.current ?? '')
+    const seq = Number(opts.turnSeq ?? turnSeqRef.current) || 0
+    const jobKey = botEconomicJobKey({ matchId, turnPlayerId: botId, turnSeq: seq })
+    const accept = shouldAcceptBotEconomicJob({
+      activeKey: botEconomicJobKeyRef.current,
+      nextKey: jobKey,
+      busy: botEconomicBusyRef.current === true || !!botEconomicJobPromiseRef.current,
+    })
+    if (!accept.ok) {
+      return botEconomicJobPromiseRef.current || Promise.resolve({ ok: false, reason: accept.reason })
+    }
+    botEconomicJobKeyRef.current = jobKey
+    const job = enqueueAction(async () => {
+      botEconomicBusyRef.current = true
+      try {
+        const persistP = botMovePersistPromiseRef.current
+        if (persistP) {
+          const moved = await persistP
+          if (moved && moved.ok === false) {
+            return { ok: false, reason: moved.reason || 'bot-move-failed' }
+          }
+        }
+
+        const extrasFor = (kind, player) => {
+          if (kind === 'REVENUE') {
+            const fat = Math.max(0, Math.floor(computeFaturamentoFor(player)))
+            const lp = player?.loanPending || null
+            const shouldArm =
+              lp &&
+              Number(lp.amount) > 0 &&
+              lp.charged !== true &&
+              lp.eligibleOnExpenses !== true
+            return {
+              revenue: fat,
+              loanPending: shouldArm ? armLoanAfterRevenue(lp) : lp,
+            }
+          }
+          if (kind === 'EXPENSES') {
+            const expense = Math.max(0, Math.floor(computeDespesasFor(player)))
+            const lp = player?.loanPending || null
+            const shouldCharge = shouldChargeLoan({
+              loanPending: lp,
+              lastChargedLoanId: player?.lastChargedLoanId,
+              currentRound: currentRoundRef.current,
+            })
+            const loanCharge = shouldCharge ? loanChargeAmount(lp) : 0
+            return {
+              expense,
+              loanCharge,
+              totalCharge: expense + loanCharge,
+              loanPending: shouldCharge ? null : lp,
+              lastChargedLoanId: shouldCharge
+                ? (lp?.loanId || player?.lastChargedLoanId)
+                : player?.lastChargedLoanId,
+            }
+          }
+          return {}
+        }
+
+        const buildElement = (kind, player, extras = {}) => {
+          const cash = Number(player?.cash || 0)
+          const k = String(kind || '').toUpperCase()
+          if (k === 'REVENUE') return <FaturamentoDoMesModal value={extras.revenue || 0} />
+          if (k === 'EXPENSES') {
+            return (
+              <DespesasOperacionaisModal
+                expense={extras.expense || 0}
+                loanCharge={extras.loanCharge || 0}
+              />
+            )
+          }
+          if (k === 'LUCK') return <SorteRevesModal player={player} />
+          if (k === 'ERP') {
+            return (
+              <ERPSystemsModal
+                currentCash={cash}
+                currentLevel={player?.erpLevel || null}
+                erpOwned={player?.erpOwned || player?.erp || {}}
+                currentPlayer={player || null}
+                horizonRounds={MAX_ROUNDS}
+              />
+            )
+          }
+          if (k === 'TRAINING') {
+            return (
+              <TrainingModal
+                currentCash={cash}
+                currentPlayer={player || null}
+                canTrain={{
+                  comum: Number(player?.vendedoresComuns) || 0,
+                  field: Number(player?.fieldSales) || 0,
+                  inside: Number(player?.insideSales) || 0,
+                  gestor: Number(player?.gestores ?? player?.gestoresComerciais ?? player?.managers) || 0,
+                }}
+                ownedByType={{
+                  comum: player?.trainingsByVendor?.comum || [],
+                  field: player?.trainingsByVendor?.field || [],
+                  inside: player?.trainingsByVendor?.inside || [],
+                  gestor: player?.trainingsByVendor?.gestor || [],
+                }}
+              />
+            )
+          }
+          if (k === 'DIRECT_BUY') return <DirectBuyModal currentCash={cash} />
+          if (k === 'INSIDE') {
+            return <InsideSalesModal currentCash={cash} currentPlayer={player || null} />
+          }
+          if (k === 'CLIENTS') {
+            return <ClientsModal currentCash={cash} currentPlayer={player || null} />
+          }
+          if (k === 'MANAGER' || k === 'MANAGERS') {
+            return <ManagerModal currentCash={cash} currentPlayer={player || null} />
+          }
+          if (k === 'FIELD') {
+            return <FieldSalesModal currentCash={cash} currentPlayer={player || null} />
+          }
+          if (k === 'COMMON') {
+            return <BuyCommonSellersModal currentCash={cash} currentPlayer={player || null} />
+          }
+          if (k === 'MIX') {
+            return (
+              <MixProductsModal
+                currentCash={cash}
+                currentLevel={player?.mixProdutos || null}
+                mixOwned={player?.mixOwned || player?.mix || {}}
+                currentPlayer={player || null}
+                horizonRounds={MAX_ROUNDS}
+              />
+            )
+          }
+          if (k === 'INSUFFICIENT_FUNDS') {
+            return (
+              <InsufficientFundsModal
+                requiredAmount={extras.requiredAmount || 0}
+                currentCash={extras.currentCash != null ? extras.currentCash : cash}
+                showRecoveryOptions={extras.showRecoveryOptions !== false}
+                canClose={extras.canClose === true}
+              />
+            )
+          }
+          if (k === 'RECOVERY') {
+            return <RecoveryModal currentPlayer={player} canClose={false} />
+          }
+          if (k === 'BANKRUPT') {
+            return <BankruptcyModal playerName={player?.name || 'Máquina'} />
+          }
+          return null
+        }
+
+        const result = await runBotEconomicEffectsLoop({
+          matchId,
+          turnPlayerId: botId,
+          turnSeq: seq,
+          myUid,
+          getLive: () => {
+            const roster = Array.isArray(playersRef.current) ? playersRef.current : []
+            const current = roster.find((p) => String(p?.id) === String(botId))
+            const proof = claimProofRef?.current || null
+            return {
+              players: roster,
+              lastActions: current?.lastActions || {},
+              lockOwner: remoteLockOwnerRef.current || proof?.lockOwner || lockOwnerRef.current,
+              remoteLockOwner: remoteLockOwnerRef.current,
+              turnPlayerId: turnPlayerIdRef.current,
+              turnSeq: turnSeqRef.current,
+              matchId,
+              gameOver: gameOverRef.current === true,
+              currentPlayer: current,
+              extrasFor,
+              executorId: proof?.executorId || null,
+              remoteExecutorId: remoteBotClaimExecutorRef.current,
+              botClaimExecutor: remoteBotClaimExecutorRef.current,
+              claimProof: proof,
+              botTurnSeed: proof?.seed || null,
+              round: currentRoundRef.current,
+            }
+          },
+          decide: async ({ kind, player, extras }) => {
+            const extra = extras || extrasFor(kind, player)
+            const element = buildElement(kind, player, extra)
+            if (!element) return { action: 'SKIP' }
+            return openModalAndWait(element)
+          },
+          commit: async ({ before, after, actionId, effects, alreadyApplied }) => {
+            if (alreadyApplied) {
+              if (effects) {
+                const roster = Array.isArray(playersRef.current) ? playersRef.current : []
+                const latest = roster.find((p) => String(p?.id) === String(before.id)) || before
+                const stamped = nextPlayersWith(roster, before.id, {
+                  ...latest,
+                  botTurnEffects: effects,
+                })
+                commitLocalPlayers(stamped)
+                if (pendingTurnDataRef.current) pendingTurnDataRef.current.nextPlayers = stamped
+              }
+              return { ok: true, alreadyApplied: true }
+            }
+            if (gameOverRef.current) return { ok: false, reason: 'game-over' }
+            if (String(turnPlayerIdRef.current || '') !== String(botId)) {
+              return { ok: false, reason: 'turn-player-changed' }
+            }
+            if (Number(turnSeqRef.current) !== Number(seq)) {
+              return { ok: false, reason: 'turn-seq-changed' }
+            }
+            const latestRoster = Array.isArray(playersRef.current) ? playersRef.current : []
+            const latestBefore =
+              latestRoster.find((p) => String(p?.id) === String(before.id)) || before
+            if (latestBefore?.lastActions && actionId && latestBefore.lastActions[actionId]) {
+              return { ok: true, alreadyApplied: true }
+            }
+            const delta = buildBotEconomicPlayerDelta(latestBefore, after, actionId)
+            delta.botTurnEffects = effects
+            const nextRoster = nextPlayersWith(latestRoster, before.id, after)
+            const result = await botCommitSerializerRef.current.enqueue(() =>
+              Promise.resolve(
+                broadcastStateProp(
+                  nextRoster,
+                  turnIdxRef.current,
+                  currentRoundRef.current,
+                  false,
+                  null,
+                  {
+                    kind: 'PLAYER_DELTA',
+                    playersDeltaById: { [String(before.id)]: delta },
+                    actionId,
+                    _commitKind: 'BOT_EFFECT',
+                    _expectMatchId: matchId,
+                    _expectTurnPlayerId: botId,
+                    _expectTurnSeq: seq,
+                    _expectLockOwner: claimProofRef?.current?.lockOwner || remoteLockOwnerRef.current || String(myUid),
+                    _expectBotExecutor: claimProofRef?.current?.executorId || null,
+                    deferLocalUntilCommit: true,
+                  },
+                ),
+              ),
+            )
+            if (result?.ok) {
+              const withActions = nextPlayersWith(nextRoster, before.id, {
+                ...after,
+                lastActions: {
+                  ...(after.lastActions || latestBefore.lastActions || {}),
+                  [actionId]: Date.now(),
+                },
+              })
+              commitLocalPlayers(withActions)
+              if (pendingTurnDataRef.current) pendingTurnDataRef.current.nextPlayers = withActions
+            }
+            return result && typeof result === 'object' ? result : { ok: !!result }
+          },
+          shouldContinue: () => {
+            if (gameOverRef.current) return { ok: false, reason: 'game-over', terminal: true }
+            if (String(turnPlayerIdRef.current || '') !== String(botId)) {
+              return { ok: false, reason: 'turn-player-changed', terminal: true }
+            }
+            if (Number(turnSeqRef.current) !== Number(seq)) {
+              return { ok: false, reason: 'turn-seq-changed', terminal: true }
+            }
+            const proof = claimProofRef?.current || null
+            const execGate = shouldRunBotEconomicEffects({
+              currentPlayer: (Array.isArray(playersRef.current) ? playersRef.current : [])
+                .find((p) => String(p?.id) === String(botId)),
+              turnPlayerId: botId,
+              myUid,
+              lockOwner: remoteLockOwnerRef.current || proof?.lockOwner || lockOwnerRef.current,
+              gameOver: gameOverRef.current === true,
+              executorId: proof?.executorId,
+              remoteExecutorId: remoteBotClaimExecutorRef.current,
+              claimProof: proof,
+              matchId,
+              turnSeq: seq,
+            })
+            if (execGate.ok) return { ok: true }
+            return {
+              ok: false,
+              reason: execGate.reason,
+              terminal: execGate.terminal === true,
+              retry: execGate.retry === true,
+            }
+          },
+        })
+
+        const liveRoster = Array.isArray(playersRef.current) ? playersRef.current : []
+        const liveActor = liveRoster.find((p) => String(p?.id) === String(botId))
+        if (result?.bankrupt === true || liveActor?.bankrupt === true) {
+          const aftermath = resolveAftermathAfterBankruptcy({
+            players: liveRoster,
+            initialPlayerCount: initialPlayerCountRef.current,
+            bankruptPlayerId: botId,
+          })
+          const commitPlan = commitBankruptcyAftermath({
+            aftermath,
+            endGameFinalized: endGameFinalizedRef.current === true,
+            gameOver: gameOverRef.current === true,
+          })
+          if (commitPlan.emitEndgame) {
+            endGameFinalizedRef.current = true
+            endGamePendingRef.current = false
+            gameOverRef.current = true
+
+            const winnerPlayer = commitPlan.winner
+            const currIdx = Number(turnIdxRef.current ?? 0) || 0
+            const baseTurnSeq = Number(turnSeqRef.current ?? seq ?? 0) || 0
+            const nextTurnSeq = baseTurnSeq + 1
+
+            if (typeof setTurnSeq === 'function') setTurnSeq(nextTurnSeq)
+            turnSeqRef.current = nextTurnSeq
+            if (typeof setLastRollTurnKey === 'function') setLastRollTurnKey(null)
+            lastRollTurnKeyRef.current = null
+
+            setWinner(winnerPlayer)
+            setGameOver(true)
+            pendingTurnDataRef.current = null
+            turnChangeInProgressRef.current = false
+
+            broadcastState(
+              liveRoster,
+              currIdx,
+              currentRoundRef.current,
+              true,
+              winnerPlayer,
+              {
+                kind: 'ENDGAME',
+                lastAction: 'BANKRUPT',
+                gameOver: true,
+                winner: winnerPlayer,
+                round: currentRoundRef.current,
+                turnPlayerId: winnerPlayer?.id ?? botId ?? (turnPlayerIdRef.current ?? turnPlayerId),
+                turnSeq: nextTurnSeq,
+                lastRollTurnKey: null,
+                lastTurnAt: Date.now(),
+              },
+            )
+            setTurnLockBroadcast(false)
+          } else if (commitPlan.alreadyFinalized) {
+            pendingTurnDataRef.current = null
+            turnChangeInProgressRef.current = false
+          } else if (commitPlan.rewritePending && pendingTurnDataRef.current) {
+            pendingTurnDataRef.current = {
+              ...pendingTurnDataRef.current,
+              nextPlayers: commitPlan.rewritePending.nextPlayers,
+              nextTurnIdx: commitPlan.rewritePending.nextTurnIdx,
+              nextTurnPlayerId: commitPlan.rewritePending.nextTurnPlayerId,
+              meta: { kind: 'BANKRUPT', source: 'bot-economic' },
+            }
+          }
+        }
+        return result
+      } finally {
+        botEconomicBusyRef.current = false
+        openingModalRef.current = false
+        if (botEconomicJobKeyRef.current === jobKey) {
+          botEconomicJobPromiseRef.current = null
+        }
+      }
+    })
+    botEconomicJobPromiseRef.current = job
+    return job
+  }, [
+    enqueueAction,
+    openModalAndWait,
+    authoritativeMatchId,
+    myUid,
+    MAX_ROUNDS,
+    broadcastState,
+    broadcastStateProp,
+    commitLocalPlayers,
+    remoteBotClaimExecutor,
+    setWinner,
+    setGameOver,
+    setTurnSeq,
+    setLastRollTurnKey,
+    setTurnLockBroadcast,
+    turnPlayerId,
+  ])
 
   // ========= regras auxiliares de saldo =========
   const canPay = React.useCallback((idx, amount) => {
@@ -1498,6 +1901,7 @@ export function useTurnEngine({
     // WHY: commitLocalPlayers atualiza playersRef.current imediatamente, evitando snapshot stale
     commitLocalPlayers(nextPlayers)
     const curIsBot = isBotPlayer(cur)
+    let botEffectsPlan = null
     if (curIsBot) {
       const proof = claimProofRef?.current
       const originSeq = typeof turnSeqRef.current === 'number' ? turnSeqRef.current : 0
@@ -1533,6 +1937,27 @@ export function useTurnEngine({
         actionId,
         crossedStart: crossedStart1ForRound === true,
       })
+      const landTileForPlan = stopAtRevenue
+        ? 'NONE'
+        : getTileType(Number(moveResolved.landPos) + 1, resolvedBoardVersion)
+      const crossedExpensesForPlan = stopAtRevenue
+        ? false
+        : crossedTile(oldPos, newPos, expensesIndex)
+      playerDelta.botTurnEffects = buildBotTurnEffectPlan({
+        matchId: authoritativeMatchId,
+        turnPlayerId: ownerId,
+        turnSeq: originSeq,
+        fromPos,
+        toPos,
+        steps,
+        crossedStart: crossedStart1ForRound === true,
+        crossedExpenses: crossedExpensesForPlan === true,
+        landTile: landTileForPlan,
+        processLandTile: !stopAtRevenue,
+        settled: false,
+        done: [],
+      })
+      botEffectsPlan = playerDelta.botTurnEffects
       const delta = { [String(ownerId)]: playerDelta }
       const moveBarrier = createBotMoveBarrier({
         actionId,
@@ -1651,8 +2076,17 @@ export function useTurnEngine({
     const nextTurnPlayerId = nextPlayer?.id ? String(nextPlayer.id) : null
     const originTurnPlayerId = String(turnPlayerIdRef.current || turnPlayerId || '')
     const originTurnSeq = Number(turnSeqRef.current ?? turnSeq ?? 0)
+    let playersForPending = nextPlayers
+    if (botEffectsPlan) {
+      const moved = nextPlayers.find((p) => String(p?.id) === String(ownerId))
+      playersForPending = nextPlayersWith(nextPlayers, ownerId, {
+        ...moved,
+        botTurnEffects: botEffectsPlan,
+      })
+      commitLocalPlayers(playersForPending)
+    }
     pendingTurnDataRef.current = {
-      nextPlayers,
+      nextPlayers: playersForPending,
       nextTurnIdx,
       nextTurnPlayerId, // ✅ CORREÇÃO: turnPlayerId do próximo jogador
       originTurnPlayerId,
@@ -2455,65 +2889,27 @@ export function useTurnEngine({
             }
 
             let cashDelta = Number.isFinite(res.cashDelta) ? Number(res.cashDelta) : 0
-            const clientsDelta = Number.isFinite(res.clientsDelta) ? Number(res.clientsDelta) : 0
+            let luckCashCharged = false
 
             // ✅ Revés sem cash: usa recuperação e, se falhar, pode levar a falência
             // WHY: handleInsufficientFunds retorna { ok, players } para manter snapshot consistente
             if (cashDelta < 0) {
               const luckRes = await handleInsufficientFunds(Math.abs(cashDelta), 'Sorte & Revés', 'pagar', localPlayers)
               if (!luckRes?.ok) return
-              cashDelta = 0 // ✅ evita cobrar 2x (já foi cobrado em handleInsufficientFunds)
+              luckCashCharged = true
               // ✅ CRÍTICO: Usa o snapshot retornado, não playersRef.current
               localPlayers = luckRes.players
             }
 
-            // ✅ CORREÇÃO: Aplica cashDelta e clientsDelta
             localPlayers = mapById(localPlayers, ownerId, (p) => {
-              let next = { ...p }
-              // ✅ CORREÇÃO: Aplica cashDelta (positivo ou negativo) - removido "if (cashDelta)" pois 0 é válido
-              if (cashDelta !== 0) {
-                next.cash = Math.max(0, (Number(next.cash) || 0) + cashDelta)
-              }
-              if (clientsDelta !== 0) {
-                next.clients = Math.max(0, (Number(next.clients) || 0) + clientsDelta)
-              }
-            if (res.gainSpecialCell) {
-              next.fieldSales = (next.fieldSales || 0) + (res.gainSpecialCell.fieldSales || 0)
-                next.support = (next.support || 0) + (res.gainSpecialCell.support || 0)
-                next.gestores = (next.gestores || 0) + (res.gainSpecialCell.manager || 0)
-              next.gestoresComerciais = (next.gestoresComerciais || 0) + (res.gainSpecialCell.manager || 0)
-                next.managers = (next.managers || 0) + (res.gainSpecialCell.manager || 0)
-            }
-            if (res.id === 'casa_change_cert_blue') {
-              next.az = (next.az || 0) + 1
-              const curSet = new Set((next.trainingsByVendor?.comum || []))
-              curSet.add('personalizado')
-              next.trainingsByVendor = { ...(next.trainingsByVendor || {}), comum: Array.from(curSet) }
-            }
-            return next
-          })
+              const applied = applySorteRevesPayloadToPlayer(p, res, {
+                skipNegativeCash: luckCashCharged,
+              })
+              return applied.applied ? applied.player : p
+            })
             commitLocalPlayers(localPlayers)
             broadcastState(localPlayers, turnIdxRef.current, currentRoundRef.current)
             if (pendingTurnDataRef.current) pendingTurnDataRef.current.nextPlayers = localPlayers
-
-            // ✅ Bônus derivados (por cliente, por gestor certificado, por mix A/B)
-            const anyDerived = res.perClientBonus || res.perCertifiedManagerBonus || res.mixLevelBonusABOnly
-            if (anyDerived) {
-              const me2 = getById(localPlayers, ownerId) || {}
-              let extra = 0
-              if (res.perClientBonus) extra += (Number(me2.clients) || 0) * Number(res.perClientBonus || 0)
-              if (res.perCertifiedManagerBonus) extra += countManagerCerts(me2) * Number(res.perCertifiedManagerBonus || 0)
-              if (res.mixLevelBonusABOnly) {
-                const level = String(me2.mixProdutos || '').toUpperCase()
-                if (level === 'A' || level === 'B') extra += Number(res.mixLevelBonusABOnly || 0)
-              }
-              if (extra) {
-                localPlayers = mapById(localPlayers, ownerId, (p) => ({ ...p, cash: (Number(p.cash) || 0) + extra }))
-                commitLocalPlayers(localPlayers)
-                broadcastState(localPlayers, turnIdxRef.current, currentRoundRef.current)
-                if (pendingTurnDataRef.current) pendingTurnDataRef.current.nextPlayers = localPlayers
-              }
-            }
             await tickAfterModal()
             await waitForLocksClear()
             continue
@@ -2898,6 +3294,38 @@ export function useTurnEngine({
       } // fim do if (events.length > 0)
     }
 
+    if (curIsBot) {
+      const proof = claimProofRef?.current || null
+      const auth = shouldRunBotEconomicEffects({
+        currentPlayer: cur,
+        turnPlayerId: ownerId,
+        myUid,
+        lockOwner: remoteLockOwnerRef.current || proof?.lockOwner || lockOwnerRef.current,
+        gameOver: gameOverRef.current === true,
+        executorId: proof?.executorId,
+        remoteExecutorId: remoteBotClaimExecutorRef.current,
+        claimProof: proof,
+        matchId: authoritativeMatchId,
+        turnSeq: originTurnSeq,
+      })
+      const plan =
+        botEffectsPlan ||
+        readBotTurnEffects({
+          players: playersForPending,
+          matchId: authoritativeMatchId,
+          turnPlayerId: ownerId,
+          turnSeq: originTurnSeq,
+        }).effects
+      const mayStart = plan && !isBotTurnEffectsSettled(plan) && (auth.ok || auth.retry === true)
+      if (mayStart) {
+        enqueueBotEconomicEffects({
+          matchId: authoritativeMatchId,
+          turnPlayerId: ownerId,
+          turnSeq: originTurnSeq,
+        })
+      }
+    }
+
     // fail-safe: solta o cadeado quando todas as modais fecharem
     const start = Date.now()
     let tickAttempts = 0
@@ -2907,7 +3335,7 @@ export function useTurnEngine({
       tickAttempts++
       
       const currentModalLocks = modalLocksRef.current
-      const currentOpening = openingModalRef.current || eventsInProgressRef.current
+      const currentOpening = openingModalRef.current || eventsInProgressRef.current || botEconomicBusyRef.current
       const currentLockOwner = lockOwnerRef.current
       const isLockOwner = String(currentLockOwner || '') === String(myUid)
 
@@ -2999,6 +3427,53 @@ export function useTurnEngine({
             turnChangeInProgressRef.current = false
             return
           }
+        }
+        const tickRoster = Array.isArray(playersRef.current) ? playersRef.current : (players || [])
+        const tickTurnId = String(turnPlayerIdRef.current || '')
+        const tickActor = tickRoster.find((p) => String(p?.id) === tickTurnId)
+        const tickEffects = readBotTurnEffects({
+          players: tickRoster,
+          matchId: authoritativeMatchId,
+          turnPlayerId: tickTurnId,
+          turnSeq: turnSeqRef.current,
+        })
+        const effectGate = shouldBlockBotHandoffForEffects({
+          isBotTurn: isBotPlayer(tickActor),
+          effects: tickEffects.effects,
+          economicBusy: botEconomicBusyRef.current === true,
+        })
+        if (effectGate.block) {
+          if (isBotPlayer(tickActor) && !botEconomicBusyRef.current && !eventsInProgressRef.current) {
+            const proof = claimProofRef?.current || null
+            const gate = shouldRunBotEconomicEffects({
+              currentPlayer: tickActor,
+              turnPlayerId: tickTurnId,
+              myUid,
+              lockOwner: remoteLockOwnerRef.current || proof?.lockOwner || lockOwnerRef.current,
+              gameOver: gameOverRef.current === true,
+              executorId: proof?.executorId,
+              remoteExecutorId: remoteBotClaimExecutorRef.current,
+              claimProof: proof,
+              matchId: authoritativeMatchId,
+              turnSeq: turnSeqRef.current,
+            })
+            const resched = shouldRescheduleBotEconomicEffects({
+              isBotTurn: true,
+              effects: tickEffects.effects,
+              economicBusy: false,
+              eventsInProgress: false,
+              gate,
+            })
+            if (resched.ok) {
+              enqueueBotEconomicEffects({
+                matchId: authoritativeMatchId,
+                turnPlayerId: tickTurnId,
+                turnSeq: turnSeqRef.current,
+              })
+            }
+          }
+          setTimeout(tick, 150)
+          return
         }
         // ✅ ENDGAME autoritativo: finaliza assim que não houver modais
         const td = pendingTurnDataRef.current
@@ -3289,7 +3764,8 @@ export function useTurnEngine({
       checkAttempts++
       const hasOpening = openingModalRef.current
       const hasLocks = modalLocksRef.current > 0
-      if ((hasOpening || hasLocks) && checkAttempts < maxCheckAttempts) {
+      const hasEconomic = botEconomicBusyRef.current || eventsInProgressRef.current
+      if ((hasOpening || hasLocks || hasEconomic) && checkAttempts < maxCheckAttempts) {
         // reduz spam: loga só a cada 5 tentativas
         if (DEBUG_LOGS && checkAttempts % 5 === 1) {
           console.log('[DEBUG] ⚠️ checkBeforeTick - aguardando modais...', {
@@ -3308,6 +3784,7 @@ export function useTurnEngine({
         const stillActive =
           openingModalRef.current ||
           eventsInProgressRef.current ||
+          botEconomicBusyRef.current ||
           modalLocksRef.current > 0
         console.warn('[DEBUG] ⚠️ checkBeforeTick - excedeu tentativas', {
           hasOpening,
@@ -3328,7 +3805,7 @@ export function useTurnEngine({
     // Delay inicial curto: só o necessário para IIFEs de modal marcarem openingModalRef.
     // Se não houver modal, o handoff não fica +500ms parado (solo/multiplayer).
     const initialDelay =
-      (openingModalRef.current || modalLocksRef.current > 0 || eventsInProgressRef.current)
+      (openingModalRef.current || modalLocksRef.current > 0 || eventsInProgressRef.current || botEconomicBusyRef.current)
         ? 60
         : 90
     scheduleTurnCompletionTickRef.current = () => {
@@ -3358,7 +3835,8 @@ export function useTurnEngine({
     setPlayers, setRound, setTurnIdx, setRoundFlags,
     setTurnLockBroadcast, requireFunds, maybeFinishGame,
     pushModal, awaitTop, closeTop,
-    resolvedBoardVersion, trackLen, expensesIndex, boardDefinition
+    resolvedBoardVersion, trackLen, expensesIndex, boardDefinition,
+    enqueueBotEconomicEffects,
   ])
 
   // ========= handlers menores =========
@@ -3702,7 +4180,20 @@ export function useTurnEngine({
       : (Array.isArray(players) ? players : [])
     const current = roster.find((p) => String(p?.id) === expectId)
     if (!isBotPlayer(current)) return false
-    if (String(lockOwnerRef.current || '') !== String(myUid)) return false
+    const proof = claimProofRef?.current || null
+    const resumeAuth = shouldRunBotEconomicEffects({
+      currentPlayer: current,
+      turnPlayerId: expectId,
+      myUid,
+      lockOwner: remoteLockOwnerRef.current || proof?.lockOwner || lockOwnerRef.current,
+      gameOver: gameOverRef.current === true,
+      executorId: proof?.executorId,
+      remoteExecutorId: remoteBotClaimExecutorRef.current,
+      claimProof: proof,
+      matchId: authoritativeMatchId,
+      turnSeq: expectSeq,
+    })
+    if (!resumeAuth.ok && resumeAuth.retry !== true) return false
 
     const recovery = classifyBotTurnRecovery({
       expectedTurnPlayerId: expectId,
@@ -3745,6 +4236,7 @@ export function useTurnEngine({
       maxRounds: MAX_ROUNDS,
       roundFlags: roundFlagsRef.current,
       crossedStart: crossing.ok ? crossing.crossedStart : false,
+      matchId: authoritativeMatchId,
     })
     if (!pending) return false
 
@@ -3753,6 +4245,26 @@ export function useTurnEngine({
     botMoveBarrierRef.current = null
     setLiveBotMoveBarrier(null)
     openingModalRef.current = false
+    const leftover = shouldResumeLeftoverBotEffects({
+      players: roster,
+      matchId: authoritativeMatchId,
+      turnPlayerId: expectId,
+      turnSeq: expectSeq,
+      myUid,
+      lockOwner: remoteLockOwnerRef.current || claimProofRef?.current?.lockOwner || lockOwnerRef.current,
+      gameOver: gameOverRef.current === true,
+      currentPlayer: current,
+      executorId: claimProofRef?.current?.executorId,
+      remoteExecutorId: remoteBotClaimExecutorRef.current,
+      claimProof: claimProofRef?.current || null,
+    })
+    if (leftover.ok || leftover.retry === true) {
+      enqueueBotEconomicEffects({
+        matchId: authoritativeMatchId,
+        turnPlayerId: expectId,
+        turnSeq: expectSeq,
+      })
+    }
     const kick = scheduleTurnCompletionTickRef.current
     if (typeof kick === 'function') {
       kick()
@@ -3768,6 +4280,7 @@ export function useTurnEngine({
     myUid,
     MAX_ROUNDS,
     authoritativeMatchId,
+    enqueueBotEconomicEffects,
   ])
 
   React.useEffect(() => {
