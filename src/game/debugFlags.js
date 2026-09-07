@@ -22,5 +22,5 @@ export function isDebugLogsEnabled() {
 }
 
 export function isDevVerbose() {
-  return !!import.meta.env.DEV || isVercelDebugEnabled()
+  return !!import.meta.env?.DEV || isVercelDebugEnabled()
 }

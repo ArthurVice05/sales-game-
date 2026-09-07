@@ -22,6 +22,7 @@ import { buildInsideSalesPurchaseDeltas } from '../insideSalesPurchase.js'
 import { buildManagerPurchaseDeltas } from '../managersPurchase.js'
 import { buildMixPurchaseDeltas } from '../productMixPurchase.js'
 import { buildErpPurchaseDeltas } from '../erpPurchase.js'
+import { applySorteRevesPayloadToPlayer } from '../sorteRevesApply.js'
 import { MANUAL_CONSTANTS } from '../manualConstants.js'
 
 /**
@@ -347,24 +348,29 @@ test('applyDeltas NAO clampa clientes — a protecao vive no call site de Sorte 
   }
 })
 
-test('GUARDA DE REGRESSAO: o motor clampa clientes ao aplicar Sorte & Reves', async () => {
-  // As cartas removem ate 5 clientes; sem este clamp o contador fica negativo.
-  const { readFile } = await import('node:fs/promises')
-  const engine = (await readFile(new URL('../useTurnEngine.jsx', import.meta.url), 'utf8'))
-    .replace(/\r\n/g, '\n')
+test('GUARDA DE REGRESSAO: APPLY_CARD clampa clientes e caixa em zero', () => {
+  // Fonte da verdade: applySorteRevesPayloadToPlayer (extraido do motor).
+  const apply = (player, delta) =>
+    applySorteRevesPayloadToPlayer(player, { action: 'APPLY_CARD', ...delta }).player
 
-  assert.match(
-    engine,
-    /next\.clients = Math\.max\(0, \(Number\(next\.clients\) \|\| 0\) \+ clientsDelta\)/,
-    'o clamp de clientes no caminho de Sorte & Reves sumiu — cartas de -1 a -5 ' +
-    'passariam a deixar clients negativo'
-  )
-  // e o mesmo vale para o caixa nesse caminho
-  assert.match(
-    engine,
-    /next\.cash = Math\.max\(0, \(Number\(next\.cash\) \|\| 0\) \+ cashDelta\)/,
-    'o clamp de caixa no caminho de Sorte & Reves sumiu'
-  )
+  assert.equal(apply({ clients: 0 }, { clientsDelta: -1 }).clients, 0)
+  assert.equal(apply({ clients: 1 }, { clientsDelta: -5 }).clients, 0)
+  assert.equal(apply({ clients: 10 }, { clientsDelta: -5 }).clients, 5)
+  assert.equal(apply({ clients: 2 }, { clientsDelta: 3 }).clients, 5)
+  assert.equal(apply({ cash: 0 }, { cashDelta: -10 }).cash, 0)
+  assert.equal(apply({ cash: 100 }, { cashDelta: -200 }).cash, 0)
+
+  const original = { clients: 1, cash: 100 }
+  const result = applySorteRevesPayloadToPlayer(original, {
+    action: 'APPLY_CARD',
+    clientsDelta: -5,
+    cashDelta: -200,
+  })
+  assert.equal(original.clients, 1)
+  assert.equal(original.cash, 100)
+  assert.equal(result.player.clients, 0)
+  assert.equal(result.player.cash, 0)
+  assert.notEqual(result.player, original)
 })
 
 test('nenhuma carta de Sorte & Reves remove mais clientes do que o clamp suporta', async () => {

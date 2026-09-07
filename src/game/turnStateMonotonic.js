@@ -143,3 +143,16 @@ export function isHandoffPendingObsolete(pending, current = {}) {
   if (curSeq === originSeq && originId && curId && curId !== originId) return true
   return false
 }
+
+/**
+ * Effect legado: nextTurnIdx === turnIdx sozinho não prova stale.
+ * Same-bot (Arthur waitingAtRevenue) nasce com next === atual e origem ainda viva.
+ */
+export function shouldDiscardSameSeatHandoffPending(pending, current = {}) {
+  if (!pending || typeof pending !== 'object') return false
+  if (Number(pending.nextTurnIdx) !== Number(current.turnIdx)) return false
+  return isHandoffPendingObsolete(pending, {
+    turnPlayerId: current.turnPlayerId,
+    turnSeq: current.turnSeq,
+  })
+}
