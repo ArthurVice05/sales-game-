@@ -1,0 +1,62 @@
+/* Scoped to this presentation; old medal styles remain unused. */
+.fwr3d-dialog {
+  background: radial-gradient(ellipse at 50% 0, #22352f 0, #111923 48%, #0c131d 100%);
+  border-color: #b99b5f55;
+  isolation: isolate;
+}
+.sg-modal-backdrop:has(.fwr3d-dialog) {
+  background: rgba(8, 10, 16, .67) !important;
+  backdrop-filter: blur(2px);
+}
+.sg-modal-backdrop:has(.fwr3d-dialog) .sg-modal-card {
+  width: min(920px, 94vw) !important;
+  max-width: 94vw !important;
+  max-height: calc(100dvh - 20px) !important;
+}
+.fwr3d-dialog .fwr3d-podium { display: block; padding: 0; }
+.fwr3d-visual { position: relative; height: clamp(210px, 29vh, 310px); pointer-events: none; }
+.fwr3d-canvas { position: absolute; inset: 0; pointer-events: none; }
+.fwr3d-canvas canvas { display: block; width: 100%; height: 100%; pointer-events: none; }
+.fwr3d-labels { display: grid; grid-template-columns: repeat(var(--fwr3d-count), minmax(0, 1fr)); gap: 8px; }
+.fwr3d-columnLabel { min-width: 0; display: flex; flex-direction: column; gap: 4px; padding: 0 4px; }
+.fwr3d-place-1 { --fwr3d-metal: #edc878; }
+.fwr3d-place-2 { --fwr3d-metal: #bed1e5; }
+.fwr3d-place-3 { --fwr3d-metal: #d49b7e; }
+.fwr3d-place { font-size: 12px; font-weight: 800; color: var(--fwr3d-metal); }
+.fwr3d-name { font-size: 15px; font-weight: 800; overflow-wrap: anywhere; }
+.fwr3d-scaleNote { color: #bcc8d5; font-size: 12px; margin: 12px 0; }
+.fwr3d-details { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.fwr3d-details:has(> :last-child:nth-child(2)) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.fwr3d-details:has(> :only-child) { grid-template-columns: minmax(0, 1fr); }
+.fwr3d-result { min-width: 0; padding: 12px; border: 1px solid #ffffff18; border-top: 2px solid var(--fwr3d-metal); border-radius: 10px; background: #ffffff04; text-align: left; overflow-wrap: anywhere; }
+.fwr3d-resultName { font-size: 15px; line-height: 1.4; margin: 0 0 8px; }
+.fwr3d-money { font-size: 12px; color: #cad5df; margin: 0 0 8px; }
+.fwr3d-money strong { display: block; color: var(--fwr3d-metal); font-size: clamp(19px, 2.4vw, 27px); font-variant-numeric: tabular-nums; line-height: 1.4; }
+.fwr3d-breakdown { margin: 0; font-size: 12px; line-height: 1.65; color: #c5d0db; }
+.fwr3d-bankrupt { color: #f0b5ae; font-size: 12px; line-height: 1.4; margin: 6px 0; }
+.fwr3d-dialog .finalWinnersActions { position: sticky; bottom: -18px; padding: 12px 0; background: #101923f5; z-index: 1; }
+.fwr3d-dialog .finalWinnersBtn { background: #264b40; border-color: #9bc7ac66; min-height: 44px; }
+.fwr3d-dialog .finalWinnersBtn:focus-visible { outline: 3px solid #efc777; outline-offset: 3px; }
+.fwr3d-dialog .finalWinnersListPat { white-space: normal; overflow-wrap: anywhere; }
+.fwr3d-dialog .finalWinnersList li { grid-template-columns: 28px minmax(0, 1fr) minmax(0, auto); }
+.fwr3d-srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+.fwr3d-fallback { position: absolute; inset: 36px 0 12px; display: grid; grid-template-columns: repeat(var(--fwr3d-count), minmax(0, 1fr)); }
+.fwr3d-fallback[hidden] { display: none; }
+.fwr3d-fallbackSlot { position: relative; }
+.fwr3d-zero { position: absolute; width: 100%; border-top: 1px solid #93a7b7; }
+.fwr3d-bar { position: absolute; width: 42%; left: 29%; background: linear-gradient(90deg, #4d514d, var(--fwr3d-metal)); border-radius: 4px 4px 0 0; }
+@media (max-width: 600px) {
+  .fwr3d-dialog .fwr3d-details { grid-template-columns: minmax(0, 1fr); }
+  .fwr3d-result { padding: 10px 12px; }
+  .fwr3d-money strong { font-size: 22px; }
+  .fwr3d-visual { height: 220px; }
+  .fwr3d-name { font-size: 14px; }
+  .fwr3d-dialog .finalWinnersActions { bottom: -12px; }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  .fwr3d-visual { height: 180px; }
+  .fwr3d-dialog .finalWinnersActions { bottom: -12px; padding: 8px 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fwr3d-canvas { display: none; }
+}

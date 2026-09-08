@@ -1,8 +1,11 @@
 // src/components/FinalWinners.jsx
-import React, { useMemo } from 'react'
+import React, { useEffect, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import ModalBase from '../modals/ModalBase'
 import { rankPlayersByPatrimonio } from '../game/patrimonio.js'
+import FinalResultsScene, { ResultsCounter } from './final-winners/FinalResultsScene.jsx'
+import { createResultsTimeline, formatResultsMoney, resultsEntries } from './final-winners/resultsPresentation.js'
+import './final-winners/final-results.css'
 
 /** Acima do tabuleiro / pinch-zoom / OrientationGuard no iOS Safari. */
 export const FINAL_WINNERS_Z_INDEX = 2147483646
@@ -16,9 +19,15 @@ export const FINAL_WINNERS_Z_INDEX = 2147483646
 export default function FinalWinners({ players = [], maxRounds, endedRound, onExit, onResolve, exitLabel = 'Voltar aos Lobbies' }) {
   const rankedPlayers = useMemo(() => rankPlayersByPatrimonio(players), [players])
 
-  const first = rankedPlayers[0] || null
-  const second = rankedPlayers[1] || null
-  const third = rankedPlayers[2] || null
+  const entries = useMemo(() => resultsEntries(rankedPlayers), [rankedPlayers])
+  const timeline = useMemo(() => createResultsTimeline(), [])
+  const exitRef = useRef(null)
+
+  useEffect(() => {
+    const previous = document.activeElement
+    exitRef.current?.focus({ preventScroll: true })
+    return () => { if (previous?.isConnected) previous.focus?.({ preventScroll: true }) }
+  }, [])
 
   const doExit = () => {
     if (onResolve) onResolve({ action: 'EXIT' })
@@ -27,7 +36,9 @@ export default function FinalWinners({ players = [], maxRounds, endedRound, onEx
 
   const ui = (
     <ModalBase zIndex={FINAL_WINNERS_Z_INDEX} onClose={() => {}}>
-      <div className="finalWinners">
+      <div className="finalWinners fwr3d-dialog" role="dialog" aria-modal="true" aria-label="Fim da partida" onKeyDown={event => {
+        if (event.key === 'Tab') { event.preventDefault(); exitRef.current?.focus({ preventScroll: true }) }
+      }}>
         <h1 className="finalWinnersTitle">Fim da partida</h1>
         <p className="finalWinnersSubtitle">
           {Number.isFinite(Number(maxRounds)) ? (
@@ -45,11 +56,30 @@ export default function FinalWinners({ players = [], maxRounds, endedRound, onEx
           Vence quem tiver <b>Caixa + Bens</b> (patrimônio).
         </p>
 
-        <div className="finalWinnersPodium" aria-label="Pódio top 3">
-          <MedalCard place="second" player={second} />
-          <MedalCard place="first" player={first} big />
-          <MedalCard place="third" player={third} />
-        </div>
+        <section className="finalWinnersPodium fwr3d-podium" aria-label="Patrimônio dos três primeiros">
+          {entries.length > 0 ? <>
+            <FinalResultsScene entries={entries} timeline={timeline} />
+            <div className="fwr3d-labels" style={{ '--fwr3d-count': entries.length }}>
+              {entries.map(({ player, place }) => <div className={`fwr3d-columnLabel fwr3d-place-${place}`} key={place}>
+                <span className="fwr3d-place">{place}º lugar</span>
+                <span className="fwr3d-name">{player.name}</span>
+              </div>)}
+            </div>
+            <p className="fwr3d-scaleNote">Altura proporcional ao patrimônio · linha de base: $ 0</p>
+            <ol className="fwr3d-details">
+              {rankedPlayers.slice(0, 3).map((player, index) => <li className={`fwr3d-result fwr3d-place-${index + 1}`} key={player.id || index}>
+                <h2 className="fwr3d-resultName">{index + 1}º · {player.name}</h2>
+                {player.isBankrupt && <p className="fwr3d-bankrupt">Falido · classificação após os não falidos.</p>}
+                <p className="fwr3d-money">Patrimônio <strong>
+                  <span className="fwr3d-srOnly">{formatResultsMoney(player.patrimonio)}</span>
+                  <ResultsCounter value={player.patrimonio} timeline={timeline} />
+                </strong></p>
+                <p className="fwr3d-breakdown">Caixa: <b>{formatResultsMoney(player.cash)}</b><span> · </span>Bens: <b>{formatResultsMoney(player.bens)}</b></p>
+                {!Number.isFinite(player.patrimonio) && <p className="fwr3d-bankrupt">Valor indisponível; coluna não representada.</p>}
+              </li>)}
+            </ol>
+          </> : <p>Nenhum jogador para apresentar.</p>}
+        </section>
 
         {rankedPlayers.length > 3 && (
           <ol className="finalWinnersList">
@@ -61,7 +91,7 @@ export default function FinalWinners({ players = [], maxRounds, endedRound, onEx
                   {p.isBankrupt ? ' (falido)' : ''}
                 </span>
                 <span className="finalWinnersListPat">
-                  $ {Number(p.patrimonio || 0).toLocaleString('pt-BR')}
+                  {formatResultsMoney(p.patrimonio)}
                 </span>
               </li>
             ))}
@@ -69,7 +99,7 @@ export default function FinalWinners({ players = [], maxRounds, endedRound, onEx
         )}
 
         <div className="finalWinnersActions">
-          <button type="button" className="finalWinnersBtn" onClick={doExit}>
+          <button ref={exitRef} type="button" className="finalWinnersBtn" onClick={doExit}>
             {exitLabel}
           </button>
         </div>
@@ -79,39 +109,4 @@ export default function FinalWinners({ players = [], maxRounds, endedRound, onEx
 
   if (typeof document === 'undefined') return ui
   return createPortal(ui, document.body)
-}
-
-function MedalCard({ place, player, big }) {
-  if (!player) {
-    return <div className={`finalMedalCol finalMedalCol--${place} is-empty`} aria-hidden="true" />
-  }
-
-  const label = { first: '1º', second: '2º', third: '3º' }[place]
-
-  return (
-    <div
-      className={`finalMedalCol finalMedalCol--${place}${big ? ' is-first' : ''}${player.isBankrupt ? ' is-bankrupt' : ''}`}
-    >
-      <div className="finalMedalRibbon" aria-hidden="true" />
-      <div className="finalMedal" aria-hidden="true">
-        <div className="finalMedalFace">
-          <span className="finalMedalNumber">{label}</span>
-        </div>
-      </div>
-
-      <div className="finalMedalCard">
-        <div className="finalMedalName">{player.name}</div>
-        {player.isBankrupt && <div className="finalMedalBadge">Falido</div>}
-        <div className="finalMedalStats">
-          Caixa: <b>$ {Number(player.cash || 0).toLocaleString('pt-BR')}</b>
-          <br />
-          Bens: <b>$ {Number(player.bens || 0).toLocaleString('pt-BR')}</b>
-        </div>
-        <div className="finalMedalPat">
-          Patrimônio:{' '}
-          <b>$ {Number(player.patrimonio || 0).toLocaleString('pt-BR')}</b>
-        </div>
-      </div>
-    </div>
-  )
 }
