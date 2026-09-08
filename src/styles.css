@@ -6876,7 +6876,6 @@ img[src*="multiplier"]{
     .compactActionRow {
       display: grid !important;
       grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-      gap: 4px;
     }
     .turnPrimaryActions .btn.go {
       min-height: 44px !important;
@@ -7106,7 +7105,9 @@ img[src*="multiplier"]{
   }
   .page[data-game-shell] .compactActionRow {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 4px;
+  }
+  .page[data-hud-mode="mobile-landscape"] .compactActionRow {
+    gap: 8px;
   }
   .page[data-game-shell] .moreOpenBtn,
   .page[data-game-shell] .hudOpenBtn {

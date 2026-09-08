@@ -46,7 +46,11 @@ test('ERP remove título duplicado e diferencia níveis com classes', () => {
 
 test('peões maiores só no breakpoint desktop min-width 1200px', () => {
   assert.match(boardCss, /@media \(min-width: 1200px\)[\s\S]{0,220}\.sg40GameBoard__token/)
-  assert.match(boardCss, /@media \(min-width: 1200px\)[\s\S]{0,400}clamp\(26px,\s*2\.85cqi,\s*30px\)/)
+  assert.match(boardCss, /@media \(min-width: 1200px\)[\s\S]{0,400}clamp\(30px,\s*3\.15cqi,\s*36px\)/)
+  assert.doesNotMatch(
+    boardCss,
+    /@media \(min-width: 1200px\)[\s\S]{0,400}clamp\(26px,\s*2\.85cqi,\s*30px\)/,
+  )
   assert.match(boardCss, /max-width: 960px\) and \(orientation: landscape\) and \(max-height: 450px\)/)
   assert.match(boardCss, /width:\s*clamp\(11px,\s*min\(1\.65cqi,\s*3\.3cqh\),\s*13px\)/)
 })

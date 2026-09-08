@@ -1006,10 +1006,10 @@
   }
 }
 
-/* Notebook/desktop: face ~28–30px com anéis mais finos (não altera mobile ≤960). */
+/* Notebook/desktop: face ~30–36px com anéis mais finos (não altera mobile ≤960). */
 @media (min-width: 1200px) {
   .sg40GameBoard__token {
-    width: clamp(26px, 2.85cqi, 30px);
+    width: clamp(30px, 3.15cqi, 36px);
     font-size: clamp(11px, 1.3cqi, 14px);
   }
 
