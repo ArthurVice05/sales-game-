@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useRef } from "react";
 import ModalBase from "./ModalBase";
 import TileContextHint from "./TileContextHint.jsx";
 import { MANUAL_CONSTANTS } from "../game/manualConstants.js";
+import "./tile-modal.css";
 
 /**
  * Esta modal fecha chamando `onResolve`, que é injetado pelo ModalProvider
@@ -13,11 +14,18 @@ export default function DespesasOperacionaisModal({
   onResolve, // <- vem do provider
 }) {
   const total = Number(expense || 0) + Number(loanCharge || 0);
+  const didResolveRef = useRef(false);
+
+  const finish = (payload) => {
+    if (didResolveRef.current) return;
+    didResolveRef.current = true;
+    onResolve?.(payload);
+  };
 
   const handleOk = (e) => {
     e?.preventDefault?.();
     e?.stopPropagation?.();
-    onResolve?.({
+    finish({
       action: "OK",
       expense: Number(expense || 0),
       loanCharge: Number(loanCharge || 0),
@@ -28,55 +36,39 @@ export default function DespesasOperacionaisModal({
 
   return (
     <ModalBase
+      variant="tile"
+      size="sm"
       zIndex={2147483647}
-      onClose={() => onResolve?.({ action: "CLOSE", source: { modal: "DespesasOperacionaisModal", file: "src/modals/DespesasOperacionaisModal.jsx" } })} // fecha no overlay/X
+      onClose={() => finish({ action: "CLOSE", source: { modal: "DespesasOperacionaisModal", file: "src/modals/DespesasOperacionaisModal.jsx" } })} // fecha no overlay/X
     >
-      <div style={{ padding: 28, textAlign: "center", pointerEvents: "auto" }}>
-        <div
-          style={{
-            fontWeight: 900,
-            fontSize: 26,
-            color: "#ffb74d",
-            letterSpacing: 0.5,
-            marginBottom: 6,
-          }}
-        >
-          DESPESAS DO MÊS
-        </div>
-
+      <header className="tileModalHeader">
+        <h2 className="tileModalTitle">Despesas do mês</h2>
+      </header>
+      <div className="tileModalBody">
         <TileContextHint kind="EXPENSES" />
 
-        <div style={{ marginBottom: 8 }}>
+        <div className="tileStatBlock" style={{ marginBottom: 8 }}>
           Despesas operacionais:&nbsp;
           <b>-$ {Number(expense).toLocaleString()}</b>
         </div>
 
         {Number(loanCharge) > 0 && (
-          <div style={{ marginBottom: 8, color: "#ffd54f" }}>
+          <div className="tileWarn" style={{ marginBottom: 8 }}>
             Empréstimo + {Math.round((MANUAL_CONSTANTS.loanInterestRatio || 0) * 100)}% de juros:&nbsp;
             <b>-$ {Number(loanCharge).toLocaleString()}</b>
           </div>
         )}
 
-        <div style={{ margin: "6px 0 18px", opacity: 0.85 }}>
-          Total a debitar:&nbsp; <b>-$ {total.toLocaleString()}</b>
+        <div className="tileValueHuge tileValueHuge--neg">
+          -$ {total.toLocaleString()}
         </div>
-
-        <button
-          type="button"
-          onClick={handleOk}
-          className="btn"
-          style={{
-            minWidth: 120,
-            background: "#ffcc80",
-            color: "#1a1f2a",
-            fontWeight: 800,
-            borderRadius: 10,
-          }}
-        >
+        <p className="purchasePreviewHint">Total a debitar</p>
+      </div>
+      <footer className="tileModalFooter">
+        <button type="button" onClick={handleOk} className="tileModalBtn tileModalBtn--confirm">
           OK
         </button>
-      </div>
+      </footer>
     </ModalBase>
   );
 }

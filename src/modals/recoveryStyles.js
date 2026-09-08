@@ -12,7 +12,7 @@ const S = {
     maxHeight:'min(90dvh, 90vh)',
     display:'flex', flexDirection:'column', minHeight:0,
     overflow:'hidden', boxSizing:'border-box',
-    background:'#15161a', color:'#e9ecf1',
+    background:'#060d19', color:'#f4f6fb',
     border:'1px solid rgba(255,255,255,.08)',
     borderRadius:20, boxShadow:'0 20px 50px rgba(0,0,0,.5)',
   },
@@ -22,7 +22,7 @@ const S = {
     padding:'14px 16px', borderBottom:'1px solid rgba(255,255,255,.08)'
   },
   closeBtn:{
-    width:36, height:36, borderRadius:10, border:'1px solid rgba(255,255,255,.15)',
+    width:44, height:44, minHeight:44, borderRadius:10, border:'1px solid rgba(255,255,255,.15)',
     background:'transparent', color:'#fff', fontSize:20, cursor:'pointer'
   },
   body:{
@@ -47,8 +47,9 @@ const S = {
   subHeader:{ marginBottom:8 },
   infoRow:{ display:'flex', gap:8, alignItems:'baseline', margin:'4px 0' },
   input:{
-    width:'100%', padding:'12px 12px', borderRadius:12, background:'#0f1115',
-    color:'#fff', border:'1px solid rgba(255,255,255,.15)', marginTop:10
+    width:'100%', padding:'12px 12px', borderRadius:12, background:'#0b1424',
+    color:'#fff', border:'1px solid rgba(255,255,255,.15)', marginTop:10,
+    fontSize:16, minHeight:44
   },
   option:{
     padding:16, background:'rgba(255,255,255,.04)', border:'1px solid rgba(255,255,255,.08)',

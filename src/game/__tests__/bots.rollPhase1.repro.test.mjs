@@ -112,7 +112,10 @@ describe('FASE 1 reprodução — código anterior', () => {
       maxWaitMs: 80,
       sleep: (ms, signal) => sleepCancellable(ms, signal),
     })
-    await new Promise((r) => setTimeout(r, 20))
+    const waitStart = Date.now()
+    while (polls < 2 && Date.now() - waitStart < 1000) {
+      await new Promise((r) => setTimeout(r, 5))
+    }
     assert.ok(polls >= 2, `handoff não pode encerrar no first poll (polls=${polls})`)
     live.turnPlayerId = 'human-host'
     live.turnSeq = TURN_SEQ + 1

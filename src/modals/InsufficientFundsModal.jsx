@@ -1,5 +1,6 @@
 // src/modals/InsufficientFundsModal.jsx
 import React, { useEffect, useMemo, useRef } from 'react'
+import TileModalShell from './TileModalShell.jsx'
 
 /**
  * Modal genérica de Saldo Insuficiente.
@@ -72,100 +73,54 @@ export default function InsufficientFundsModal({
     return () => { document.body.style.overflow = prev }
   }, [])
 
+  const canDismiss = !showRecoveryOptions && canClose
+
   return (
-    <div
-      style={S.wrap}
-      role="dialog"
-      aria-modal="true"
-      // não permite fechar clicando fora
-      onMouseDown={(e) => { if (e.target === e.currentTarget) e.stopPropagation() }}
-    >
-      <div
-        style={S.card}
-        onMouseDown={(e) => e.stopPropagation()}
-      >
-        {!showRecoveryOptions && canClose && (
+    <TileModalShell
+      title={title}
+      onClose={canDismiss ? handleClose : undefined}
+      size="sm"
+      footer={showRecoveryOptions ? (
+        <>
           <button
             type="button"
-            style={S.close}
-            onClick={handleClose}
-            aria-label="Fechar"
+            className="tileModalBtn"
+            onClick={handleRecovery}
           >
-            ✕
+            Recuperação Financeira
           </button>
-        )}
+          <button
+            type="button"
+            className="tileModalBtn tileModalBtn--danger"
+            onClick={handleBankrupt}
+          >
+            Declarar Falência
+          </button>
+        </>
+      ) : (
+        <button
+          ref={closeRef}
+          type="button"
+          className="tileModalBtn tileModalBtn--ghost"
+          onClick={handleOk}
+        >
+          {okLabel}
+        </button>
+      )}
+    >
+      <p className="purchasePreviewHint">{message}</p>
 
-        <div style={S.icon}>⚠️</div>
-        <h2 style={S.title}>{title}</h2>
-        <p style={S.msg}>{message}</p>
-
-        <div style={S.grid}>
-          <div style={S.row}><span>Necessário:</span><b>{fmt(requiredAmount)}</b></div>
-          <div style={S.row}><span>Seu saldo:</span><b>{fmt(currentCash)}</b></div>
-          <div style={{...S.row, color:'#fca5a5'}}><span>Faltam:</span><b>{fmt(missing)}</b></div>
+      <div className="tileStatBlock">
+        <div className="tileStatHint" style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <span>Necessário:</span><b>{fmt(requiredAmount)}</b>
         </div>
-
-        <div style={S.actions}>
-          {showRecoveryOptions ? (
-            <>
-              <button
-                type="button"
-                style={{ ...S.btn, background:'#f59e0b', color:'#fff', marginRight: '8px' }}
-                onClick={handleRecovery}
-              >
-                Recuperação Financeira
-              </button>
-              <button
-                type="button"
-                style={{ ...S.btn, background:'#dc2626', color:'#fff' }}
-                onClick={handleBankrupt}
-              >
-                Declarar Falência
-              </button>
-            </>
-          ) : (
-            <button
-              ref={closeRef}
-              type="button"
-              style={{ ...S.btn, background:'#6b7280', color:'#fff' }}
-              onClick={handleOk}
-            >
-              {okLabel}
-            </button>
-          )}
+        <div className="tileStatHint" style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <span>Seu saldo:</span><b>{fmt(currentCash)}</b>
+        </div>
+        <div className="tileStatHint" style={{ display: 'flex', justifyContent: 'space-between', color: '#fca5a5' }}>
+          <span>Faltam:</span><b>{fmt(missing)}</b>
         </div>
       </div>
-    </div>
+    </TileModalShell>
   )
-}
-
-const S = {
-  wrap: {
-    position:'fixed', inset:0, background:'rgba(0,0,0,.55)',
-    display:'grid', placeItems:'center', zIndex:1100
-  },
-  card: {
-    width:'min(440px, 92vw)', background:'#1f2330', color:'#e9ecf1',
-    borderRadius:16, padding:'18px 18px 16px',
-    border:'1px solid rgba(255,255,255,.12)',
-    boxShadow:'0 18px 50px rgba(0,0,0,.5)', position:'relative'
-  },
-  close: {
-    position:'absolute', right:10, top:10, width:34, height:34,
-    borderRadius:10, border:'1px solid rgba(255,255,255,.15)',
-    background:'#2a2f3b', color:'#fff', cursor:'pointer'
-  },
-  icon:{ fontSize:28, lineHeight:1, marginBottom:6 },
-  title:{ margin:'2px 0 6px', fontWeight:900, fontSize:20 },
-  msg:{ opacity:.95, margin:'0 0 10px' },
-  grid:{
-    border:'1px solid rgba(255,255,255,.15)', borderRadius:12,
-    padding:'10px 12px', marginBottom:12, background:'#171b26'
-  },
-  row:{ display:'flex', justifyContent:'space-between', padding:'4px 0' },
-  actions:{ display:'flex', justifyContent:'center', marginTop:6 },
-  btn:{
-    minWidth:120, padding:'10px 16px', borderRadius:10, border:'none',
-    fontWeight:900, cursor:'pointer'
-  },
 }

@@ -108,7 +108,7 @@ describe('sidebar player summary layout', () => {
     assert.ok(primaryStart > secondaryStart)
   })
 
-  it('desktop alto: HUD com altura natural; ação principal usa a sobra', () => {
+  it('desktop alto: HUD rola; Rolar Dado permanece no fluxo visível', () => {
     const marker = css.indexOf('/* SIDEBAR DESKTOP — telas altas')
     assert.ok(marker >= 0, 'bloco de telas altas deve existir')
     const tall = css.slice(marker, marker + 5500)
@@ -119,11 +119,10 @@ describe('sidebar player summary layout', () => {
     assert.match(tall, /\.game-stats-card\s*\{[^}]*height:\s*auto/)
     assert.doesNotMatch(tall, /grid-template-rows:\s*minmax\(0,\s*1fr\)/)
     assert.doesNotMatch(tall, /align-content:\s*space-evenly/)
-    assert.match(tall, /flex:\s*1\s+1\s+135px/)
-    assert.match(tall, /min-height:\s*125px/)
+    assert.match(tall, /\.turnPrimaryActions\s*\{[^}]*flex:\s*0\s+0\s+auto/)
+    assert.doesNotMatch(tall, /flex:\s*1\s+1\s+135px/)
     assert.match(tall, /\.turnPrimaryActions\s*\{[^}]*display:\s*flex/)
     assert.match(tall, /\.btn\.go\s*\{[^}]*min-height:\s*58px/)
-    assert.match(tall, /min-height:\s*clamp\(88px,\s*10dvh,\s*108px\)/)
   })
 
   it('notebook baixo (<=1599×700): sidebar mais larga, HUD rola e botões em uma linha', () => {
@@ -153,16 +152,24 @@ describe('sidebar player summary layout', () => {
       /@media \(min-width:\s*900px\) and \(max-width:\s*1199px\) and \(orientation:\s*landscape\) and \(max-height:\s*700px\)/,
     )
     assert.match(tablet, /--side-w:\s*clamp\(290px,\s*30vw,\s*320px\)/)
-    assert.match(tablet, /aspect-ratio:\s*13\s*\/\s*9/)
+    assert.match(tablet, /width:\s*100%\s*!important/)
+    assert.match(tablet, /height:\s*100%\s*!important/)
+    assert.match(tablet, /aspect-ratio:\s*auto/)
+    assert.doesNotMatch(tablet, /min\(100cqw,\s*calc\(100cqh\s*\*\s*13\s*\/\s*9\)\)/)
+    assert.match(tablet, /container-type:\s*size/)
     assert.match(tablet, /grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/)
     assert.match(tablet, /\.diceResult\s*\{[^}]*grid-column:\s*1\s*\/\s*-1/)
     assert.match(tablet, /\.btn\.go\s*\{[^}]*min-height:\s*58px/)
     assert.match(tablet, /\.sideSecondary\s*\{[^}]*flex:\s*0\s+0\s+auto/)
-    assert.doesNotMatch(tablet, /container-type:\s*size/)
     // startSummaryNote pode usar display:none; controles do jogo na sidebar não
     assert.doesNotMatch(tablet, /\.side\s+\.controlsSticky[^{]*\{[^}]*display:\s*none/)
     assert.doesNotMatch(tablet, /\.turnPrimaryActions[^{]*\{[^}]*display:\s*none/)
-    assert.doesNotMatch(tablet, /\.sideSecondary[^{]*\{[^}]*display:\s*none/)
+    // Genérico do tablet permanece visível; só o chrome mobile-landscape oculta
+    assert.doesNotMatch(tablet, /\.page \.content \.side \.sideSecondary\s*\{[^}]*display:\s*none/)
+    assert.match(
+      tablet,
+      /data-hud-mode="mobile-landscape"[\s\S]*?\.sideSecondary[\s\S]*?display:\s*none/,
+    )
   })
 
   it('controlsSticky e turnPrimaryActions não sobrepõem com sticky/fixed', () => {
@@ -231,8 +238,10 @@ describe('sidebar player summary layout', () => {
     const block = css.slice(marker, iosMarker > marker ? iosMarker : marker + 14000)
     assert.match(block, /grid-template-columns:\s*minmax\(0,\s*1fr\)\s*minmax\(136px,\s*20%\)/)
     assert.match(block, /container-type:\s*size/)
-    assert.match(block, /height:\s*100cqh\s*!important/)
-    assert.match(block, /width:\s*100cqw\s*!important/)
+    assert.match(block, /width:\s*100%\s*!important/)
+    assert.match(block, /height:\s*100%\s*!important/)
+    assert.match(block, /aspect-ratio:\s*auto/)
+    assert.doesNotMatch(block, /min\(100cqw,\s*calc\(100cqh\s*\*\s*13\s*\/\s*9\)\)/)
     assert.match(block, /sideQuickActions/)
     assert.match(block, /min-height:\s*68px/)
     assert.match(block, /hudOpenBtn/)

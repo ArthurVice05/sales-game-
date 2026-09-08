@@ -8,21 +8,22 @@ import { MANUAL_CONSTANTS } from '../game/manualConstants.js'
 import { buildManagerPurchaseDeltas } from '../game/managersPurchase.js'
 import { previewPurchaseImpact } from '../game/purchasePreview.js'
 import TileContextHint from './TileContextHint.jsx'
+import TileModalShell from './TileModalShell.jsx'
 
 /**
  * Modal para compra de Gestor Comercial.
  *
  * Props:
  *  - onResolve: function
- *      • {action:'BUY', qty:number, unitHire:number, unitExpense:number,
+ *      â€¢ {action:'BUY', qty:number, unitHire:number, unitExpense:number,
  *         totalHire:number, totalExpense:number, cost:number, total:number,
  *         // deltas para o painel:
  *         cashDelta:number, expenseDelta:number, role:'MANAGER'}
- *      • {action:'SKIP'}
- *  - unitHire?: number     (custo de contratação por gestor — padrão 5000)
- *  - unitExpense?: number  (despesa mensal por gestor — padrão 3000)
- *  - managesUpTo?: number  (qtd. colaboradores por gestor — padrão 7, informativo)
- *  - currentCash?: number  (saldo atual do jogador para validação)
+ *      â€¢ {action:'SKIP'}
+ *  - unitHire?: number     (custo de contrataÃ§Ã£o por gestor â€” padrÃ£o 5000)
+ *  - unitExpense?: number  (despesa mensal por gestor â€” padrÃ£o 3000)
+ *  - managesUpTo?: number  (qtd. colaboradores por gestor â€” padrÃ£o 7, informativo)
+ *  - currentCash?: number  (saldo atual do jogador para validaÃ§Ã£o)
  *  - currentPlayer?: object (snapshot somente leitura para preview)
  */
 export default function BuyManagerModal({
@@ -36,7 +37,7 @@ export default function BuyManagerModal({
 }) {
   const closeRef = useRef(null)
   const inputRef = useRef(null)
-  // ✅ CORREÇÃO: Usa onResolve que é injetado pelo ModalContext
+  // âœ… CORREÃ‡ÃƒO: Usa onResolve que Ã© injetado pelo ModalContext
   const { pushModal, awaitTop } = useModal()
 
   const [qty, setQty] = useState('')
@@ -92,7 +93,7 @@ export default function BuyManagerModal({
     setQty(String(bounded))
   }
 
-  // ✅ CORREÇÃO: Usa onResolve diretamente (injetado pelo ModalContext)
+  // âœ… CORREÃ‡ÃƒO: Usa onResolve diretamente (injetado pelo ModalContext)
   const handleClose = (e) => {
     e?.preventDefault?.()
     e?.stopPropagation?.()
@@ -116,7 +117,7 @@ export default function BuyManagerModal({
       return
     }
 
-    // ✅ CORREÇÃO: Usa onResolve diretamente
+    // âœ… CORREÃ‡ÃƒO: Usa onResolve diretamente
     onResolve?.({
       action: 'BUY',
       role: 'MANAGER',
@@ -134,7 +135,7 @@ export default function BuyManagerModal({
       cost: totalHire,
       total: totalHire,
 
-      // deltas explícitos para o painel:
+      // deltas explÃ­citos para o painel:
       cashDelta: -totalHire,
       expenseDelta: totalExpense,
 
@@ -167,251 +168,128 @@ export default function BuyManagerModal({
   }, [])
 
   return (
-    <div
-      style={styles.wrap}
-      role="dialog"
-      aria-modal="true"
-      onMouseDown={(e) => { if (e.target === e.currentTarget) e.stopPropagation() }}
+    <TileModalShell
+      title="Gestor Comercial"
+      onClose={handleClose}
+      closeRef={closeRef}
+      footer={(
+        <>
+          {allowBack && (
+            <button type="button" className="tileModalBtn tileModalBtn--ghost" onClick={handleBack}>
+              Voltar
+            </button>
+          )}
+          <button type="button" className="tileModalBtn tileModalBtn--ghost" onClick={handleClose}>
+            Não comprar
+          </button>
+          <button
+            type="button"
+            className="tileModalBtn tileModalBtn--confirm"
+            onClick={handleBuy}
+            disabled={!canBuy}
+            title={!canBuy ? 'Informe uma quantidade válida' : (cashNow < totalHire ? 'Saldo insuficiente' : undefined)}
+          >
+            {canBuy ? `Contratar por ${money(totalHire)}` : 'Contratar'}
+          </button>
+        </>
+      )}
     >
-      <div style={styles.card} onMouseDown={(e) => e.stopPropagation()}>
-        <button
-          ref={closeRef}
-          type="button"
-          style={styles.close}
-          onClick={handleClose}
-          aria-label="Fechar"
-        >✕</button>
+      <TileContextHint kind="MANAGER" />
 
-        <h2 style={styles.title}>
-          Você pode escolher quantos <b>Gestores</b> quer comprar,
-          <br/>Digite o número de gestores:
-        </h2>
-
-        <TileContextHint kind="MANAGER" />
-
-        <div style={styles.certAlert} role="note">
-          <div style={styles.certAlertTitle}>
-            ⚠ Atenção: sem certificado, o Gestor Comercial não aumenta o faturamento da equipe.
-          </div>
-          <div style={styles.certAlertBonus}>
-            Bônus atual: <b>{boostAt(0)}%</b>
-          </div>
-          <div style={styles.certAlertHint}>
-            Treine/certifique o Gestor para ativar a potencialização.
-          </div>
+      <div className="tileWarn" role="note">
+        <div style={{ fontWeight: 800, marginBottom: 6 }}>
+          Atenção: sem certificado, o Gestor Comercial não aumenta o faturamento da equipe.
         </div>
+        <div>Bônus atual: <b>{boostAt(0)}%</b></div>
+        <div>Treine/certifique o Gestor para ativar a potencialização.</div>
+      </div>
 
-        <p className="purchasePreviewHint" style={{ marginBottom: 10 }}>
-          O Gestor aumenta despesas mensais e não aumenta a capacidade de atendimento.
-          Detalhes por certificação na tabela abaixo.
-        </p>
+      <p className="purchasePreviewHint">
+        O Gestor aumenta despesas mensais e não aumenta a capacidade de atendimento.
+        Base para cálculo de despesa: × quantidade de Gestores. Cada Gestor gerencia
+        até {managesUpTo} colaboradores. Detalhes por certificação nos cards abaixo.
+      </p>
 
-        <div style={styles.inlineInfo}>
-          <div>Saldo disponível: <b>$ {cashNow.toLocaleString()}</b></div>
-          <div>Máximo por saldo: <b>{maxQtyByCash}</b></div>
-        </div>
-
-        <div style={styles.qtyRow}>
-          <input
-            ref={inputRef}
-            type="number"
-            inputMode="numeric"
-            min={1}
-            placeholder="Digite o número de Gestores"
-            value={qty}
-            onChange={(e) => setBoundedQty(e.target.value)}
-            style={styles.input}
-          />
-          <div style={styles.quickBtns}>
-            <button type="button" style={styles.qbtn} onClick={() => setBoundedQty(qtyNum + 1)}>+1</button>
-            <button type="button" style={styles.qbtn} onClick={() => setBoundedQty(qtyNum + 5)}>+5</button>
-            <button type="button" style={styles.qbtn} onClick={() => setBoundedQty(qtyNum + 10)}>+10</button>
+      <div className="tileQtyCost">
+        <div className="tileStatBlock">
+          <div className="tileStatLabel">Quantidade de gestores</div>
+          <div className="tileStepper">
             <button
               type="button"
-              style={styles.qbtn}
+              className="tileStepperBtn"
+              aria-label="Diminuir quantidade"
+              disabled={qtyNum <= 0}
+              onClick={() => setBoundedQty(Math.max(0, qtyNum - 1))}
+            >
+              −
+            </button>
+            <input
+              ref={inputRef}
+              type="number"
+              inputMode="numeric"
+              min={0}
+              placeholder="0"
+              value={qty}
+              onChange={(e) => setBoundedQty(e.target.value)}
+              aria-label="Quantidade de Gestores"
+            />
+            <button
+              type="button"
+              className="tileStepperBtn"
+              aria-label="Aumentar quantidade"
+              onClick={() => setBoundedQty(qtyNum + 1)}
+            >
+              +
+            </button>
+          </div>
+          <div className="tileQuickBtns">
+            <button type="button" className="tileModalBtn" onClick={() => setBoundedQty(qtyNum + 5)}>+5</button>
+            <button type="button" className="tileModalBtn" onClick={() => setBoundedQty(qtyNum + 10)}>+10</button>
+            <button
+              type="button"
+              className="tileModalBtn"
               onClick={() => setBoundedQty(maxQtyByCash)}
               title="Comprar o máximo possível com o saldo atual"
             >
               Máx
             </button>
           </div>
+          <div className="tileStatHint">Máximo por saldo: <b>{maxQtyByCash}</b></div>
         </div>
-
-        <div style={styles.infoBox}>
-          <div style={{fontWeight:800, marginBottom:6}}>GESTOR COMERCIAL</div>
-          <div style={{opacity:.9, marginBottom:8}}>
-            Base para cálculo de despesa: <b>x quantidade de Gestores</b>.<br/>
-            Cada Gestor gerencia até <b>{managesUpTo}</b> colaboradores.
-          </div>
-          <div style={styles.table}>
-            <div style={styles.trHead}>
-              <div style={styles.th}>Certificação</div>
-              <div style={styles.th}>Contratação</div>
-              <div style={styles.th}>Despesa</div>
-              <div style={styles.th}>Efeito</div>
-            </div>
-            <Row
-              label="Sem Certificado"
-              hire={money(unitHire)}
-              expense={money(expenseAt(0))}
-              revenue={`bônus da equipe: ${boostAt(0)}%`}
-            />
-            <Row
-              label="Com 1 certificado"
-              hire="-"
-              expense={money(expenseAt(1))}
-              revenue={`potencializa colaboradores em ${boostAt(1)}%`}
-            />
-            <Row
-              label="Com 2 certificados"
-              hire="-"
-              expense={money(expenseAt(2))}
-              revenue={`potencializa colaboradores em ${boostAt(2)}%`}
-            />
-            <Row
-              label="Com 3 certificados"
-              hire="-"
-              expense={money(expenseAt(3))}
-              revenue={`potencializa colaboradores em ${boostAt(3)}%`}
-            />
-          </div>
-        </div>
-
-        <div style={styles.summary}>
-          <div>Custo de contratação (pagamento único): <b>$ {Number(unitHire).toLocaleString()}</b> / gestor</div>
-          <div>Despesa mensal recorrente (OPEX): <b>$ {Number(unitExpense).toLocaleString()}</b> / gestor</div>
-        </div>
-
-        <div style={styles.summaryStrong}>
-          <div>Total contratar: <b>$ {Number(totalHire).toLocaleString()}</b></div>
-          <div>Despesa mensal total: <b>$ {Number(totalExpense).toLocaleString()}</b></div>
-        </div>
-
-        <PurchaseImpactPreview impact={purchaseImpact} />
-
-        <div style={styles.actions}>
-          {allowBack && (
-            <button type="button" style={{ ...styles.bigBtn, background:'#2a2f3b', color:'#fff' }} onClick={handleBack}>
-              Voltar
-            </button>
-          )}
-          <button
-            type="button"
-            style={{ ...styles.bigBtn, background:'#666', color:'#fff' }}
-            onClick={handleClose}
-          >
-            Não comprar
-          </button>
-          <button
-            type="button"
-            style={{ ...styles.bigBtn, background: canBuy ? '#3fbf49' : '#2f5d33', color:'#09110f' }}
-            onClick={handleBuy}
-            disabled={!canBuy}
-            title={!canBuy ? 'Informe uma quantidade válida' : (cashNow < totalHire ? 'Saldo insuficiente' : undefined)}
-          >
-            Comprar {canBuy ? `(${qtyNum})` : ''}
-          </button>
+        <div className="tileStatBlock">
+          <div className="tileStatLabel">Custo por gestor</div>
+          <div className="tileStatValue">{money(unitHire)}</div>
+          <div className="tileStatHint">Pagamento único · saldo {money(cashNow)}</div>
+          <div className="tileStatHint">Despesa mensal: <b>{money(unitExpense)}</b></div>
         </div>
       </div>
-    </div>
+
+      <div className="tileSectionTitle">Certificações disponíveis</div>
+      <div className="tileCertGrid tileCertGrid--4">
+        <article className="tileCertCard">
+          <h3 className="tileCertName">Sem Certificado</h3>
+          <p>Contratação {money(unitHire)}</p>
+          <p>Despesa {money(expenseAt(0))}</p>
+          <p>bônus da equipe: {boostAt(0)}%</p>
+        </article>
+        <article className="tileCertCard">
+          <h3 className="tileCertName">Com 1 certificado</h3>
+          <p>Despesa {money(expenseAt(1))}</p>
+          <p>potencializa colaboradores em {boostAt(1)}%</p>
+        </article>
+        <article className="tileCertCard">
+          <h3 className="tileCertName">Com 2 certificados</h3>
+          <p>Despesa {money(expenseAt(2))}</p>
+          <p>potencializa colaboradores em {boostAt(2)}%</p>
+        </article>
+        <article className="tileCertCard">
+          <h3 className="tileCertName">Com 3 certificados</h3>
+          <p>Despesa {money(expenseAt(3))}</p>
+          <p>potencializa colaboradores em {boostAt(3)}%</p>
+        </article>
+      </div>
+
+      <PurchaseImpactPreview impact={purchaseImpact} />
+    </TileModalShell>
   )
-}
-
-function Row({ label, hire, expense, revenue }) {
-  const fmt = (v) => (typeof v === 'number' ? `$ ${Number(v).toLocaleString()}` : v)
-  return (
-    <div style={styles.tr}>
-      <div style={styles.td}>{label}</div>
-      <div style={styles.td}>{fmt(hire)}</div>
-      <div style={styles.td}>{fmt(expense)}</div>
-      <div style={styles.td}>{revenue}</div>
-    </div>
-  )
-}
-
-const styles = {
-  wrap: {
-    position:'fixed', inset:0, background:'rgba(0,0,0,.55)',
-    display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000
-  },
-  card: {
-    width:'min(880px, 92vw)', maxWidth:880, background:'#1b1f2a',
-    color:'#e9ecf1', borderRadius:16, padding:'20px 20px 16px',
-    boxShadow:'0 10px 40px rgba(0,0,0,.4)', border:'1px solid rgba(255,255,255,.12)',
-    position:'relative',
-    maxHeight: '92vh',
-    overflowY: 'auto',
-  },
-  close: {
-    position:'absolute', right:10, top:10, width:36, height:36,
-    borderRadius:10, border:'1px solid rgba(255,255,255,.15)', background:'#2a2f3b',
-    color:'#fff', cursor:'pointer'
-  },
-  title: { margin:'6px 0 12px', fontWeight:800, lineHeight:1.3 },
-  certAlert: {
-    margin: '0 0 12px',
-    padding: '10px 12px',
-    borderRadius: 10,
-    background: 'rgba(245, 158, 11, 0.14)',
-    border: '1px solid rgba(245, 158, 11, 0.55)',
-    color: '#FFE8B0',
-    lineHeight: 1.35,
-  },
-  certAlertTitle: {
-    fontWeight: 800,
-    fontSize: 14,
-    color: '#FFD27A',
-    marginBottom: 4,
-  },
-  certAlertBonus: {
-    fontSize: 13,
-    fontWeight: 700,
-    color: '#FFF3D0',
-    marginBottom: 2,
-  },
-  certAlertHint: {
-    fontSize: 12,
-    opacity: 0.95,
-    color: '#F6E7C1',
-  },
-  inlineInfo: {
-    display:'flex', justifyContent:'space-between', gap:10,
-    margin:'0 0 8px', opacity:.95, fontWeight:700, flexWrap:'wrap'
-  },
-  qtyRow: { display:'flex', gap:8, alignItems:'center', marginBottom:12, flexWrap:'wrap' },
-  input: {
-    flex:'1 1 260px', height:42, borderRadius:10, padding:'0 12px',
-    border:'1px solid rgba(255,255,255,.18)', background:'#0f1320', color:'#fff',
-    outline:'none'
-  },
-  quickBtns: { display:'flex', gap:6, flexWrap:'wrap' },
-  qbtn: {
-    height:42, padding:'0 12px', borderRadius:10, border:'1px solid rgba(255,255,255,.18)',
-    background:'#2a2f3b', color:'#fff', cursor:'pointer', fontWeight:800
-  },
-  infoBox: {
-    border:'1px solid rgba(255,255,255,.12)', borderRadius:12,
-    padding:'12px', background:'#101522', marginBottom:12
-  },
-  table: { border:'1px solid rgba(255,255,255,.12)', borderRadius:10, overflow:'hidden' },
-  trHead: { display:'grid', gridTemplateColumns:'2fr 1fr 1fr 3fr', background:'#121621' },
-  th: { padding:'10px 12px', fontWeight:800, borderLeft:'1px solid rgba(255,255,255,.06)' },
-  tr: { display:'grid', gridTemplateColumns:'2fr 1fr 1fr 3fr', background:'#0f1320' },
-  td: { padding:'10px 12px', borderTop:'1px solid rgba(255,255,255,.06)', borderLeft:'1px solid rgba(255,255,255,.06)' },
-
-  summary: {
-    display:'flex', justifyContent:'space-between',
-    border:'1px dashed rgba(255,255,255,.2)', borderRadius:10, padding:'8px 12px',
-    marginTop:10, flexWrap:'wrap', gap:10
-  },
-  summaryStrong: {
-    display:'flex', justifyContent:'space-between',
-    border:'1px solid rgba(255,255,255,.25)', borderRadius:10, padding:'10px 12px',
-    marginTop:8, fontWeight:800, flexWrap:'wrap', gap:10
-  },
-  actions: { display:'flex', gap:12, justifyContent:'center', marginTop:12, flexWrap:'wrap' },
-  bigBtn: {
-    minWidth:180, padding:'12px 18px', borderRadius:12, border:'none',
-    fontWeight:900, cursor:'pointer'
-  },
 }

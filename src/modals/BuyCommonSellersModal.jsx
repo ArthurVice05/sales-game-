@@ -8,12 +8,13 @@ import { MANUAL_CONSTANTS } from '../game/manualConstants.js'
 import { buildCommonSellersPurchaseDeltas } from '../game/commonSellersPurchase.js'
 import { previewPurchaseImpact } from '../game/purchasePreview.js'
 import TileContextHint from './TileContextHint.jsx'
+import TileModalShell from './TileModalShell.jsx'
 
 /**
  * Modal de compra de Vendedores Comuns (faz tudo)
  *
  * Resolve com:
- *  • { action:'BUY',
+ *  â€¢ { action:'BUY',
  *      role:'COMMON',
  *      qty:number, headcount:number,
  *      unitHire:number, unitExpense:number,
@@ -21,14 +22,14 @@ import TileContextHint from './TileContextHint.jsx'
  *      // compat extras
  *      total:number, cost:number,
  *      // >>> deltas p/ painel e saldo:
- *      cashDelta:number,        // negativo (debita contratação)
+ *      cashDelta:number,        // negativo (debita contrataÃ§Ã£o)
  *      expenseDelta:number,     // positivo (despesa mensal total)
  *      revenueDelta:number,     // positivo (receita mensal base)
  *      revenuePerSeller:number, // 600
  *      attendsUpTo:number,
  *      hudUpdate:{ category:'Vendedores Comuns', addQty:number }
  *    }
- *  • { action:'SKIP' }
+ *  â€¢ { action:'SKIP' }
  *  - currentCash?: number
  *  - currentPlayer?: object (snapshot somente leitura para preview)
  */
@@ -45,7 +46,7 @@ export default function BuyCommonSellersModal({
   const closeRef = useRef(null)
   const inputRef = useRef(null)
 
-  // ✅ CORREÇÃO: Usa onResolve que é injetado pelo ModalContext
+  // âœ… CORREÃ‡ÃƒO: Usa onResolve que Ã© injetado pelo ModalContext
   const { pushModal, awaitTop } = useModal()
 
   const priceHire = Number(unitHire || 0)
@@ -132,7 +133,7 @@ export default function BuyCommonSellersModal({
     setQty(String(bounded))
   }
 
-  // ✅ CORREÇÃO: Usa onResolve diretamente (injetado pelo ModalContext)
+  // âœ… CORREÃ‡ÃƒO: Usa onResolve diretamente (injetado pelo ModalContext)
   const handleClose = (ev) => {
     ev?.stopPropagation?.()
     onResolve?.({ action: 'SKIP' })
@@ -187,7 +188,7 @@ export default function BuyCommonSellersModal({
       hudUpdate: { category: 'Vendedores Comuns', addQty: qtyNum },
     }
 
-    // ✅ CORREÇÃO: Usa onResolve diretamente
+    // âœ… CORREÃ‡ÃƒO: Usa onResolve diretamente
     onResolve?.(payload)
   }
 
@@ -214,191 +215,129 @@ export default function BuyCommonSellersModal({
   }, [])
 
   return (
-    <div
-      className="vcWrap"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Comprar Vendedores Comuns"
-      onMouseDown={(e) => { if (e.target === e.currentTarget) e.stopPropagation() }}
+    <TileModalShell
+      title="Vendedor Comum"
+      label="Comprar Vendedores Comuns"
+      onClose={handleClose}
+      closeRef={closeRef}
+      footer={(
+        <>
+          {allowBack && (
+            <button type="button" className="tileModalBtn tileModalBtn--ghost" onClick={handleBack}>
+              Voltar
+            </button>
+          )}
+          <button type="button" className="tileModalBtn tileModalBtn--ghost" onClick={handleClose}>
+            Não comprar
+          </button>
+          <button
+            type="button"
+            className="tileModalBtn tileModalBtn--confirm"
+            disabled={!canBuy}
+            onClick={handleBuy}
+            title={!canBuy ? 'Informe uma quantidade válida' : (cashNow < totalHire ? 'Saldo insuficiente' : undefined)}
+          >
+            {canBuy ? `Contratar por ${money(totalHire)}` : 'Contratar'}
+          </button>
+        </>
+      )}
     >
-      <div className="vcCard" onMouseDown={(e) => e.stopPropagation()}>
-        <button
-          ref={closeRef}
-          type="button"
-          style={styles.close}
-          onClick={handleClose}
-          aria-label="Fechar"
-        >✕</button>
+      <TileContextHint kind="COMMON" />
 
-        <h2 className="vcTitle">
-          Você pode escolher quantos <b>Vendedores Comuns</b> quer comprar,
-          <br/>Digite o número de vendedores:
-        </h2>
+      <p className="purchasePreviewHint">
+        O Vendedor Comum aumenta a capacidade de atendimento em {attendsUpTo} clientes, gera
+        faturamento e adiciona uma despesa mensal. Treinamentos podem aumentar seu
+        faturamento e suas despesas. Gestores certificados podem potencializar o
+        faturamento dos vendedores. Base de despesa: × quantidade vendedor comum.
+        Base de faturamento: × quantidade máxima de clientes que cada vendedor pode
+        atender. Atende até {attendsUpTo} clientes.
+      </p>
 
-        <TileContextHint kind="COMMON" />
-
-        <p className="purchasePreviewHint">
-          O Vendedor Comum aumenta a capacidade de atendimento em {attendsUpTo} clientes, gera
-          faturamento e adiciona uma despesa mensal. Treinamentos podem aumentar seu
-          faturamento e suas despesas. Gestores certificados podem potencializar o
-          faturamento dos vendedores.
-        </p>
-
-        <div style={styles.inlineInfo}>
-          <div>Saldo disponível: <b>$ {cashNow.toLocaleString()}</b></div>
-          <div>Máximo por saldo: <b>{maxQtyByCash}</b></div>
-        </div>
-
-        <div style={styles.qtyRow}>
-          <input
-            ref={inputRef}
-            type="number"
-            inputMode="numeric"
-            min={1}
-            placeholder="Digite o número de Vendedores Comuns"
-            value={qty}
-            onChange={(e) => setBoundedQty(e.target.value)}
-            style={styles.input}
-          />
-          <div style={styles.quickBtns}>
-            <button type="button" style={styles.qbtn} onClick={() => setBoundedQty(qtyNum + 1)}>+1</button>
-            <button type="button" style={styles.qbtn} onClick={() => setBoundedQty(qtyNum + 5)}>+5</button>
-            <button type="button" style={styles.qbtn} onClick={() => setBoundedQty(qtyNum + 10)}>+10</button>
+      <div className="tileQtyCost">
+        <div className="tileStatBlock">
+          <div className="tileStatLabel">Quantidade de representantes</div>
+          <div className="tileStepper">
             <button
               type="button"
-              style={styles.qbtn}
+              className="tileStepperBtn"
+              aria-label="Diminuir quantidade"
+              disabled={qtyNum <= 0}
+              onClick={() => setBoundedQty(Math.max(0, qtyNum - 1))}
+            >
+              −
+            </button>
+            <input
+              ref={inputRef}
+              type="number"
+              inputMode="numeric"
+              min={0}
+              placeholder="0"
+              value={qty}
+              onChange={(e) => setBoundedQty(e.target.value)}
+              aria-label="Quantidade de Vendedores Comuns"
+            />
+            <button
+              type="button"
+              className="tileStepperBtn"
+              aria-label="Aumentar quantidade"
+              onClick={() => setBoundedQty(qtyNum + 1)}
+            >
+              +
+            </button>
+          </div>
+          <div className="tileQuickBtns">
+            <button type="button" className="tileModalBtn" onClick={() => setBoundedQty(qtyNum + 5)}>+5</button>
+            <button type="button" className="tileModalBtn" onClick={() => setBoundedQty(qtyNum + 10)}>+10</button>
+            <button
+              type="button"
+              className="tileModalBtn"
               onClick={() => setBoundedQty(maxQtyByCash)}
               title="Comprar o máximo possível com o saldo atual"
             >
               Máx
             </button>
           </div>
+          <div className="tileStatHint">Máximo por saldo: <b>{maxQtyByCash}</b></div>
         </div>
-
-        <div className="vcInfoBox" style={styles.infoBox}>
-          <div style={{fontWeight:800, marginBottom:6}}>VENDEDOR COMUM (FAZ TUDO)</div>
-          <div style={{opacity:.9, marginBottom:8}}>
-            Base para cálculo despesa: <b>x quantidade vendedor comum</b>.<br/>
-            Base para cálculo faturamento: <b>x quantidade máxima de clientes que cada vendedor pode atender</b>.<br/>
-            <b>Atende até {attendsUpTo} clientes</b>.
-          </div>
-
-          <div className="vcTable">
-            <div className="vcTrHead">
-              <div className="vcTh">Certificação</div>
-              <div className="vcTh">Contratação</div>
-              <div className="vcTh">Despesa</div>
-              <div className="vcTh">Faturamento</div>
-            </div>
-            <div style={{ opacity: 0.9, marginBottom: 8, fontSize: 13 }}>
-              Base s/ certificado: despesa <b>{money(baseExpense)}</b> · fat <b>{money(baseRevenue)}</b> / cliente-cap.
-              Cada cor tem efeito diferente (acumulam). Capacidade não muda.
-            </div>
-            <Row label="S/ Certificado" hire={money(unitHire)} expense={money(baseExpense)} revenue={money(baseRevenue)} />
-            {certRows.map((row) => (
-              <Row key={row.id} label={row.label} hire={row.note} expense={row.expense} revenue={row.revenue} />
-            ))}
-          </div>
-        </div>
-
-        <div style={styles.summary}>
-          <div>Custo de contratação (pagamento único): <b>$ {Number(unitHire).toLocaleString()}</b> / vendedor</div>
-          <div>Despesa mensal recorrente (OPEX): <b>$ {Number(unitExpense).toLocaleString()}</b> / vendedor</div>
-        </div>
-
-        <div style={styles.summaryStrong}>
-          <div>Total contratar: <b>$ {Number(totalHire).toLocaleString()}</b></div>
-          <div>Despesa mensal total: <b>$ {Number(totalExpense).toLocaleString()}</b></div>
-        </div>
-
-        <PurchaseImpactPreview impact={purchaseImpact} />
-
-        <div style={styles.actions}>
-          {allowBack && (
-            <button type="button" style={{ ...styles.bigBtn, background:'#2a2f3b', color:'#fff' }} onClick={handleBack}>
-              Voltar
-            </button>
-          )}
-          <button
-            type="button"
-            style={{ ...styles.bigBtn, background:'#666', color:'#fff' }}
-            onClick={handleClose}
-          >
-            Não comprar
-          </button>
-
-          <button
-            type="button"
-            disabled={!canBuy}
-            style={{
-              ...styles.bigBtn,
-              background: canBuy ? '#7cbe1a' : '#3a3f4a',
-              color:'#0d1200',
-              fontWeight:900
-            }}
-            onClick={handleBuy}
-            title={!canBuy ? 'Informe uma quantidade válida' : (cashNow < totalHire ? 'Saldo insuficiente' : undefined)}
-          >
-            Comprar
-          </button>
+        <div className="tileStatBlock">
+          <div className="tileStatLabel">Custo por representante</div>
+          <div className="tileStatValue">{money(unitHire)}</div>
+          <div className="tileStatHint">Pagamento único · saldo {money(cashNow)}</div>
+          <div className="tileStatHint">Despesa mensal: <b>{money(unitExpense)}</b></div>
         </div>
       </div>
-    </div>
-  )
-}
 
-function Row({ label, hire, expense, revenue }) {
-  return (
-    <div className="vcTr">
-      <div className="vcTd vcTdName" data-label="Certificação">{label}</div>
-      <div className="vcTd" data-label="Contratação">{hire}</div>
-      <div className="vcTd" data-label="Despesa">{expense}</div>
-      <div className="vcTd" data-label="Faturamento">{revenue}</div>
-    </div>
-  )
-}
+      <div className="tileSectionTitle">Certificações disponíveis</div>
+      <div className="tileBanner" style={{ marginBottom: 10 }}>
+        <div className="tileCertMeta">
+          <span className="tileCertPill tileCertPill--base">S/ certificado</span>
+        </div>
+        <div className="tileCertEffect">
+          <div className="tileCertEffectRow"><span>Contratação</span><strong>{money(unitHire)}</strong></div>
+          <div className="tileCertEffectRow"><span>Despesa mensal</span><strong>{money(baseExpense)}</strong></div>
+          <div className="tileCertEffectRow"><span>Faturamento mensal</span><strong>{money(baseRevenue)}</strong></div>
+        </div>
+      </div>
+      <div className="tileCertGrid">
+        {certRows.map((row) => {
+          const tone = row.id === 'personalizado' ? 'blue' : row.id === 'fieldsales' ? 'yellow' : 'purple'
+          return (
+            <article key={row.id} className="tileCertCard">
+              <div className="tileCertMeta">
+                <span className={`tileCertPill tileCertPill--${tone}`}>{row.label.split(' ')[0]}</span>
+              </div>
+              <h3 className="tileCertName">{row.label}</h3>
+              <p>{row.note}</p>
+              <div className="tileCertEffect">
+                <div className="tileCertEffectRow"><span>Despesa mensal</span><strong>{row.expense}</strong></div>
+                <div className="tileCertEffectRow"><span>Faturamento mensal</span><strong>{row.revenue}</strong></div>
+              </div>
+            </article>
+          )
+        })}
+      </div>
 
-const styles = {
-  /* wrap, card, title e a tabela de certificações migraram para classes CSS
-     responsivas (.vcWrap, .vcCard, .vcTitle, .vcTable/.vcTr/.vcTd
-     em styles.css) */
-  close: {
-    position:'absolute', right:10, top:10, width:36, height:36,
-    borderRadius:10, border:'1px solid rgba(255,255,255,.15)', background:'#2a2f3b',
-    color:'#fff', cursor:'pointer'
-  },
-  inlineInfo: {
-    display:'flex', justifyContent:'space-between', gap:10,
-    margin:'0 0 8px', opacity:.95, fontWeight:700, flexWrap:'wrap'
-  },
-  qtyRow: { display:'flex', gap:8, alignItems:'center', marginBottom:12, flexWrap:'wrap' },
-  input: {
-    flex:'1 1 260px', height:42, borderRadius:10, padding:'0 12px',
-    border:'1px solid rgba(255,255,255,.18)', background:'#111522',
-    color:'#eef2f7', outline:'none'
-  },
-  quickBtns: { display:'flex', gap:6, flexWrap:'wrap' },
-  qbtn: {
-    height:42, padding:'0 12px', borderRadius:10, border:'1px solid rgba(255,255,255,.18)',
-    background:'#2a2f3b', color:'#fff', cursor:'pointer', fontWeight:800
-  },
-  infoBox: {
-    background:'#161a28', border:'1px solid rgba(255,255,255,.12)',
-    borderRadius:14, padding:14, marginTop:6
-  },
-  summary: {
-    display:'flex', justifyContent:'space-between',
-    border:'1px dashed rgba(255,255,255,.2)', borderRadius:10, padding:'8px 12px',
-    marginTop:10, flexWrap:'wrap', gap:10
-  },
-  summaryStrong: {
-    display:'flex', justifyContent:'space-between',
-    border:'1px solid rgba(255,255,255,.25)', borderRadius:10, padding:'10px 12px',
-    marginTop:8, fontWeight:800, flexWrap:'wrap', gap:10
-  },
-  actions: { display:'flex', gap:12, justifyContent:'center', marginTop:12, flexWrap:'wrap' },
-  bigBtn: {
-    minWidth:180, padding:'12px 18px', borderRadius:12, border:'none',
-    fontWeight:900, cursor:'pointer'
-  },
+      <PurchaseImpactPreview impact={purchaseImpact} />
+    </TileModalShell>
+  )
 }

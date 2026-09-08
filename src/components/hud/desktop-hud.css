@@ -1,0 +1,866 @@
+/* HUD — apresentação. Não altera geometria nem CSS interno do board. */
+
+.page[data-game-shell] {
+  --hud-bg: #060d19;
+  --hud-panel: #0b1424;
+  --hud-panel-raised: #101a2c;
+  --hud-border: rgba(255, 255, 255, 0.07);
+  --hud-text: #f4f6fb;
+  --hud-muted: #8e98aa;
+  --hud-purple: #5147e9;
+  --hud-gold: #d7aa29;
+  --hud-positive: #58d36b;
+  --hud-negative: #ef6262;
+}
+
+.gameDesktopHeader,
+.hudDesktop,
+.hudSheet,
+.hudCompactPeek,
+.page[data-game-shell] > .topbar,
+.page[data-game-shell] .content > .side,
+.page[data-game-shell] .moreSheet {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --hud-bg: #060d19;
+  --hud-panel: #0b1424;
+  --hud-panel-raised: #101a2c;
+  --hud-border: rgba(255, 255, 255, 0.07);
+  --hud-text: #f4f6fb;
+  --hud-muted: #8e98aa;
+  --hud-purple: #5147e9;
+  --hud-gold: #d7aa29;
+  --hud-positive: #58d36b;
+  --hud-negative: #ef6262;
+}
+
+.gameDesktopHeader,
+.hudDesktop,
+.hudCompactPeek {
+  display: none;
+}
+
+.hudMetricCard,
+.hudDesktopTab,
+.hudStatRow span,
+.hudGaugeLabel,
+.hudGaugeValue,
+.hudRosterName {
+  overflow-wrap: normal;
+  word-break: keep-all;
+  hyphens: none;
+}
+
+.hudMetricCard {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1 1 112px;
+  max-width: 168px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--hud-border);
+  background: var(--hud-panel);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+  box-sizing: border-box;
+}
+
+.hudMetricCardIcon {
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0.9;
+}
+
+.hudMetricCardBody {
+  min-width: 0;
+}
+
+.hudMetricCardLabel {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--hud-muted);
+  overflow-wrap: normal;
+  word-break: keep-all;
+  hyphens: none;
+}
+
+.hudMetricCardValue {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.hudMetricCard--positive .hudMetricCardValue { color: var(--hud-positive); }
+.hudMetricCard--negative .hudMetricCardValue { color: var(--hud-negative); }
+.hudMetricCard--neutral .hudMetricCardValue { color: var(--hud-text); }
+
+.hudDesktop {
+  flex-direction: column;
+  gap: 12px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  color: var(--hud-text);
+}
+
+.hudFinanceStrip {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.hudFinanceStrip .hudMetricCard {
+  max-width: none;
+  flex: 1 1 auto;
+}
+
+.hudDesktopTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid var(--hud-border);
+}
+
+.hudDesktopTab {
+  appearance: none;
+  border: 0;
+  border-radius: 10px;
+  min-height: 32px;
+  flex: 1 1 72px;
+  padding: 0 8px;
+  background: transparent;
+  color: var(--hud-muted);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.hudDesktopTab:focus-visible,
+.hudRankingLink:focus-visible {
+  outline: 2px solid var(--hud-purple);
+  outline-offset: 1px;
+}
+
+.hudDesktopTab.is-active {
+  background: var(--hud-panel-raised);
+  color: var(--hud-text);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.hudDesktopPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.hudCard {
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--hud-border);
+  background: var(--hud-panel-raised);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.16);
+}
+
+.hudCardTitle {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--hud-text);
+  overflow-wrap: normal;
+  word-break: keep-all;
+  hyphens: none;
+}
+
+.hudCardHint {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--hud-muted);
+}
+
+.hudDesktop .diceResult {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.hudDesktop .diceResultHeader {
+  display: none;
+}
+
+.hudGaugeRow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.hudGauge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.hudGaugeRing {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+}
+
+.hudGaugeRing--empty {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.hudGaugeHole {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--hud-panel-raised);
+}
+
+.hudGaugeLabel {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--hud-muted);
+}
+
+.hudGaugeValue {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.hudGaugeDetail {
+  display: block;
+  font-size: 11px;
+  color: var(--hud-muted);
+}
+
+.hudRoster,
+.hudRanking {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hudRosterRow,
+.hudRankingRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.16);
+}
+
+.hudRosterDot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.12);
+}
+
+.hudRosterMeta,
+.hudRankingMeta {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.hudRosterName,
+.hudRankingMeta strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.hudRosterFlags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.hudChip {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--hud-muted);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.hudChip--gold {
+  color: var(--hud-gold);
+  background: rgba(215, 170, 41, 0.12);
+}
+
+.hudChip--active {
+  color: #d7d3ff;
+  background: rgba(81, 71, 233, 0.18);
+}
+
+.hudChip--warn {
+  color: #f0c36d;
+  background: rgba(215, 170, 41, 0.16);
+}
+
+.hudChip--danger {
+  color: var(--hud-negative);
+  background: rgba(239, 98, 98, 0.14);
+}
+
+.hudRankingLink {
+  appearance: none;
+  margin-top: 10px;
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid rgba(215, 170, 41, 0.28);
+  border-radius: 10px;
+  background: rgba(215, 170, 41, 0.08);
+  color: var(--hud-gold);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.hudRankingPlace {
+  width: 28px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--hud-muted);
+}
+
+.hudRankingMeta span {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--hud-muted);
+}
+
+.hudRankingPat {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.hudStatRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--hud-border);
+  font-size: 13px;
+}
+
+.hudStatRow:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.hudStatRow span {
+  color: var(--hud-muted);
+  font-weight: 600;
+}
+
+@media (min-width: 1200px) {
+  .page[data-game-shell] {
+    --topbar-h: 80px;
+    --side-w: clamp(320px, 22vw, 370px);
+    background: #060d19;
+  }
+
+  .page[data-game-shell] > .topbar {
+    display: none;
+  }
+
+  .gameDesktopHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    height: var(--topbar-h);
+    min-height: var(--topbar-h);
+    max-height: var(--topbar-h);
+    padding: 8px 16px;
+    background: var(--hud-bg);
+    border-bottom: 1px solid var(--hud-border);
+    box-sizing: border-box;
+    z-index: 4;
+  }
+
+  .gdhBrand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    flex: 0 1 auto;
+  }
+
+  .gdhLogo {
+    height: 44px;
+    width: auto;
+    max-width: 148px;
+    object-fit: contain;
+    display: block;
+  }
+
+  .gdhHost,
+  .gdhPlayer,
+  .gdhSpectator {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 32px;
+    padding: 0 12px;
+    border-radius: 999px;
+    border: 1px solid var(--hud-border);
+    background: var(--hud-panel-raised);
+    color: var(--hud-text);
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .gdhHost {
+    color: var(--hud-gold);
+    border-color: rgba(215, 170, 41, 0.28);
+    background: rgba(215, 170, 41, 0.08);
+  }
+
+  .gdhHost--other {
+    color: #e6d7a2;
+  }
+
+  .gdhPlayerDot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.16);
+  }
+
+  .gdhPlayerName {
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .gdhMetrics {
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+    min-width: 0;
+    flex: 1 1 auto;
+    justify-content: flex-end;
+  }
+
+  .gameDesktopHeader .turnTimer {
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    text-align: left;
+  }
+
+  .gameDesktopHeader .turnTimerLabel,
+  .gameDesktopHeader .turnTimerPauseHint {
+    display: none;
+  }
+
+  .gameDesktopHeader .turnTimerValue {
+    font-size: 18px;
+    font-weight: 700;
+  }
+
+  .gameDesktopHeader .turnTimerTrack {
+    margin-top: 4px;
+    width: 72px;
+  }
+
+  .page[data-game-shell] .content {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) var(--side-w);
+    gap: 12px;
+    padding: 12px;
+    background: var(--hud-bg);
+    box-sizing: border-box;
+  }
+
+  .page[data-game-shell] .content > .boardWrap {
+    min-width: 0;
+    min-height: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .page[data-game-shell] .content > .side {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    flex: none;
+    height: 100%;
+    padding: 12px;
+    border-radius: 14px;
+    border: 1px solid var(--hud-border);
+    background: var(--hud-panel);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
+    z-index: 3;
+    box-sizing: border-box;
+  }
+
+  .page[data-game-shell] .content .side > .hud.hud--inline {
+    display: none;
+  }
+
+  .page[data-game-shell] .sideSecondary {
+    display: none;
+  }
+
+  .page[data-game-shell] .hudOpenBtn {
+    display: none;
+  }
+
+  .hudDesktop {
+    display: flex;
+  }
+
+  .page[data-game-shell] .turnPrimaryActions {
+    gap: 8px;
+    padding-top: 8px;
+  }
+
+  .page[data-game-shell] .turnPrimaryActions .nextStepHint {
+    margin: 0;
+    padding: 8px 12px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    overflow-wrap: normal;
+    word-break: keep-all;
+    hyphens: none;
+  }
+
+  .page[data-game-shell] .sideQuickActions {
+    gap: 8px;
+  }
+
+  .page[data-game-shell] .turnPrimaryActions .btn.go {
+    min-height: 56px;
+    border-radius: 12px;
+    font-weight: 800;
+  }
+}
+
+@media (min-width: 1200px) and (max-width: 1439px) {
+  .gdhLogo { height: 36px; max-width: 112px; }
+  .gdhPlayerName { max-width: 96px; }
+  .hudMetricCard { padding: 6px 8px; flex-basis: 96px; }
+  .hudMetricCardValue,
+  .gameDesktopHeader .turnTimerValue { font-size: 18px; }
+}
+
+.page[data-game-shell] .hudSheet {
+  box-sizing: border-box;
+  width: min(760px, 100%);
+  max-height: min(88dvh, 100%);
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px 14px 10px 10px;
+  border: 1px solid var(--hud-border);
+  background: var(--hud-panel);
+  box-shadow: 0 -10px 28px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.page[data-game-shell] .hudSheetHeader {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--hud-border);
+  font-size: 15px;
+}
+
+.page[data-game-shell] .hudSheetBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 10px 12px 14px;
+}
+
+.hudSheet .hudDesktop {
+  display: flex;
+  font-size: 15px;
+}
+
+.hudSheet .hudCardTitle {
+  font-size: 16px;
+}
+
+.hudSheet .hudDesktopTab {
+  min-height: 40px;
+  font-size: 14px;
+}
+
+.hudSheet .hudStatRow,
+.hudSheet .hudRosterName,
+.hudSheet .hudRankingMeta strong {
+  font-size: 15px;
+}
+
+.page[data-game-shell] .content > .side .turnPrimaryActions .nextStepHint {
+  overflow-wrap: normal;
+  word-break: keep-all;
+  hyphens: none;
+  color: #ffffff;
+  background: #141c38;
+  border: 1px solid rgba(165, 180, 252, 0.55);
+}
+
+.page[data-game-shell] .content > .side .turnPrimaryActions .nextStepHint.nextStepHintMyTurn {
+  color: #ffffff;
+  background: #12183a;
+  border-color: #c7d2fe;
+}
+
+.page[data-game-shell] .content > .side .turnPrimaryActions .btn.go {
+  background: #5147e9;
+  background-color: #5147e9;
+  color: #ffffff;
+  border: 2px solid #d4d1ff;
+  box-shadow: 0 4px 14px rgba(81, 71, 233, 0.38);
+  opacity: 1;
+  filter: none;
+}
+
+.page[data-game-shell] .content > .side .turnPrimaryActions .btn.go:not([disabled]):hover,
+.page[data-game-shell] .content > .side .turnPrimaryActions .btn.go:not([aria-disabled="true"]):hover {
+  background: #5c54f0;
+  background-color: #5c54f0;
+}
+
+.page[data-game-shell] .content > .side .turnPrimaryActions .btn.go:not([disabled]):active,
+.page[data-game-shell] .content > .side .turnPrimaryActions .btn.go:not([aria-disabled="true"]):active {
+  background: #4338ca;
+  background-color: #4338ca;
+}
+
+.page[data-game-shell] .content > .side .turnPrimaryActions .btn.go[disabled],
+.page[data-game-shell] .content > .side .turnPrimaryActions .btn.go[aria-disabled="true"] {
+  background: #2c3458;
+  background-color: #2c3458;
+  color: #d7dceb;
+  border-color: #6b7394;
+  opacity: 1;
+  filter: none;
+  cursor: not-allowed;
+}
+
+.page[data-game-shell] .hudSheetBackdrop {
+  display: flex !important;
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  box-sizing: border-box;
+  align-items: flex-end;
+  justify-content: center;
+  pointer-events: auto;
+  padding:
+    max(6px, env(safe-area-inset-top, 0px))
+    max(6px, env(safe-area-inset-right, 0px))
+    max(6px, env(safe-area-inset-bottom, 0px))
+    max(6px, env(safe-area-inset-left, 0px));
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.hudCompactPeek {
+  min-width: 0;
+  padding: 4px 6px;
+  border-radius: 10px;
+  border: 1px solid var(--hud-border, rgba(255, 255, 255, 0.08));
+  background: var(--hud-panel-raised, #101a2c);
+  color: #ffffff;
+}
+
+.hudCompactPeek .diceResult {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.hudCompactPeek .diceResultHeader {
+  display: none;
+}
+
+.hudCompactPeek .diceResultHelp {
+  display: none;
+}
+
+.hudCompactPeek .diceResultDie {
+  width: 28px;
+  height: 28px;
+}
+
+.hudCompactPeek .diceResultPip {
+  width: 5px;
+  height: 5px;
+}
+
+.hudCompactPeek .diceResultPlayer,
+.hudCompactPeek .diceResultHelp {
+  overflow-wrap: normal;
+  word-break: keep-all;
+  hyphens: none;
+}
+
+.hudCompactPeek .diceResultPlayer {
+  font-size: 13px;
+  color: #ffffff;
+}
+
+.hudCompactPeekMetrics {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.hudCompactPeek .hudMetricCard {
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: none;
+  padding: 3px 6px;
+}
+
+.hudCompactPeek .hudMetricCardBody {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
+.hudCompactPeek .hudMetricCardLabel {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 12px;
+  color: #d7dceb;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.hudCompactPeek .hudMetricCardValue {
+  font-size: 13px;
+  flex: 0 0 auto;
+  color: #ffffff;
+}
+
+.hudCompactPeek .hudMetricCard--positive .hudMetricCardValue { color: #58d36b; }
+.hudCompactPeek .hudMetricCard--negative .hudMetricCardValue { color: #ef6262; }
+
+.hudCompactPeekGauges {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hudCompactPeekGauge {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  padding: 3px 6px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #0b1424;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.hudCompactPeekGauge span {
+  color: #d7dceb;
+}
+
+.page[data-game-shell]:has(.compactActionRow) .content > .side {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.page[data-game-shell]:has(.compactActionRow) .turnPrimaryActions {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.page[data-game-shell]:has(.compactActionRow) .hudCompactPeek {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.page[data-game-shell]:has(.compactActionRow) .compactActionRow .hudOpenBtn,
+.page[data-game-shell]:has(.compactActionRow) .compactActionRow .moreOpenBtn,
+.page[data-game-shell]:has(.compactActionRow) .turnPrimaryActions .btn.go {
+  min-height: 44px;
+}
+
+.page[data-game-shell]:has(.compactActionRow) .side > .hud.hud--inline,
+.page[data-game-shell]:has(.compactActionRow) .sideSecondary {
+  display: none !important;
+}
+
+.page[data-game-shell] .moreSheetBackdrop.is-open {
+  align-items: flex-end;
+  justify-content: flex-end;
+}
+
+.page[data-game-shell] .moreSheet {
+  height: auto;
+  max-height: min(70dvh, calc(100% - 16px));
+  margin: 8px;
+  margin-right: max(8px, env(safe-area-inset-right, 0px));
+  margin-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+  border-radius: 14px;
+  border: 1px solid var(--hud-border);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}

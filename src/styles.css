@@ -467,6 +467,15 @@ html, body {
 .hudSheetBackdrop{
   display: none;
 }
+.hostLabelShort,
+.moneyCompact,
+.hudOpenLabel--short,
+.rollLabelShort,
+.moreOpenBtn,
+.compactActionRow,
+.moreSheetBackdrop {
+  display: none;
+}
 
 /* Painéis / HUD */
 .hud .panel{ background:#171717; border:1px solid #2a2a2a; border-radius:10px; padding:10px; }
@@ -5575,15 +5584,19 @@ img[src*="multiplier"]{
     min-width: 0; min-height: 0; margin: 0; padding: 0;
     display: flex; align-items: center; justify-content: center;
     overflow: hidden;
+    container-type: size;
   }
 
   .page .content .boardWrap > .board.sg40GameBoard,
   .page .content .boardWrap > .sg40GameBoard {
-    box-sizing: border-box; flex: 0 1 auto;
+    box-sizing: border-box; flex: 0 0 auto;
     --board-ratio: 13 / 9;
-    width: 100%; height: auto;
-    max-width: 100%; max-height: 100%;
-    margin: 0; aspect-ratio: 13 / 9;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    margin: 0;
+    aspect-ratio: auto !important;
   }
 
   .page .content .boardWrap > .sg40GameBoard .sg40Preview__track,
@@ -5609,6 +5622,12 @@ img[src*="multiplier"]{
     flex: 0 0 var(--side-w); height: 100%;
     display: flex; flex-direction: column; gap: 3px;
     min-height: 0; overflow: hidden; padding-bottom: 8px;
+  }
+  /* Chrome mobile: não reativar painel financeiro/ações expandidas nesta faixa */
+  .page[data-hud-mode="mobile-landscape"] .content .side > .hud,
+  .page[data-hud-mode="mobile-landscape"] .content .side .sideSecondary,
+  .page[data-hud-mode="mobile-landscape"] .content .side .sideQuickActions {
+    display: none !important;
   }
   .page .content .side > .hud {
     flex: 1 1 auto; height: auto; min-height: 0;
@@ -6199,8 +6218,8 @@ img[src*="multiplier"]{
   }
 
   .page .content .side .turnPrimaryActions {
-    flex: 1 1 135px;
-    min-height: 125px;
+    flex: 0 0 auto;
+    min-height: 0;
     max-height: none;
     display: flex;
     flex-direction: column;
@@ -6233,18 +6252,18 @@ img[src*="multiplier"]{
     background: transparent;
   }
   .page .content .side .turnPrimaryActions .controls:not(.sideQuickActions .controls) {
-    flex: 1 1 auto;
+    flex: 0 0 auto;
   }
   .page .content .side .turnPrimaryActions > .controls {
-    flex: 1 1 auto;
-    min-height: clamp(88px, 10dvh, 108px);
+    flex: 0 0 auto;
+    min-height: 0;
   }
   .page .content .side .turnPrimaryActions .turnBox {
     display: grid;
-    grid-template-rows: minmax(58px, 1fr);
+    grid-template-rows: minmax(58px, auto);
     gap: clamp(5px, 0.7dvh, 8px);
-    height: 100%;
-    min-height: 0;
+    height: auto;
+    min-height: 58px;
     padding: clamp(6px, 0.8dvh, 10px);
   }
   .page .content .side .turnPrimaryActions .btn.go {
@@ -6379,8 +6398,8 @@ img[src*="multiplier"]{
     max-width: 100%;
     min-width: 0;
     min-height: 0;
-    height: auto !important;
-    max-height: none;
+    height: auto;
+    max-height: 100%;
     display: grid !important;
     grid-template-columns: minmax(0, 1fr) minmax(136px, 20%);
     grid-template-rows: minmax(0, 1fr);
@@ -6396,17 +6415,26 @@ img[src*="multiplier"]{
   .boardModeBtn {
     display: block !important;
     position: absolute;
-    z-index: 6;
-    top: 6px;
-    left: 8px;
+    z-index: 5;
+    top: calc(100% / 9 + 32px);
+    left: 40%;
+    transform: translateX(-50%);
     width: auto;
-    min-height: 28px;
+    max-width: min(220px, 44%);
+    min-height: 32px;
     margin: 0;
-    padding: 4px 10px;
-    font-size: 11px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 700;
     line-height: 1.2;
+    letter-spacing: 0.01em;
     border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+    border: 1px solid rgba(144, 180, 218, 0.28);
+    background: #0b1626;
+    color: #e8f4ff;
+    box-shadow:
+      0 2px 10px rgba(0, 0, 0, 0.45),
+      inset 0 1px 0 rgba(186, 214, 236, 0.16);
   }
 
   .boardWrap,
@@ -6430,8 +6458,8 @@ img[src*="multiplier"]{
     padding: 0;
     overflow: hidden;
     display: flex !important;
-    align-items: stretch;
-    justify-content: stretch;
+    align-items: center;
+    justify-content: center;
     container-type: size;
     flex: none;
     background:
@@ -6447,7 +6475,7 @@ img[src*="multiplier"]{
   .page .content .boardWrap > .sg40GameBoard {
     --sg-board-max-h: 100%;
     box-sizing: border-box;
-    flex: 1 1 auto !important;
+    flex: 0 0 auto !important;
     width: 100% !important;
     height: 100% !important;
     max-width: 100% !important;
@@ -6460,15 +6488,10 @@ img[src*="multiplier"]{
     .boardWrap .board.sg40GameBoard,
     .page .content .boardWrap > .board.sg40GameBoard,
     .page .content .boardWrap > .sg40GameBoard {
-      /*
-       * Ocupa a largura sobrando dos lados SEM aumentar a altura:
-       * altura = 100% do wrap; largura = 100% do wrap (em vez de contain 13:9
-       * que deixava faixas azuis laterais).
-       */
-      height: 100cqh !important;
-      width: 100cqw !important;
-      max-width: 100cqw !important;
-      max-height: 100cqh !important;
+      width: 100% !important;
+      height: 100% !important;
+      max-width: 100% !important;
+      max-height: 100% !important;
       aspect-ratio: auto;
     }
   }
@@ -6808,16 +6831,66 @@ img[src*="multiplier"]{
   }
 
   .content--boardFocus .boardModeBtn {
-    left: 8px;
+    left: 50%;
+    top: calc(100% / 9 + 32px);
   }
 
   .sg40GameBoard__hint {
-    font-size: clamp(9px, 1.8vw, 12px);
-    padding: 4px 8px;
+    font-size: clamp(11px, 2.4cqi, 13px);
+    padding: 6px 8px;
   }
 
   .token {
     scale: 1;
+  }
+
+  /* Landscape baixa: HUD compacta antes do board */
+  @media (max-height: 450px) {
+    .topbar {
+      max-height: 28px;
+      padding: 1px 4px;
+    }
+    .debugToggle,
+    .sideSecondary,
+    .hostLabelFull,
+    .moneyFull,
+    .hudOpenLabel--full,
+    .rollLabelFull {
+      display: none !important;
+    }
+    .hostLabelShort,
+    .moneyCompact,
+    .hudOpenLabel--short,
+    .rollLabelShort {
+      display: inline !important;
+    }
+    .sideQuickActions,
+    .turnPrimaryActions .sideQuickActions {
+      display: none !important;
+    }
+    .moreOpenBtn,
+    .hudOpenBtn {
+      display: block !important;
+      min-height: 36px !important;
+    }
+    .compactActionRow {
+      display: grid !important;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+    .turnPrimaryActions .btn.go {
+      min-height: 44px !important;
+      font-size: 13px !important;
+    }
+  }
+
+  @media (min-height: 451px) and (max-height: 550px) {
+    .debugToggle,
+    .sideSecondary {
+      display: none !important;
+    }
+    .topbar {
+      max-height: 32px;
+    }
   }
 }
 
@@ -6871,11 +6944,11 @@ img[src*="multiplier"]{
   }
 
   html.sg-ios .boardModeBtn {
-    top: 4px;
-    left: 4px;
-    min-height: 26px;
-    padding: 3px 8px;
-    font-size: 10px;
+    top: calc(100% / 9 + 32px);
+    left: 40%;
+    min-height: 32px;
+    padding: 6px 10px;
+    font-size: 11px;
   }
 
   html.sg-ios .boardWrap,
@@ -6901,11 +6974,10 @@ img[src*="multiplier"]{
     html.sg-ios .boardWrap .board.sg40GameBoard,
     html.sg-ios .page .content .boardWrap > .board.sg40GameBoard,
     html.sg-ios .page .content .boardWrap > .sg40GameBoard {
-      /* Mesmo fill do Android: lados ocupados, altura = wrap */
-      height: 100cqh !important;
-      width: 100cqw !important;
-      max-width: 100cqw !important;
-      max-height: 100cqh !important;
+      width: 100% !important;
+      height: 100% !important;
+      max-width: 100% !important;
+      max-height: 100% !important;
       aspect-ratio: auto;
     }
   }
@@ -6929,7 +7001,148 @@ img[src*="multiplier"]{
   }
 
   html.sg-ios .sg40GameBoard__hint {
-    font-size: clamp(8px, 1.5vw, 11px);
-    padding: 3px 6px;
+    font-size: clamp(11px, 2.4cqi, 13px);
+    padding: 6px 8px;
   }
+}
+
+/* Landscape abaixo do HUD desktop: trava dvh e contém 13/9 sem exigir pointer:coarse */
+@media (max-width: 1199px) and (orientation: landscape) {
+  html:has(.page[data-game-shell]),
+  html:has(.page[data-game-shell]) body,
+  html:has(.page[data-game-shell]) #root {
+    width: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
+  }
+  .page[data-game-shell] {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-left: env(safe-area-inset-left, 0px);
+  }
+  .page[data-game-shell] .content {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: 100%;
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(120px, 22%);
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .page[data-game-shell] .boardWrap {
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    container-type: size;
+  }
+  .page[data-game-shell] .content .boardWrap > .sg40GameBoard,
+  .page[data-game-shell] .boardWrap > .sg40GameBoard {
+    aspect-ratio: auto !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    flex: 0 0 auto !important;
+    margin: 0;
+  }
+  .page[data-game-shell] .side {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    min-height: 0;
+    height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    box-sizing: border-box;
+  }
+  .page[data-game-shell] .turnPrimaryActions .btn.go {
+    min-height: 44px;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* Chrome mobile: Resumo/Mais — independente da altura (sem lacuna >450px) */
+  .page[data-game-shell][data-hud-mode="mobile-landscape"] .debugToggle,
+  .page[data-game-shell][data-hud-mode="mobile-landscape"] .sideSecondary,
+  .page[data-game-shell][data-hud-mode="mobile-landscape"] .side > .hud--inline,
+  .page[data-game-shell][data-hud-mode="mobile-landscape"] .hud.hud--inline,
+  .page[data-game-shell][data-hud-mode="mobile-landscape"] .sideQuickActions,
+  .page[data-game-shell] .debugToggle,
+  .page[data-game-shell] .sideSecondary,
+  .page[data-game-shell] .side > .hud--inline,
+  .page[data-game-shell] .hud.hud--inline,
+  .page[data-game-shell] .hostLabelFull,
+  .page[data-game-shell] .moneyFull,
+  .page[data-game-shell] .hudOpenLabel--full,
+  .page[data-game-shell] .rollLabelFull {
+    display: none !important;
+  }
+  .page[data-game-shell] .hostLabelShort,
+  .page[data-game-shell] .moneyCompact,
+  .page[data-game-shell] .hudOpenLabel--short,
+  .page[data-game-shell] .rollLabelShort {
+    display: inline !important;
+  }
+  .page[data-game-shell] .sideQuickActions {
+    display: none !important;
+  }
+  .page[data-game-shell] .compactActionRow,
+  .page[data-game-shell] .moreOpenBtn,
+  .page[data-game-shell] .hudOpenBtn {
+    display: grid;
+  }
+  .page[data-game-shell] .compactActionRow {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .page[data-hud-mode="mobile-landscape"] .compactActionRow {
+    gap: 8px;
+  }
+  .page[data-game-shell] .moreOpenBtn,
+  .page[data-game-shell] .hudOpenBtn {
+    min-height: 36px;
+    display: block;
+  }
+}
+
+/* Densidade extra só em landscape baixo — não troca o chrome */
+@media (max-width: 1199px) and (orientation: landscape) and (max-height: 450px) {
+  .page[data-game-shell] .turnPrimaryActions .btn.go {
+    min-height: 44px;
+  }
+}
+
+.moreSheetBackdrop {
+  display: none;
+}
+.moreSheetBackdrop.is-open {
+  display: flex;
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  justify-content: flex-end;
+  background: rgba(0, 0, 0, 0.42);
+}
+.moreSheet {
+  width: min(56vw, 360px);
+  max-width: calc(100% - env(safe-area-inset-right, 0px));
+  height: 100%;
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 12px;
+  padding-right: max(12px, env(safe-area-inset-right, 0px));
+  padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  background: #0b1424;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
 }

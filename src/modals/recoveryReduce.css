@@ -486,3 +486,41 @@
     text-align: center;
   }
 }
+
+@media (orientation: landscape) and (max-height: 500px) {
+  .rr-root {
+    gap: 8px;
+    padding: 8px 10px 10px;
+  }
+
+  .rr-title {
+    font-size: 16px;
+  }
+
+  .rr-lead {
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  .rr-scroll {
+    padding: 2px 2px 8px;
+  }
+
+  .rr-columns {
+    gap: 8px;
+  }
+
+  .rr-group {
+    gap: 6px;
+    padding: 8px;
+  }
+
+  .rr-card {
+    min-height: 0;
+    padding: 8px;
+  }
+
+  .rr-footer {
+    gap: 8px;
+  }
+}

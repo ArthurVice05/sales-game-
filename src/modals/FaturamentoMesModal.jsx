@@ -1,7 +1,8 @@
 // src/modals/FaturamentoMesModal.jsx
-import React from "react";
+import React, { useRef } from "react";
 import ModalBase from "./ModalBase";
 import TileContextHint from "./TileContextHint.jsx";
+import "./tile-modal.css";
 
 /**
  * Fecha usando `onResolve`, que é injetado pelo ModalProvider
@@ -9,11 +10,18 @@ import TileContextHint from "./TileContextHint.jsx";
  */
 export default function FaturamentoMesModal({ value = 0, onResolve }) {
   const v = Number(value || 0);
+  const didResolveRef = useRef(false);
+
+  const finish = (payload) => {
+    if (didResolveRef.current) return;
+    didResolveRef.current = true;
+    onResolve?.(payload);
+  };
 
   const handleOk = (e) => {
     e?.preventDefault?.();
     e?.stopPropagation?.();
-    onResolve?.({
+    finish({
       action: "OK",
       value: v,
       source: { modal: "FaturamentoMesModal", file: "src/modals/FaturamentoMesModal.jsx" }
@@ -22,44 +30,28 @@ export default function FaturamentoMesModal({ value = 0, onResolve }) {
 
   return (
     <ModalBase
+      variant="tile"
+      size="sm"
       zIndex={2147483647}
-      onClose={() => onResolve?.({ action: "CLOSE", value: v, source: { modal: "FaturamentoMesModal", file: "src/modals/FaturamentoMesModal.jsx" } })} // fecha por overlay/X
+      onClose={() => finish({ action: "CLOSE", value: v, source: { modal: "FaturamentoMesModal", file: "src/modals/FaturamentoMesModal.jsx" } })} // fecha por overlay/X
     >
-      <div style={{ padding: 28, textAlign: "center", pointerEvents: "auto" }}>
-        <div
-          style={{
-            fontWeight: 900,
-            fontSize: 28,
-            color: "#4caf50",
-            letterSpacing: 0.5,
-            marginBottom: 6,
-          }}
-        >
-          FATURAMENTO DO MÊS
-        </div>
+      <header className="tileModalHeader">
+        <h2 className="tileModalTitle">Faturamento do mês</h2>
+      </header>
+      <div className="tileModalBody">
         <TileContextHint kind="REVENUE" />
-        <div style={{ opacity: 0.9, marginBottom: 16 }}>
-          Será creditado o valor do Faturamento ao seu Saldo
+        <p className="purchasePreviewHint">
+          Será creditado o valor do faturamento ao seu saldo
+        </p>
+        <div className="tileValueHuge tileValueHuge--pos">
+          $ {v.toLocaleString()}
         </div>
-        <div style={{ fontSize: 18, marginBottom: 24 }}>
-          no valor de:&nbsp; <b>$ {v.toLocaleString()}</b>
-        </div>
-
-        <button
-          type="button"
-          onClick={handleOk}
-          className="btn"
-          style={{
-            minWidth: 120,
-            background: "#8bd65a",
-            color: "#1a1f2a",
-            fontWeight: 800,
-            borderRadius: 10,
-          }}
-        >
+      </div>
+      <footer className="tileModalFooter">
+        <button type="button" onClick={handleOk} className="tileModalBtn tileModalBtn--confirm">
           OK
         </button>
-      </div>
+      </footer>
     </ModalBase>
   );
 }

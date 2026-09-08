@@ -9,6 +9,14 @@ import LobbyList from './pages/LobbyList.jsx'
 import PlayersLobby from './pages/PlayersLobby.jsx'
 import Board from './components/board/Board.jsx'
 import HUD from './components/panel/HUD.jsx'
+import GameDesktopHeader from './components/hud/GameDesktopHeader.jsx'
+import HudDesktopSidebar from './components/hud/HudDesktopSidebar.jsx'
+import { useDesktopHudLayout } from './components/hud/useDesktopHudLayout.js'
+import { useCompactLandscapeHud } from './components/hud/useCompactLandscapeHud.js'
+import { useHudOverlayFocus } from './components/hud/useHudOverlayFocus.js'
+import { formatCompactCash } from './components/hud/mobileHudPresentation.js'
+import HudCompactPeek from './components/hud/HudCompactPeek.jsx'
+import './components/hud/desktop-hud.css'
 import Controls from './components/panel/Controls.jsx'
 import DiceResult from './components/DiceResult.jsx'
 import DiceRollOverlay from './components/dice/DiceRollOverlay.jsx'
@@ -190,6 +198,13 @@ function normalizeLastRoll(value) {
 export default function App() {
   const DEBUG_LOGS = isDebugLogsEnabled()
   const DEBUG_VALIDATE = import.meta.env.DEV && localStorage.getItem('SALES_DEBUG_VALIDATE') === '1'
+  const desktopHud = useDesktopHudLayout()
+  const compactLandscapeHud = useCompactLandscapeHud()
+  const hudChromeMode = desktopHud
+    ? 'desktop'
+    : compactLandscapeHud
+      ? 'mobile-landscape'
+      : 'default'
 
   // Comparação rápida (sem deep compare / sem JSON.stringify) para reduzir custo no hot-path
   const isSameValue = React.useCallback((a, b, depth = 0) => {
@@ -530,6 +545,17 @@ export default function App() {
   const boardWrapRef = useRef(null)
   useBoardPinchZoom(boardWrapRef, phase === 'game')
   const [hudSheetOpen, setHudSheetOpen] = useState(false)
+  const [moreSheetOpen, setMoreSheetOpen] = useState(false)
+  const hudSheetRef = useRef(null)
+  const moreSheetRef = useRef(null)
+  const closeHudSheet = React.useCallback(() => setHudSheetOpen(false), [])
+  const closeMoreSheet = React.useCallback(() => setMoreSheetOpen(false), [])
+  useHudOverlayFocus(hudSheetOpen, hudSheetRef, closeHudSheet)
+  useHudOverlayFocus(moreSheetOpen, moreSheetRef, closeMoreSheet)
+  const openTutorialFromMore = React.useCallback(() => {
+    setMoreSheetOpen(false)
+    setTutorialOpen(true)
+  }, [])
 
   // ====== bloqueio de turno (cadeado entre abas)
   const [turnLock, setTurnLock] = useState(false)
@@ -3175,6 +3201,11 @@ export default function App() {
     onAction(act)
   }
 
+  const onMoreSheetAction = (act) => {
+    setMoreSheetOpen(false)
+    onControlsAction(act)
+  }
+
   const handleDiceFxComplete = React.useCallback(() => {
     const fx = diceFxRef.current
     // Consome uma vez (StrictMode / double onComplete não reaplica ROLL)
@@ -3614,7 +3645,29 @@ export default function App() {
     <>
     <OrientationGuard enabled>
     <ModalProvider>
-    <div className="page" data-game-shell>
+    <div className="page" data-game-shell data-hud-mode={hudChromeMode}>
+      {desktopHud ? (
+      <GameDesktopHeader
+        playerName={meHudLive.name}
+        playerColor={meHudLive.color}
+        isSpectator={isSpectator}
+        iAmHost={iAmLobbyHost}
+        hostName={lobbyHostPlayer?.name || ''}
+        round={round}
+        maxRounds={maxRounds}
+        gameOver={gameOver}
+        cash={myCash}
+        totals={totals}
+        turnDeadlineAt={turnDeadlineAt}
+        turnTimeSec={turnTimeSec}
+        turnPlayerId={turnPlayerId}
+        turnSeq={turnSeq}
+        turnLock={turnLock}
+        timerPaused={!!turnLock || (gameMode === GAME_MODE.LOCAL && !localTurnReady)}
+      >
+        <DebugPanel players={players} turnIdx={turnIdx} round={round} gameOver={gameOver} winner={winner} />
+      </GameDesktopHeader>
+      ) : (
       <header className="topbar">
         <div className="status topbarPrimary">
           <div className="topbarRow topbarRow--player">
@@ -3643,12 +3696,14 @@ export default function App() {
             )}
             {iAmLobbyHost && (
               <span className="gameHostBadge" title="Você é o Host da sala">
-                👑 Você é o Host
+                <span className="hostLabelFull">👑 Você é o Host</span>
+                <span className="hostLabelShort">H</span>
               </span>
             )}
             {!iAmLobbyHost && lobbyHostId && (
               <span className="gameHostBadge gameHostBadge--other" title="Host atual da sala">
-                👑 Host{lobbyHostPlayer?.name ? `: ${lobbyHostPlayer.name}` : ''}
+                <span className="hostLabelFull">👑 Host{lobbyHostPlayer?.name ? `: ${lobbyHostPlayer.name}` : ''}</span>
+                <span className="hostLabelShort">H</span>
               </span>
             )}
           </div>
@@ -3670,14 +3725,18 @@ export default function App() {
             gameOver={gameOver}
             paused={!!turnLock || (gameMode === GAME_MODE.LOCAL && !localTurnReady)}
           />
-          <span className="money">
-            💵 ${' '}
-            {myCash == null
-              ? '—'
-              : Number(myCash).toLocaleString()}
+          <span className="money" title={myCash == null ? '—' : `R$ ${Number(myCash).toLocaleString('pt-BR')}`}>
+            <span className="moneyFull">
+              💵 ${' '}
+              {myCash == null
+                ? '—'
+                : Number(myCash).toLocaleString()}
+            </span>
+            <span className="moneyCompact">{formatCompactCash(myCash)}</span>
           </span>
         </div>
       </header>
+      )}
       {identityMismatch && (
         <div className="identityMismatchBanner" role="status">
           Não foi possível confirmar seu assento nesta partida neste dispositivo.
@@ -3725,16 +3784,33 @@ export default function App() {
         </div>
 
         <aside className="side">
+          {desktopHud ? (
+          <HudDesktopSidebar
+            totals={totals}
+            players={players}
+            lastRoll={lastRollUI}
+            isRolling={isRollingUI}
+            hostId={lobbyHostId}
+            turnPlayerId={turnPlayerId}
+            turnAbsenceStatus={turnAbsenceStatus}
+            meId={gameplayActorId}
+          />
+          ) : compactLandscapeHud ? null : (
           <div className="hud hud--inline">
             <HUD totals={totals} players={players} />
           </div>
+          )}
 
+          {!compactLandscapeHud && (
           <div className="sideSecondary">
             <div className="controlsSticky">
-              <DiceResult lastRoll={lastRollUI} isRolling={isRollingUI} />
+              {!desktopHud && (
+                <DiceResult lastRoll={lastRollUI} isRolling={isRollingUI} />
+              )}
             </div>
 
           </div>
+          )}
 
           <div className="turnPrimaryActions">
             {progressiveTip && (
@@ -3761,6 +3837,7 @@ export default function App() {
               {nextStepHint}
             </div>
             {/* Sempre acima do rolar: não depende do grid/scroll do controlsSticky */}
+            {!compactLandscapeHud && (
             <div className="sideQuickActions">
               {isSpectator ? (
                 <SpectatorPanel
@@ -3804,6 +3881,33 @@ export default function App() {
                 Como jogar
               </button>
             </div>
+            )}
+            {compactLandscapeHud ? (
+              <div className="compactActionRow">
+                <button
+                  type="button"
+                  className="btn dark hudOpenBtn"
+                  onClick={() => {
+                    setMoreSheetOpen(false)
+                    setHudSheetOpen(true)
+                  }}
+                >
+                  <span className="hudOpenLabel hudOpenLabel--full">Ver resumo / placar</span>
+                  <span className="hudOpenLabel hudOpenLabel--short">Resumo</span>
+                </button>
+                <button
+                  type="button"
+                  className="btn dark moreOpenBtn"
+                  onClick={() => {
+                    setHudSheetOpen(false)
+                    setMoreSheetOpen(true)
+                  }}
+                >
+                  Mais
+                </button>
+              </div>
+            ) : (
+            !desktopHud && (
             <button
               type="button"
               className="btn dark hudOpenBtn"
@@ -3811,6 +3915,8 @@ export default function App() {
             >
               Ver resumo / placar
             </button>
+            )
+            )}
             {!isSpectator && (
               <Controls
                 section="primary"
@@ -3825,9 +3931,76 @@ export default function App() {
                 gameOver={gameOver}
               />
             )}
+            {compactLandscapeHud && (
+              <HudCompactPeek
+                lastRoll={lastRollUI}
+                isRolling={isRollingUI}
+                cash={myCash}
+                totals={totals}
+              />
+            )}
           </div>
         </aside>
       </main>
+
+      {moreSheetOpen && (
+        <div
+          className="moreSheetBackdrop is-open"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Mais ações"
+          onClick={closeMoreSheet}
+        >
+          <div className="moreSheet" ref={moreSheetRef} onClick={(e) => e.stopPropagation()}>
+            {isSpectator ? (
+              <SpectatorPanel
+                turnPlayerName={current?.name || ''}
+                round={round}
+                maxRounds={maxRounds}
+                gameOver={gameOver}
+                turnLock={turnLock}
+                modalLocks={modalLocks}
+                onExit={() => {
+                  setMoreSheetOpen(false)
+                  exitSpectatorMode()
+                }}
+                exitLabel="Sair do modo espectador"
+              />
+            ) : (
+              <>
+                <Controls
+                  section="secondary"
+                  onAction={onMoreSheetAction}
+                  current={current}
+                  isMyTurn={isMyTurn}
+                  myUid={gameplayActorId}
+                  turnPlayerId={turnPlayerId}
+                  turnLock={turnLock}
+                  lockOwner={lockOwner}
+                  modalLocks={modalLocks}
+                  gameOver={gameOver}
+                />
+                <button
+                  type="button"
+                  className="btn dark"
+                  onClick={() => {
+                    setMoreSheetOpen(false)
+                    exitCurrentGame()
+                  }}
+                >
+                  {gameMode === GAME_MODE.LOCAL ? 'Sair da partida' : 'Sair para Lobbies'}
+                </button>
+              </>
+            )}
+            <button type="button" className="btn dark" onClick={openTutorialFromMore}>
+              Como jogar
+            </button>
+            <button type="button" className="btn dark" onClick={closeMoreSheet}>
+              Fechar
+            </button>
+          </div>
+        </div>
+      )}
 
       {hudSheetOpen && (
         <div
@@ -3835,10 +4008,11 @@ export default function App() {
           role="dialog"
           aria-modal="true"
           aria-label="Resumo e placar"
-          onClick={() => setHudSheetOpen(false)}
+          onClick={closeHudSheet}
         >
           <div
             className="hudSheet"
+            ref={hudSheetRef}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="hudSheetHeader">
@@ -3846,13 +4020,25 @@ export default function App() {
               <button
                 type="button"
                 className="btn dark hudSheetClose"
-                onClick={() => setHudSheetOpen(false)}
+                onClick={closeHudSheet}
               >
                 Fechar
               </button>
             </div>
             <div className="hudSheetBody">
-              <HUD totals={totals} players={players} />
+              <HudDesktopSidebar
+                idPrefix="hud-sheet"
+                variant="sheet"
+                totals={totals}
+                players={players}
+                lastRoll={lastRollUI}
+                isRolling={isRollingUI}
+                hostId={lobbyHostId}
+                turnPlayerId={turnPlayerId}
+                turnAbsenceStatus={turnAbsenceStatus}
+                meId={gameplayActorId}
+                cash={myCash}
+              />
             </div>
           </div>
         </div>

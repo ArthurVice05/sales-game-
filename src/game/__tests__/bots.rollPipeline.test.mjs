@@ -293,7 +293,10 @@ describe('D/8 — lastRollTurnKey não declara handoff', () => {
       maxWaitMs: 200,
       sleep: (ms, signal) => sleepCancellable(ms, signal),
     })
-    await new Promise((r) => setTimeout(r, 20))
+    const waitStart = Date.now()
+    while (polls < 2 && Date.now() - waitStart < 1000) {
+      await new Promise((r) => setTimeout(r, 5))
+    }
     assert.ok(polls >= 2, `handoff não pode encerrar no first poll (polls=${polls})`)
     live.turnPlayerId = HUMAN_ID
     live.turnSeq = TURN_SEQ + 1

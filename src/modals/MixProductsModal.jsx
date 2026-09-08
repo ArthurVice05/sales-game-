@@ -13,6 +13,7 @@ import {
 import { previewPurchaseImpact } from '../game/purchasePreview.js'
 import { DEFAULT_MAX_ROUNDS, normalizeMaxRounds } from '../game/roundConfig'
 import TileContextHint from './TileContextHint.jsx'
+import TileModalShell from './TileModalShell.jsx'
 
 const LEVEL_RANK = { A: 4, B: 3, C: 2, D: 1 }
 
@@ -166,13 +167,34 @@ export default function MixProductsModal({
   })()
 
   return (
-    <div className="mixWrap" role="dialog" aria-modal="true" aria-label="Mix de Produtos">
-      <div className="mixCard">
-        <button ref={closeRef} type="button" style={S.close} onClick={resolveSkip} aria-label="Fechar">✕</button>
-
-        <h2 className="mixTitle">Escolha um <b>mix de produtos</b>:</h2>
-
-        <TileContextHint kind="MIX" />
+    <TileModalShell
+      title="Mix de Produtos"
+      label="Mix de Produtos"
+      onClose={resolveSkip}
+      closeRef={closeRef}
+      footer={(
+        <>
+          {allowBack && (
+            <button type="button" className="tileModalBtn tileModalBtn--ghost" onClick={handleBack}>
+              Voltar
+            </button>
+          )}
+          <button type="button" className="tileModalBtn tileModalBtn--ghost" onClick={resolveSkip}>
+            Não comprar
+          </button>
+          <button
+            type="button"
+            className="tileModalBtn tileModalBtn--confirm"
+            onClick={handleConfirm}
+            disabled={!draftPayload}
+            title={!draftPayload ? 'Selecione um nível diferente do atual' : `Confirmar compra do nível ${draftPayload.level}`}
+          >
+            {draftPayload ? `Confirmar compra ${draftPayload.level}` : 'Confirmar compra'}
+          </button>
+        </>
+      )}
+    >
+      <TileContextHint kind="MIX" />
 
         <div style={S.note}>
           <div style={{fontWeight:900, marginBottom:4}}>MIX DE PRODUTOS</div>
@@ -195,7 +217,7 @@ export default function MixProductsModal({
         )}
 
         {/* Cards (mesmo estilo da modal anterior) */}
-        <div className="mixCards">
+        <div className="tileCertGrid tileCertGrid--4">
           {(['A','B','C','D']).map((k) => {
             const v = LEVELS[k]
             const isOwned = current === k  // ✅ apenas o atual
@@ -203,40 +225,25 @@ export default function MixProductsModal({
             const isSelected = selectedLevel === k
 
             return (
-              <div key={k} style={{
-                ...S.cardItem, 
-                borderColor: isOwned ? '#16a34a' : (isSelected ? '#2442f9' : 'rgba(255,255,255,.15)'),
-                opacity: isDisabled ? 0.6 : 1
-              }}>
-                <div className={isOwned ? 'mixPill mixPillOwned' : 'mixPill'} style={{
-                  ...S.pill, 
-                  background: isOwned ? '#16a34a' : '#fff', 
-                  color: isOwned ? '#fff' : '#111'
-                }}>
-                  {isOwned ? '✓ ADQUIRIDO' : v.pill}
-                </div>
-                <div style={{...S.cardBadge, background:v.color}} />
-                <ul className="mixLines" style={S.lines}>
-                  <li><b>{v.label}</b></li>
-                  <li>Compra: <b>$ {v.compra.toLocaleString()}</b></li>
-                  <li>Despesa: <b>$ {v.despesa.toLocaleString()}</b> / cliente</li>
-                  <li>Faturamento: <b>$ {v.faturamento.toLocaleString()}</b> / cliente atendido</li>
-                </ul>
+              <article
+                key={k}
+                className={`tileCertCard tileOptionCard${isSelected ? ' is-selected' : ''}${isOwned ? ' is-owned' : ''}`}
+              >
+                <h3 className="tileCertName">{isOwned ? '✓ ADQUIRIDO' : v.pill}</h3>
+                <p><b>{v.label}</b></p>
+                <p>Compra: <b>$ {v.compra.toLocaleString()}</b></p>
+                <p>Despesa: <b>$ {v.despesa.toLocaleString()}</b> / cliente</p>
+                <p>Faturamento: <b>$ {v.faturamento.toLocaleString()}</b> / cliente atendido</p>
                 <button
                   type="button"
-                  className="mixBuyBtn"
-                  style={{
-                    ...S.buyBtn,
-                    background: isDisabled ? '#6b7280' : (isSelected ? '#1d4ed8' : '#2442f9'),
-                    cursor: isDisabled ? 'not-allowed' : 'pointer'
-                  }}
+                  className="tileModalBtn"
                   onClick={() => handleSelect(k)}
                   disabled={isDisabled}
                   title={isDisabled ? `Mix nível ${k} já adquirido` : `Selecionar Mix de Produtos ${k}`}
                 >
                   {isDisabled ? 'Já Adquirido' : (isSelected ? `Selecionado ${k}` : `Selecionar ${k}`)}
                 </button>
-              </div>
+              </article>
             )
           })}
         </div>
@@ -305,33 +312,7 @@ export default function MixProductsModal({
           </>
         )}
 
-        <div style={S.actions}>
-          {allowBack && (
-            <button type="button" className="mixBigBtn" style={{ ...S.bigBtn, background:'#2a2f3b', color:'#fff' }} onClick={handleBack}>
-              Voltar
-            </button>
-          )}
-          <button type="button" className="mixBigBtn" style={{ ...S.bigBtn, background:'#444', color:'#fff' }} onClick={resolveSkip}>
-            Não comprar
-          </button>
-          <button
-            type="button"
-            className="mixBigBtn"
-            style={{
-              ...S.bigBtn,
-              background: draftPayload ? '#75e16c' : '#365b31',
-              color: '#0b120a',
-              cursor: draftPayload ? 'pointer' : 'not-allowed',
-            }}
-            onClick={handleConfirm}
-            disabled={!draftPayload}
-            title={!draftPayload ? 'Selecione um nível diferente do atual' : `Confirmar compra do nível ${draftPayload.level}`}
-          >
-            {draftPayload ? `Confirmar compra ${draftPayload.level}` : 'Confirmar compra'}
-          </button>
-        </div>
-      </div>
-    </div>
+    </TileModalShell>
   )
 }
 

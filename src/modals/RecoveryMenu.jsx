@@ -13,15 +13,15 @@ export default function RecoveryMenu({
   onDeclareBankruptcy
 }) {
   return (
-    <div style={S.body}>
+    <div className="recovery-body" style={S.body}>
       <p style={S.lead}>
         Recuperação financeira: use para recuperar caixa e evitar falência.
         Você está sem dinheiro, {playerName}. Escolha uma das opções:
       </p>
 
       {loanBlockedInMatch && (
-        <div style={{...S.lead, color: '#ef4444', fontWeight: 'bold', marginBottom: '16px'}}>
-          ⚠️ Cada jogador só pode pegar empréstimo uma única vez por partida.
+        <div style={{...S.lead, color: '#ef4444', fontWeight: 'bold', marginBottom: '16px'}} className="recovery-alert">
+          Cada jogador só pode pegar empréstimo uma única vez por partida.
         </div>
       )}
 
@@ -37,7 +37,7 @@ export default function RecoveryMenu({
         </li>
       </ul>
 
-      <div style={S.rowBtns}>
+      <div className="recovery-row-btns" style={S.rowBtns}>
         <button style={{...S.cta, background:'#ef4444'}} onClick={onGoFire}>DEMITIR</button>
         <button style={{...S.cta, background:'#a16207'}} onClick={onGoReduce}>REDUZIR</button>
         <button 

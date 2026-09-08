@@ -5,7 +5,10 @@ import React from "react";
  * Quem chama passa `onClose`, e esse onClose deve chamar `onResolve`
  * do provider (feito no componente da modal).
  *
- * @param {{ children: React.ReactNode, onClose?: () => void, zIndex?: number, width?: string, maxWidth?: string }} props
+ * variant="tile": casca visual dos modais de casa (sem segundo backdrop escuro).
+ * O ModalContext já fornece o overlay da pilha.
+ *
+ * @param {{ children: React.ReactNode, onClose?: () => void, zIndex?: number, width?: string, maxWidth?: string, variant?: 'default'|'tile', size?: string }} props
  */
 export default function ModalBase({
   children,
@@ -13,10 +16,14 @@ export default function ModalBase({
   zIndex = 3000,
   width = 'min(780px, 92vw)',
   maxWidth = '92vw',
+  variant = 'default',
+  size = 'md',
 }) {
   const handleClose = () => {
     if (typeof onClose === "function") onClose();
   };
+
+  const isTile = variant === 'tile'
 
   return (
     <div
@@ -24,17 +31,18 @@ export default function ModalBase({
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(8,10,16,.55)",
+        background: isTile ? "transparent" : "rgba(8,10,16,.55)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         zIndex,
+        pointerEvents: isTile && typeof onClose !== 'function' ? 'none' : 'auto',
       }}
-      onClick={handleClose}
+      onClick={typeof onClose === 'function' ? handleClose : undefined}
     >
       <div
-        className="sg-modal-card"
-        style={{
+        className={isTile ? `tileModal tileModal--${size}` : "sg-modal-card"}
+        style={isTile ? { pointerEvents: 'auto' } : {
           position: "relative",
           background: "#0f1420",
           border: "1px solid rgba(255,255,255,.1)",
@@ -47,6 +55,7 @@ export default function ModalBase({
           boxShadow: "0 20px 60px rgba(0,0,0,.45)",
         }}
         onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
       >
         {children}
       </div>

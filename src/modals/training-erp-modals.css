@@ -1,0 +1,431 @@
+/* Apresentação local — Treinamento e ERP/Sistemas (escopo .tileModal). */
+
+.tileModal .trainingSupportRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: baseline;
+  margin: 0 0 10px;
+  color: var(--tm-muted, #c5cbe0);
+  font-size: 13px;
+}
+
+.tileModal .trainingSupportRow b {
+  color: var(--tm-text, #f4f6fb);
+  font-weight: 800;
+}
+
+.tileModal .trainingSectionTitle {
+  margin: 2px 0 8px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--tm-muted, #c5cbe0);
+}
+
+.tileModal .trainingVendorChipRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 10px;
+}
+
+.tileModal .trainingVendorChip {
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--tm-border, rgba(255, 255, 255, 0.12));
+  background: var(--tm-raised, #162238);
+  color: var(--tm-text, #f4f6fb);
+  font-weight: 800;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.tileModal .trainingVendorChip.is-selected {
+  border-color: #7c6cf0;
+  background: #2a2450;
+  box-shadow: 0 0 0 1px rgba(124, 108, 240, 0.45);
+}
+
+.tileModal .trainingVendorChip.is-selected::after {
+  content: " · selecionado";
+  font-weight: 700;
+  opacity: 0.85;
+  font-size: 12px;
+}
+
+.tileModal .trainingSelectedSummary {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--tm-muted, #c5cbe0);
+}
+
+.tileModal .trainingSelectedSummary b {
+  color: var(--tm-text, #f4f6fb);
+}
+
+.tileModal .trainingCertGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0 0 12px;
+}
+
+.tileModal .trainingCertCard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  text-align: left;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--tm-border, rgba(255, 255, 255, 0.1));
+  border-left-width: 4px;
+  background: var(--tm-raised, #162238);
+  color: var(--tm-text, #f4f6fb);
+  cursor: pointer;
+  font: inherit;
+}
+
+.tileModal .trainingCertCard--azul { border-left-color: #3b82f6; }
+.tileModal .trainingCertCard--amarelo { border-left-color: #eab308; }
+.tileModal .trainingCertCard--roxo { border-left-color: #a855f7; }
+
+.tileModal .trainingCertCard.is-selected {
+  box-shadow: 0 0 0 2px rgba(125, 255, 163, 0.35);
+  background: #1a2740;
+}
+
+.tileModal .trainingCertCard.is-owned {
+  opacity: 0.72;
+  cursor: not-allowed;
+}
+
+.tileModal .trainingCertCard.is-owned.is-selected {
+  box-shadow: none;
+}
+
+.tileModal .trainingCertStatus {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--tm-muted, #c5cbe0);
+}
+
+.tileModal .trainingCertCard.is-selected .trainingCertStatus {
+  color: #7dffa3;
+}
+
+.tileModal .trainingCertCard.is-owned .trainingCertStatus {
+  color: #fbbf24;
+}
+
+.tileModal .trainingCertName {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.3;
+  white-space: pre-line;
+}
+
+.tileModal .trainingCertApplied {
+  margin: 0;
+  font-size: 12px;
+  color: var(--tm-muted, #c5cbe0);
+  line-height: 1.35;
+}
+
+.tileModal .trainingCertPrice {
+  margin-top: auto;
+  font-size: 20px;
+  font-weight: 800;
+  color: #7dffa3;
+}
+
+.tileModal .trainingTotalBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 10px;
+}
+
+.tileModal .trainingTotalBar .trainingTotalValue {
+  margin-left: auto;
+  font-weight: 800;
+  font-size: 15px;
+}
+
+.tileModal .trainingTotalHint {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--tm-muted, #c5cbe0);
+}
+
+/* ERP */
+.tileModal .erpSupportRow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 0 10px;
+}
+
+.tileModal .erpSupportItem {
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--tm-border, rgba(255, 255, 255, 0.1));
+  background: var(--tm-raised, #162238);
+}
+
+.tileModal .erpSupportLabel {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--tm-muted, #c5cbe0);
+  margin-bottom: 2px;
+}
+
+.tileModal .erpSupportValue {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--tm-text, #f4f6fb);
+}
+
+.tileModal .erpCompare {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  border: 1px solid var(--tm-border, rgba(255, 255, 255, 0.1));
+  border-radius: 12px;
+  margin: 0 0 8px;
+  background: #0b1424;
+}
+
+.tileModal .erpCompareTable {
+  width: 100%;
+  min-width: 480px;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.tileModal .erpCompareTable th,
+.tileModal .erpCompareTable td {
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  vertical-align: middle;
+}
+
+.tileModal .erpCompareTable th {
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+  color: var(--tm-text, #f4f6fb);
+  background: #101a2c;
+}
+
+.tileModal .erpCompareTable th.erpCompareMetricHead,
+.tileModal .erpCompareTable td.erpCompareMetric {
+  text-align: left;
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: #101a2c;
+  font-weight: 800;
+  width: 28%;
+}
+
+.tileModal .erpCompareTable td.erpCompareMetric {
+  background: #0b1424;
+  color: var(--tm-muted, #c5cbe0);
+  font-size: 12px;
+}
+
+.tileModal .erpCompareTable td.erpCompareMoney {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.tileModal .erpCompareTable th.is-current,
+.tileModal .erpCompareTable td.is-current {
+  background: rgba(59, 130, 246, 0.12);
+}
+
+.tileModal .erpCompareTable th.is-selected,
+.tileModal .erpCompareTable td.is-selected {
+  background: rgba(63, 191, 73, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(125, 255, 163, 0.35);
+}
+
+.tileModal .erpCompareNote {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--tm-muted, #c5cbe0);
+  line-height: 1.4;
+}
+
+.tileModal .erpLevelGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0 0 12px;
+}
+
+.tileModal .erpLevelCard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--tm-border, rgba(255, 255, 255, 0.1));
+  background: var(--tm-raised, #162238);
+}
+
+.tileModal .erpLevelCard.is-current {
+  border-color: rgba(59, 130, 246, 0.55);
+}
+
+.tileModal .erpLevelCard.is-selected {
+  border-color: rgba(125, 255, 163, 0.55);
+  box-shadow: 0 0 0 2px rgba(63, 191, 73, 0.28);
+}
+
+.tileModal .erpLevelCard.is-owned {
+  opacity: 1;
+  background: #121a2a;
+}
+
+.tileModal .erpLevelBadge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #fff;
+  width: fit-content;
+}
+
+.tileModal .erpLevelStatus {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--tm-muted, #c5cbe0);
+}
+
+.tileModal .erpLevelCard.is-selected .erpLevelStatus { color: #7dffa3; }
+.tileModal .erpLevelCard.is-owned .erpLevelStatus { color: #93c5fd; }
+
+.tileModal .erpLevelPrice {
+  font-size: 18px;
+  font-weight: 800;
+  color: #7dffa3;
+}
+
+.tileModal .erpLevelMeta {
+  margin: 0;
+  font-size: 12px;
+  color: var(--tm-muted, #c5cbe0);
+  line-height: 1.35;
+}
+
+.tileModal .erpLevelCard .tileModalBtn {
+  width: 100%;
+  margin-top: auto;
+}
+
+.tileModal .erpMobileBlocks {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .tileModal .trainingCertGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .tileModal .erpLevelGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .tileModal .erpSupportRow {
+    grid-template-columns: 1fr;
+  }
+
+  .tileModal .erpLevelGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .tileModal .erpCompare {
+    display: none;
+  }
+
+  .tileModal .erpMobileBlocks {
+    display: grid;
+    gap: 8px;
+    margin: 0 0 10px;
+  }
+
+  .tileModal .erpMobileBlock {
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid var(--tm-border, rgba(255, 255, 255, 0.1));
+    background: #0b1424;
+  }
+
+  .tileModal .erpMobileBlockTitle {
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--tm-muted, #c5cbe0);
+    margin-bottom: 6px;
+  }
+
+  .tileModal .erpMobileBlockRow {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 13px;
+    padding: 2px 0;
+  }
+
+  .tileModal .erpMobileBlockRow.is-current b,
+  .tileModal .erpMobileBlockRow.is-selected b {
+    color: #7dffa3;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+  .tileModal .trainingVendorChipRow,
+  .tileModal .trainingCertGrid,
+  .tileModal .erpLevelGrid,
+  .tileModal .erpSupportRow {
+    gap: 6px;
+  }
+
+  .tileModal .trainingCertCard,
+  .tileModal .erpLevelCard,
+  .tileModal .erpSupportItem {
+    padding: 8px 10px;
+  }
+
+  .tileModal .trainingCertGrid {
+    grid-template-columns: 1fr;
+  }
+}

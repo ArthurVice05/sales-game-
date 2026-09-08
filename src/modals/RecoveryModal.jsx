@@ -7,6 +7,7 @@ import RecoveryMenu from './RecoveryMenu'
 import RecoveryLoan from './RecoveryLoan'
 import RecoveryReduce from './RecoveryReduce'
 import RecoveryFire from './RecoveryFire' // mesmo diretório
+import './tile-modal.css'
 import { ERP_RULES, VENDOR_RULES } from '../game/gameRules.js'
 import { MIX_PURCHASE_PRICES, MANUAL_CONSTANTS } from '../game/manualConstants.js'
 
@@ -305,7 +306,7 @@ export default function RecoveryModal({ playerName = 'Jogador', bens = 0, curren
       {/* forçar remount por step ajuda quando a sub-tela possui estado interno */}
       <div
         style={S.card}
-        className={step === 'reduce' ? 'recovery-card recovery-card--reduce' : 'recovery-card'}
+        className={step === 'reduce' ? 'recovery-card recovery-card--reduce tileModal' : 'recovery-card tileModal'}
         key={step}
       >
         <div style={S.header} className="recovery-header">
