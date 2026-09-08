@@ -1,70 +1,53 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { createModalProtocol } from './modalProtocol.js'
 
 const ModalCtx = createContext(null)
 
 export function ModalProvider({ children }) {
   const [stack, setStack] = useState([]) // [{id, el}]
-  const stackRef = useRef(stack)
-  // Map<id, Set<resolve(payload)>>
-  const resolversByIdRef = useRef(new Map())
 
-  useEffect(() => {
-    stackRef.current = stack
-  }, [stack])
-
-  // limpeza defensiva: se algum id sumir do stack por caminho indireto, limpa waiters órfãos
-  useEffect(() => {
-    const activeIds = new Set(stack.map((m) => String(m?.id ?? '')))
-    for (const [id] of resolversByIdRef.current.entries()) {
-      if (!activeIds.has(String(id))) {
-        resolversByIdRef.current.delete(id)
-      }
+  /**
+   * Transporte das respostas. A Promise de cada abertura nasce ANTES de o
+   * elemento ser publicado, então uma confirmação precoce não se perde e a
+   * ordem das aberturas é lida de forma síncrona — sem depender do commit
+   * do React nem de um timeout de renderização.
+   */
+  const protocolRef = useRef(null)
+  // StrictMode monta, limpa e remonta os efeitos sem renderizar de novo: por isso
+  // o protocolo é obtido por função e renasce se tiver sido descartado.
+  const protocol = React.useCallback(() => {
+    if (!protocolRef.current || protocolRef.current.isDisposed()) {
+      protocolRef.current = createModalProtocol()
     }
-  }, [stack])
-
-  const mkId = () => {
-    try {
-      if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID()
-    } catch {}
-    return String(Date.now() + Math.random())
-  }
-
-  const resolveAllForId = React.useCallback((id, payload) => {
-    const key = String(id ?? '')
-    if (!key) return
-    const waiters = resolversByIdRef.current.get(key)
-    if (!waiters || waiters.size === 0) return
-    resolversByIdRef.current.delete(key)
-    for (const resolve of waiters) {
-      try { resolve(payload ?? null) } catch {}
-    }
+    return protocolRef.current
   }, [])
+
+  // Desmontagem: encerra pendências com null (nunca converte em APPLY_CARD)
+  // e passa a recusar callbacks tardios daquele ciclo.
+  useEffect(() => {
+    protocol()
+    return () => { protocolRef.current?.dispose(null) }
+  }, [protocol])
 
   const closeById = React.useCallback((id, payload) => {
     const key = String(id ?? '')
     if (!key) return
+    // Efeito colateral FORA do updater: StrictMode pode reexecutar o updater.
+    protocol().settle(key, payload)
     setStack((prev) => prev.filter((m) => String(m.id) !== key))
-    resolveAllForId(key, payload)
-  }, [resolveAllForId])
+  }, [protocol])
 
   const closeAll = React.useCallback((payload = { action: 'CLOSE_ALL' }) => {
-    const entries = Array.from(resolversByIdRef.current.entries())
+    protocol().settleAll(payload)
     setStack([])
-    for (const [, waiters] of entries) {
-      for (const resolve of waiters) {
-        try { resolve(payload ?? null) } catch {}
-      }
-    }
-    resolversByIdRef.current.clear()
-  }, [])
+  }, [protocol])
 
   // ✅ API exigida pelo engine: fecha a modal do topo e resolve (se houver)
   const closeTop = React.useCallback((payload) => {
-    const cur = stackRef.current
-    if (!cur || cur.length === 0) return
-    const top = cur[cur.length - 1]
-    closeById(top.id, payload)
-  }, [closeById])
+    const topId = protocol().topId()
+    if (!topId) return
+    closeById(topId, payload)
+  }, [closeById, protocol])
 
   // Compatibilidade (código legado): resolveTop = closeTop
   const resolveTop = closeTop
@@ -73,42 +56,36 @@ export function ModalProvider({ children }) {
   const closeModal = React.useCallback(() => closeTop({ action: 'SKIP' }), [closeTop])
   const popModal = React.useCallback(() => closeTop(false), [closeTop])
 
-  // abre uma modal (topo). Clonamos o elemento para injetar onResolve.
-  const pushModal = React.useCallback((element) => {
-    const id = mkId()
+  /**
+   * Abertura atômica: devolve o id e a Promise já ligada a ELE. O consumidor
+   * pode aguardar quando quiser — inclusive depois de a modal ter sido
+   * confirmada — que o payload continua íntegro e chega uma única vez.
+   */
+  const openModal = React.useCallback((element) => {
+    const { id, result } = protocol().open()
+    if (!id) return { id: '', result }
     const elWithResolve = React.cloneElement(element, {
       onResolve: (payload) => closeById(id, payload),
     })
     setStack((s) => [...s, { id, el: elWithResolve }])
-    return id
-  }, [closeById])
+    return { id, result }
+  }, [closeById, protocol])
 
-  // retorna uma promise que será resolvida quando a modal do topo chamar onResolve / closeTop
-  const awaitTop = React.useCallback(() =>
-    new Promise((resolve) => {
-      const cur = stackRef.current
-      if (!cur || cur.length === 0) {
-        resolve(null)
-        return
-      }
-      const top = cur[cur.length - 1]
-      const key = String(top.id)
-      const map = resolversByIdRef.current
-      let waiters = map.get(key)
-      if (!waiters) {
-        waiters = new Set()
-        map.set(key, waiters)
-      } else if (waiters.size > 0) {
-        console.warn('[ModalContext] awaitTop duplicado para o mesmo modal id:', key, 'waiters:', waiters.size + 1)
-      }
-      waiters.add(resolve)
-    }), [])
+  /** Açúcar do contrato acima, para quem só quer o payload. */
+  const openAndWait = React.useCallback((element) => openModal(element).result, [openModal])
+
+  // Compatibilidade: consumidores existentes esperam receber o ID.
+  const pushModal = React.useCallback((element) => openModal(element).id, [openModal])
+
+  // Legado (`pushModal` + `awaitTop`): agora lê o topo de forma síncrona, então
+  // uma abertura aninhada aguarda a PRÓPRIA modal, e não a do chamador.
+  const awaitTop = React.useCallback(() => protocol().awaitTop(), [protocol])
 
   // ⚠️ Sem listener de ESC: somente botões fecham a modal
 
   const value = useMemo(
-    () => ({ stack, pushModal, awaitTop, resolveTop, closeTop, closeModal, popModal, closeById, closeAll }),
-    [stack, pushModal, awaitTop, resolveTop, closeTop, closeModal, popModal, closeById, closeAll]
+    () => ({ stack, openModal, openAndWait, pushModal, awaitTop, resolveTop, closeTop, closeModal, popModal, closeById, closeAll }),
+    [stack, openModal, openAndWait, pushModal, awaitTop, resolveTop, closeTop, closeModal, popModal, closeById, closeAll]
   )
 
   return (

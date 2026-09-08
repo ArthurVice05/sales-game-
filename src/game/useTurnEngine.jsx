@@ -246,6 +246,7 @@ export function useTurnEngine({
   const modalApi = useModal()
   const pushModal = modalApi?.pushModal
   const awaitTop = modalApi?.awaitTop
+  const openAndWait = modalApi?.openAndWait
   const closeTop = modalApi?.closeTop
   const popModal = modalApi?.popModal
   const safeCloseTop = React.useCallback((payload) => {
@@ -693,14 +694,17 @@ export function useTurnEngine({
         setModalLocks(nextOpen)
         console.log('[DEBUG] openModalAndWait - ABRINDO modal, modalLocks ->', nextOpen, 'openingModalRef:', openingModalRef.current)
 
-        pushModal(element)
-        
-        // ✅ CORREÇÃO: Pequeno delay para garantir que a modal foi renderizada
-        await new Promise(resolve => setTimeout(resolve, 100))
-        openingModalRef.current = false
-        console.log('[DEBUG] openModalAndWait - Modal renderizada, openingModalRef:', openingModalRef.current)
+        // Abertura atômica: a Promise já nasce ligada a ESTA modal, então uma
+        // confirmação anterior ao await não se perde nem vaza para outra modal.
+        // Sem timeout de renderização como sincronização.
+        const pending = typeof openAndWait === 'function'
+          ? openAndWait(element)
+          : (pushModal(element), awaitTop())
 
-        const payload = await awaitTop()
+        // O lock já está retido; o guard de abertura pode sair agora.
+        openingModalRef.current = false
+
+        const payload = await pending
 
         // ✅ Pequeno delay após resolver para garantir que a modal foi completamente fechada
         await new Promise(resolve => setTimeout(resolve, 50))
@@ -730,7 +734,7 @@ export function useTurnEngine({
     const p = modalQueueRef.current.then(job, job)
     modalQueueRef.current = p.catch(() => {})
     return p
-  }, [pushModal, awaitTop, safeCloseTop])
+  }, [pushModal, awaitTop, openAndWait, safeCloseTop])
 
   const enqueueBotEconomicEffects = React.useCallback((opts = {}) => {
     const matchId = opts.matchId ?? authoritativeMatchId
