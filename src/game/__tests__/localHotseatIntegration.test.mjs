@@ -26,7 +26,7 @@ test('local initialization uses v2-40 state and opens the initial authoritative-
   assert.match(source, /setRoundFlags\(new Array\(normalized\.length\)\.fill\(false\)\)/)
   assert.match(source, /setAcknowledgedLocalTurnKey\(null\)/)
   assert.match(source, /getNewGameBoardVersion\(\)/)
-  assert.match(source, /<LocalTurnHandoff/)
+  assert.match(source, /confirmLocalTurn\(currentLocalTurnKey\)/)
 })
 
 test('handoff observes committed turnPlayerId plus turnSeq and never closes gameplay modals', async () => {

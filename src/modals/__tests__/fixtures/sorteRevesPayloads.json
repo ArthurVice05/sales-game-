@@ -1,0 +1,245 @@
+[
+  {
+    "action": "APPLY_CARD",
+    "kind": "SORTE",
+    "id": "referral_bonus",
+    "title": "Indicação Lucrativa",
+    "cashDelta": 800
+  },
+  {
+    "action": "APPLY_CARD",
+    "kind": "SORTE",
+    "id": "network_cert_mgr",
+    "title": "Rede Estratégica",
+    "cashDelta": 0
+  },
+  {
+    "action": "APPLY_CARD",
+    "kind": "SORTE",
+    "id": "innovation_invest",
+    "title": "Inovação Premiada",
+    "cashDelta": 0
+  },
+  {
+    "action": "APPLY_CARD",
+    "kind": "SORTE",
+    "id": "segmentation",
+    "title": "Segmentação Inteligente",
+    "cashDelta": 1000
+  },
+  {
+    "action": "APPLY_CARD",
+    "kind": "SORTE",
+    "id": "casa_bonus_10k",
+    "title": "Casagrande Insights",
+    "cashDelta": 10000
+  },
+  {
+    "action": "APPLY_CARD",
+    "kind": "SORTE",
+    "id": "casa_network_7k",
+    "title": "Rede de Contatos Valiosa",
+    "cashDelta": 7000
+  },
+  {
+    "action": "APPLY_CARD",
+    "kind": "SORTE",
+    "id": "casa_strategy_5k",
+    "title": "Estratégia Personalizada",
+    "cashDelta": 5000
+  },
+  {
+    "action": "APPLY_CARD",
+    "kind": "SORTE",
+    "id": "casa_best_practices_8k",
+    "title": "Melhores Práticas",
+    "cashDelta": 8000
+  },
+  {
+    "action": "APPLY_CARD",
+    "kind": "SORTE",
+    "id": "casa_start_6k",
+    "title": "Satisfação do Cliente em Alta",
+    "cashDelta": 6000
+  },
+  {
+    "action": "APPLY_CARD",
+    "kind": "SORTE",
+    "id": "casa_change_cert_blue",
+    "title": "Gestão de Mudanças Bem-sucedida",
+    "certDelta": {
+      "az": 1
+    }
+  },
+  {
+    "action": "APPLY_CARD",
+    "kind": "SORTE",
+    "id": "training_roi_team",
+    "title": "Treinamento Personalizado",
+    "cashDelta": 0
+  },
+  {
+    "action": "APPLY_CARD",
+    "kind": "SORTE",
+    "id": "purple_award_25k",
+    "title": "Profissional do Ano (Roxo)",
+    "cashDelta": 0
+  },
+  {
+    "action": "APPLY_CARD",
+    "kind": "SORTE",
+    "id": "reputation_1500",
+    "title": "Reputação Impecável",
+    "cashDelta": 1500
+  },
+  {
+    "action": "APPLY_CARD",
+    "kind": "SORTE",
+    "id": "client_cheer_per_client",
+    "title": "Cliente Promotor",
+    "cashDelta": 0
+  },
+  {
+    "action": "APPLY_CARD",
+    "kind": "SORTE",
+    "id": "big_order_freight_save",
+    "title": "Grande Pedido + Frete Econômico",
+    "cashDelta": 1500
+  },
+  {
+    "action": "APPLY_CARD",
+    "kind": "SORTE",
+    "id": "sales_win_2k",
+    "title": "Vitória de Vendas",
+    "cashDelta": 2000
+  },
+  {
+    "action": "APPLY_CARD",
+    "kind": "REVES",
+    "id": "missed_admission",
+    "title": "Admissão Não Reportada",
+    "cashDelta": -3000
+  },
+  {
+    "action": "APPLY_CARD",
+    "kind": "REVES",
+    "id": "no_mix_a_pay_7000",
+    "title": "Mix A Ausente",
+    "cashDelta": -7000
+  },
+  {
+    "action": "APPLY_CARD",
+    "kind": "REVES",
+    "id": "key_client_at_risk",
+    "title": "Cliente Chave em Risco",
+    "clientsDelta": -1,
+    "cashDelta": -2000
+  },
+  {
+    "action": "APPLY_CARD",
+    "kind": "REVES",
+    "id": "social_crisis",
+    "title": "Crise nas Redes",
+    "cashDelta": -400,
+    "clientsDelta": -2
+  },
+  {
+    "action": "APPLY_CARD",
+    "kind": "REVES",
+    "id": "car_break",
+    "title": "Carro Quebrou",
+    "cashDelta": -1000
+  },
+  {
+    "action": "APPLY_CARD",
+    "kind": "REVES",
+    "id": "service_improvement_1k",
+    "title": "Aprimoramentos de Serviço",
+    "cashDelta": -1000
+  },
+  {
+    "action": "APPLY_CARD",
+    "kind": "REVES",
+    "id": "recovery_failed_5k",
+    "title": "Recuperação Mal Sucedida",
+    "cashDelta": -5000
+  },
+  {
+    "action": "APPLY_CARD",
+    "kind": "REVES",
+    "id": "discount_pressure_1k",
+    "title": "Descontos Forçados",
+    "cashDelta": -1000
+  },
+  {
+    "action": "APPLY_CARD",
+    "kind": "REVES",
+    "id": "domino_2k",
+    "title": "Efeito Dominó",
+    "cashDelta": -2000
+  },
+  {
+    "action": "APPLY_CARD",
+    "kind": "REVES",
+    "id": "needs_change_lose4",
+    "title": "Necessidades Mudaram",
+    "clientsDelta": -4
+  },
+  {
+    "action": "APPLY_CARD",
+    "kind": "REVES",
+    "id": "payroll_error_1k",
+    "title": "Erro na Folha",
+    "cashDelta": -1000
+  },
+  {
+    "action": "APPLY_CARD",
+    "kind": "REVES",
+    "id": "strike_lose5",
+    "title": "Greve Inesperada",
+    "clientsDelta": -5
+  },
+  {
+    "action": "APPLY_CARD",
+    "kind": "REVES",
+    "id": "customs_hold_3k",
+    "title": "Alfândega",
+    "cashDelta": -3000
+  },
+  {
+    "action": "APPLY_CARD",
+    "kind": "REVES",
+    "id": "cyber_breach_7k_or_A",
+    "title": "Falha de Segurança",
+    "cashDelta": -7000
+  },
+  {
+    "action": "APPLY_CARD",
+    "kind": "REVES",
+    "id": "supplier_issue_2k",
+    "title": "Fornecedor em Crise",
+    "cashDelta": -2000
+  },
+  {
+    "action": "APPLY_CARD",
+    "kind": "REVES",
+    "id": "reg_change_10k",
+    "title": "Regulamentação Nova",
+    "cashDelta": -10000
+  },
+  {
+    "action": "APPLY_CARD",
+    "kind": "REVES",
+    "id": "bad_mix_2500",
+    "title": "Mix de Produtos Desequilibrado",
+    "cashDelta": -2500
+  },
+  {
+    "action": "APPLY_CARD",
+    "kind": "REVES",
+    "id": "quality_crisis",
+    "title": "Crise de Qualidade",
+    "cashDelta": -1000,
+    "clientsDelta": -1
+  }
+]

@@ -23,7 +23,6 @@ import { computeTurnDeadlineAt } from '../turnTimerLogic.js'
 test('a duracao minima do handoff e uma constante de 5 segundos (§8)', () => {
   assert.equal(LOCAL_HANDOFF_MIN_DURATION_MS, 5000)
 })
-
 test('localHandoffRemainingMs decresce de 5000 ate 0 sem passar do zero (§13)', () => {
   const t0 = 1_000_000
   assert.equal(localHandoffRemainingMs({ startedAt: t0, now: t0 }), 5000)
@@ -149,25 +148,26 @@ test('a espera pertence a chave turnPlayerId:turnSeq (§15)', () => {
 const CRLF = /\r\n/g
 const lerFonte = async (url) => (await (await import('node:fs/promises')).readFile(url, 'utf8')).replace(CRLF, '\n')
 
-test('App reinicia a espera a cada nova chave de turno e limpa o interval (§15, §16, §17)', async () => {
+test('App libera o turno hot-seat sozinho, sem overlay nem contagem (§15, §16, §17)', async () => {
   const src = await lerFonte(new URL('../../App.jsx', import.meta.url))
 
-  // um unico efeito, chaveado por (handoff aberto, chave do turno)
-  assert.match(src, /useEffect\(\(\) => \{\s*\n\s*if \(!localHandoffOpen \|\| !currentLocalTurnKey\) \{[\s\S]{0,500}?\}, \[localHandoffOpen, currentLocalTurnKey\]\)/)
-  // startedAt reiniciado no inicio de cada espera
-  assert.match(src, /const inicio = Date\.now\(\)\s*\n\s*setLocalHandoffStartedAt\(inicio\)/)
-  // interval unico e limpo no unmount / troca de chave
-  assert.match(src, /const id = setInterval\(\(\) => setLocalHandoffNow\(Date\.now\(\)\), 250\)\s*\n\s*return \(\) => clearInterval\(id\)/)
-  // sem timestamp quando o overlay fecha
-  assert.match(src, /setLocalHandoffStartedAt\(null\)/)
+  // a troca de jogador nao abre mais pop-up: nada de overlay nem de countdown
+  assert.doesNotMatch(src, /<LocalTurnHandoff/)
+  assert.doesNotMatch(src, /localHandoffCountdown/)
+  assert.doesNotMatch(src, /setLocalHandoffStartedAt/)
+  assert.doesNotMatch(src, /setInterval\(\(\) => setLocalHandoffNow/)
+
+  // a liberacao passou a ser automatica, no lugar do antigo botao
+  assert.match(src, /if \(!localHandoffReadyToConfirm\) return\s+confirmLocalTurn\(currentLocalTurnKey\)/)
 })
 
-test('a espera bloqueia a liberacao e tambem a confirmacao direta (§13)', async () => {
+test('a liberacao automatica continua respeitando dado, animacao e modais (§13)', async () => {
   const src = await lerFonte(new URL('../../App.jsx', import.meta.url))
 
-  assert.match(src, /const localHandoffReadyToConfirm =\s*\n\s*localHandoffOpen &&\s*\n\s*localHandoffHoldDone &&/)
-  // guard duro dentro do confirm, nao so o botao desabilitado
-  assert.match(src, /if \(!isLocalHandoffHoldSatisfied\(\{ startedAt: localHandoffStartedAt, now: Date\.now\(\) \}\)\) return/)
+  assert.match(src, /const localHandoffReadyToConfirm =\s+localHandoffOpen &&\s+!diceFx &&\s+!isRollingUI &&\s+!turnLock &&\s+Number\(modalLocks \|\| 0\) === 0/)
+  // guard duro dentro do confirm, nao so a condicao derivada
+  assert.match(src, /if \(diceFxRef\.current \|\| diceInFlightRef\.current \|\| turnLockRef\.current\) return/)
+  assert.match(src, /if \(Number\(modalLocks \|\| 0\) !== 0\) return/)
 })
 
 test('o motor NAO foi atrasado: nenhum setTimeout envolvendo commit de turno (§5)', async () => {
@@ -193,14 +193,4 @@ test('a espera e exclusiva do hot-seat: online e spectator intactos (§11, §12)
   // commit remoto nao passa a depender da espera
   assert.doesNotMatch(src, /localHandoffHoldDone[\s\S]{0,120}?commitRemoteState/)
   assert.doesNotMatch(src, /localHandoffHoldDone[\s\S]{0,120}?netCommit/)
-})
-
-test('o overlay mostra a contagem sem criar timer proprio (§17)', async () => {
-  const src = await lerFonte(new URL('../../components/LocalTurnHandoff.jsx', import.meta.url))
-
-  assert.match(src, /countdownSeconds = 0/)
-  assert.match(src, /const contando = !readyToConfirm && restante > 0/)
-  assert.match(src, /localHandoffCountdownValue/)
-  // o componente e burro: nenhum interval/timeout proprio
-  assert.doesNotMatch(src, /setInterval|setTimeout\(/)
 })

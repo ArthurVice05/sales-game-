@@ -5,7 +5,6 @@ import './styles.css'
 // Telas
 import StartScreen from './components/StartScreen.jsx'
 import LocalGameSetup from './components/LocalGameSetup.jsx'
-import LocalTurnHandoff from './components/LocalTurnHandoff.jsx'
 import LobbyList from './pages/LobbyList.jsx'
 import PlayersLobby from './pages/PlayersLobby.jsx'
 import Board from './components/board/Board.jsx'
@@ -13,6 +12,7 @@ import HUD from './components/panel/HUD.jsx'
 import Controls from './components/panel/Controls.jsx'
 import DiceResult from './components/DiceResult.jsx'
 import DiceRollOverlay from './components/dice/DiceRollOverlay.jsx'
+import { SorteRevesDeck } from './modals/SorteRevesScene.jsx'
 import { unlockDiceAudio } from './utils/diceRollSound.js'
 import FinalWinners from './components/FinalWinners.jsx'
 import TutorialModal, { shouldAutoOpenTutorial } from './components/TutorialModal.jsx'
@@ -113,9 +113,7 @@ import {
   GAME_MODE,
   applyStarterKit,
   createLocalPlayers,
-  isLocalHandoffHoldSatisfied,
   isLocalTurnReady,
-  localHandoffCountdownSeconds,
   localTurnKey,
   resolveGameplayActorId,
   shouldCreateGameBroadcastChannel,
@@ -2738,36 +2736,13 @@ export default function App() {
     localTurnReady,
     acknowledgedTurnKey: acknowledgedLocalTurnKey,
   })
-  // ====== Apresentação da troca de turno (hot-seat): espera mínima de ~5s.
-  // NÃO atrasa o motor — turnPlayerId/turnSeq já foram commitados. Só adia a
-  // liberação do próximo jogador. Um único interval por chave de turno.
-  const [localHandoffStartedAt, setLocalHandoffStartedAt] = useState(null)
-  const [localHandoffNow, setLocalHandoffNow] = useState(() => Date.now())
-
-  useEffect(() => {
-    if (!localHandoffOpen || !currentLocalTurnKey) {
-      setLocalHandoffStartedAt(null)
-      return undefined
-    }
-    const inicio = Date.now()
-    setLocalHandoffStartedAt(inicio)
-    setLocalHandoffNow(inicio)
-    const id = setInterval(() => setLocalHandoffNow(Date.now()), 250)
-    return () => clearInterval(id)
-  }, [localHandoffOpen, currentLocalTurnKey])
-
-  const localHandoffHoldDone = isLocalHandoffHoldSatisfied({
-    startedAt: localHandoffStartedAt,
-    now: localHandoffNow,
-  })
-  const localHandoffCountdown = localHandoffCountdownSeconds({
-    startedAt: localHandoffStartedAt,
-    now: localHandoffNow,
-  })
-
+  // ====== Troca de turno (hot-seat) sem pop-up.
+  // Quem está jogando aparece no topo do HUD; a passagem de turno não abre mais
+  // overlay nem contagem. O motor continua igual: turnPlayerId/turnSeq já foram
+  // commitados e o que acontece aqui é só a liberação do próximo jogador,
+  // assim que o dado, a animação e os modais estiverem em repouso.
   const localHandoffReadyToConfirm =
     localHandoffOpen &&
-    localHandoffHoldDone &&
     !diceFx &&
     !isRollingUI &&
     !turnLock &&
@@ -2778,14 +2753,18 @@ export default function App() {
     if (!currentLocalTurnKey || requestedTurnKey !== currentLocalTurnKey) return
     if (diceFxRef.current || diceInFlightRef.current || turnLockRef.current) return
     if (Number(modalLocks || 0) !== 0) return
-    // Guard duro: esconder o botão não basta (§13).
-    if (!isLocalHandoffHoldSatisfied({ startedAt: localHandoffStartedAt, now: Date.now() })) return
 
     const deadline = computeTurnDeadlineAt(Date.now(), turnTimeSecRef.current)
     setTurnDeadlineAt(deadline)
     turnDeadlineAtRef.current = deadline
     setAcknowledgedLocalTurnKey(currentLocalTurnKey)
-  }, [gameMode, gameOver, currentLocalTurnKey, modalLocks, localHandoffStartedAt])
+  }, [gameMode, gameOver, currentLocalTurnKey, modalLocks])
+
+  // Libera o turno automaticamente — o lugar do antigo botão "iniciar turno".
+  useEffect(() => {
+    if (!localHandoffReadyToConfirm) return
+    confirmLocalTurn(currentLocalTurnKey)
+  }, [localHandoffReadyToConfirm, currentLocalTurnKey, confirmLocalTurn])
 
   useEffect(() => {
     if (!localHandoffOpen) return
@@ -3736,6 +3715,7 @@ export default function App() {
             me={players.find(isMine) || null}
             matchId={gameMode === GAME_MODE.LOCAL ? localMatchId : (currentLobbyId || roomId)}
           />
+          <SorteRevesDeck />
           <DiceRollOverlay
             open={!!diceFx}
             result={diceFx?.steps || 1}
@@ -3889,16 +3869,6 @@ export default function App() {
     </div>
     </ModalProvider>
     </OrientationGuard>
-
-      <LocalTurnHandoff
-        open={localHandoffOpen && !gameOver}
-        playerName={current?.name || ''}
-        turnKey={currentLocalTurnKey}
-        initial={turnSeq === 0}
-        readyToConfirm={localHandoffReadyToConfirm}
-        countdownSeconds={localHandoffCountdown}
-        onConfirm={confirmLocalTurn}
-      />
 
       {/* Fora de .page (overflow) — FinalWinners ainda usa portal no body */}
       {gameOver && (

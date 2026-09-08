@@ -337,7 +337,7 @@ test('fluxo online de jogador permanece intacto', async () => {
 test('hot-seat permanece intacto', async () => {
   const source = await readApp()
   assert.match(source, /phase === 'localSetup'/)
-  assert.match(source, /<LocalTurnHandoff/)
+  assert.match(source, /shouldOpenLocalHandoff\(\{/)
   assert.match(source, /shouldEnableTurnTimer\(\{ gameMode, localTurnReady \}\)/)
   assert.match(source, /setAcknowledgedLocalTurnKey\(currentLocalTurnKey\)/)
   assert.match(source, /gameMode === GAME_MODE\.LOCAL && turnIdentityChanged/)

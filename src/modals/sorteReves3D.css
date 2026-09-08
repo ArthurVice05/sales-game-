@@ -1,0 +1,260 @@
+/* Estilos exclusivos da modal Sorte & Revés (animação 3D).
+   Todo seletor é prefixado com .sr3d- — nada aqui vaza para o CSS global. */
+
+.sr3d-wrap {
+  padding:
+    max(12px, env(safe-area-inset-top))
+    max(12px, env(safe-area-inset-right))
+    max(12px, env(safe-area-inset-bottom))
+    max(12px, env(safe-area-inset-left));
+  box-sizing: border-box;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.sr3d-card {
+  /* A carta é o modal: sem moldura, sem painel ao lado. */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-height: min(96vh, 96dvh);
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  box-sizing: border-box;
+}
+
+/* ---------- palco: a carta e o texto que vive dentro dela ---------- */
+
+.sr3d-stage {
+  position: relative;
+  flex: 0 0 auto;
+  width: min(440px, 88vw, 52vh);
+  min-width: 0;
+}
+
+.sr3d-media {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  border-radius: 16px;
+  pointer-events: none;
+  user-select: none;
+  transition: filter 320ms ease;
+}
+
+.sr3d-media.is-settled {
+  filter: drop-shadow(0 0 18px rgba(148, 163, 184, 0.28));
+}
+
+.sr3d-media--sorte.is-settled {
+  filter: drop-shadow(0 0 22px rgba(34, 197, 94, 0.34));
+}
+
+.sr3d-media--reves.is-settled {
+  filter: drop-shadow(0 0 22px rgba(239, 68, 68, 0.34));
+}
+
+.sr3d-video,
+.sr3d-poster {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+/* O PNG final entra por cima do último quadro do vídeo: nada pisca e a frente
+   da carta nunca aparece antes do giro. */
+.sr3d-poster {
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+
+.sr3d-poster.is-on {
+  opacity: 1;
+}
+
+/* ---------- texto real, sobreposto na área livre da carta ---------- */
+
+/* A placa clara garante contraste tanto no verde da Sorte quanto no vermelho
+   do Revés. A sonda usa exatamente a mesma caixa para a medida bater. */
+.sr3d-cardText,
+.sr3d-cardProbe {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  text-align: center;
+  color: #14213d;
+  background: rgba(252, 249, 242, 0.94);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.24);
+}
+
+.sr3d-stage.is-inside .sr3d-cardText {
+  position: absolute;
+  left: 25.5%;
+  top: 47%;
+  width: 49%;
+  height: 31%;
+  /* Aparece com o giro terminado; antes disso continua no DOM, legível para
+     tecnologia assistiva, apenas transparente. */
+  opacity: 0;
+  transition: opacity 260ms ease;
+}
+
+.sr3d-stage.is-inside.is-revealed .sr3d-cardText {
+  opacity: 1;
+}
+
+/* Não coube na carta: desce para baixo dela, em fluxo normal, sem cortar. */
+.sr3d-stage.is-below .sr3d-cardText {
+  position: static;
+  width: 100%;
+  margin-top: 10px;
+  padding: 0;
+  color: #e9ecf1;
+  background: none;
+  box-shadow: none;
+  text-align: left;
+}
+
+/* Sonda invisível: mede o texto na largura da área livre da carta. */
+.sr3d-cardProbe {
+  position: absolute;
+  left: 25.5%;
+  top: 47%;
+  width: 49%;
+  height: auto;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.sr3d-cardTitle {
+  margin: 0;
+  font-size: clamp(14px, 1.35vw + 8px, 18px);
+  line-height: 1.2;
+  font-weight: 900;
+}
+
+.sr3d-cardDesc {
+  margin: 0;
+  font-size: clamp(12px, 1vw + 6px, 15px);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.sr3d-stage.is-below .sr3d-cardTitle {
+  font-size: 20px;
+}
+
+.sr3d-stage.is-below .sr3d-cardDesc {
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.sr3d-srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------- confirmação: sempre acessível, inclusive durante o giro ---------- */
+
+.sr3d-actions {
+  flex: 0 0 auto;
+  width: min(440px, 88vw, 52vh);
+  max-width: 100%;
+  min-width: 0;
+  text-align: center;
+}
+
+.sr3d-actions > * {
+  overflow-wrap: anywhere;
+}
+
+.sr3d-confirmHint {
+  margin: 6px 0 10px;
+  font-size: 13px;
+  line-height: 1.4;
+  opacity: 0.75;
+}
+
+.sr3d-actionsRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.sr3d-ok:focus-visible {
+  outline: 3px solid #7dd3fc;
+  outline-offset: 3px;
+}
+
+.sr3d-sound {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.sr3d-sound[aria-pressed="false"] {
+  opacity: 0.7;
+}
+
+.sr3d-sound:focus-visible {
+  outline: 3px solid #7dd3fc;
+  outline-offset: 3px;
+}
+
+/* ---------- telas baixas (celular deitado): carta menor, ações ao lado ---------- */
+
+@media (max-height: 620px) and (orientation: landscape) {
+  .sr3d-card {
+    flex-direction: row;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .sr3d-stage {
+    width: min(300px, 42vw, 74vh);
+  }
+
+  .sr3d-actions {
+    width: auto;
+    flex: 1 1 auto;
+  }
+}
+
+/* ---------- movimento reduzido ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .sr3d-media,
+  .sr3d-poster,
+  .sr3d-stage.is-inside .sr3d-cardText {
+    transition: none;
+  }
+}
