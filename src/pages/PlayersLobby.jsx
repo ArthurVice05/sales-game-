@@ -144,7 +144,7 @@ function IconExit(props) {
 // de habilitação usa este mapa.
 const STATUS_UI = {
   open:    { label: 'Aberta',    key: 'open' },
-  locked:  { label: 'Bloqueada', key: 'locked' },
+  locked:  { label: 'Em jogo',   key: 'playing' },
   playing: { label: 'Em jogo',   key: 'playing' },
   in_game: { label: 'Em jogo',   key: 'playing' },
 }

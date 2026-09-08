@@ -7,7 +7,7 @@ import {
   getMatchIdentity,
   countMatchIdentities,
 } from '../auth'
-import { resolveLobbyEntryAction } from '../game/spectatorMode.js'
+import { isSpectatableRoomStatus, resolveLobbyEntryAction } from '../game/spectatorMode.js'
 import {
   listLobbies,
   onLobbiesRealtime,
@@ -351,7 +351,7 @@ export default function LobbyList({ onEnterRoom, onSpectateRoom, playerName, spe
   // habilitar/desabilitar continua usando o status cru como antes.
   const STATUS_UI = {
     open:    { label: 'Aberta',    key: 'open' },
-    locked:  { label: 'Bloqueada', key: 'locked' },
+    locked:  { label: 'Em jogo',   key: 'playing' },
     playing: { label: 'Em jogo',   key: 'playing' },
     in_game: { label: 'Em jogo',   key: 'playing' },
   }
@@ -460,6 +460,10 @@ export default function LobbyList({ onEnterRoom, onSpectateRoom, playerName, spe
                       isFull,
                     })
                     const canSpectate = entry.action === 'spectate'
+                    // Assistir não ocupa vaga: fica disponível mesmo quando a ação
+                    // principal é entrar ou retomar. Só não duplica quando o botão
+                    // principal JÁ é o de assistir.
+                    const podeAssistirSeparado = !canSpectate && isSpectatableRoomStatus(r.status ?? 'open')
                     const disabled = entry.disabled
 
                     if (import.meta.env.DEV && !isOpen) {
@@ -556,6 +560,18 @@ export default function LobbyList({ onEnterRoom, onSpectateRoom, playerName, spe
                           {!disabled && (canSpectate ? <IconEye /> : <IconEnter />)}
                           {joinLabel}
                         </button>
+
+                        {podeAssistirSeparado && (
+                          <button
+                            type="button"
+                            className="lobbyJoinBtn lobbyJoinBtn--spectate lobbySpectateBtn"
+                            onClick={() => handleSpectate(r.id)}
+                            title="Assistir esta partida (não ocupa vaga)"
+                          >
+                            <IconEye />
+                            Assistir partida
+                          </button>
+                        )}
                       </div>
                     )
                   })}

@@ -138,13 +138,33 @@ export function clearSpectateFromSearch (search) {
   return params.toString()
 }
 
-const PLAYING_STATUSES = new Set(['playing', 'in_game'])
+/**
+ * Status de sala com partida em andamento.
+ *
+ * `locked` é o que `PlayersLobby.handleStart` realmente grava ao iniciar, e
+ * `started` é o que `RoomLobby` grava. `playing`/`in_game` só existiam como
+ * rótulo de exibição: nenhum caminho do app os escrevia, então o modo
+ * espectador nunca era oferecido pela lista de salas.
+ */
+const PLAYING_STATUSES = new Set(['locked', 'started', 'playing', 'in_game'])
 
 /**
  * Ação oferecida no card da lista de salas.
  * Prioridade absoluta: quem tem identidade naquela sala RETOMA — nunca é
  * empurrado para o modo espectador (perderia o assento).
  */
+/**
+ * A sala está em andamento, portanto assistível?
+ *
+ * Existe separado de `resolveLobbyEntryAction` porque aquela função devolve UMA
+ * ação (entrar / retomar / assistir). Quem já tem assento na sala recebia só
+ * "Retomar" e ficava sem nenhum caminho para assistir. Assistir não ocupa vaga,
+ * então pode conviver com a ação principal.
+ */
+export function isSpectatableRoomStatus (status) {
+  return PLAYING_STATUSES.has(String(status ?? ''))
+}
+
 export function resolveLobbyEntryAction ({
   status,
   hasLocalMatchIdentity = false,

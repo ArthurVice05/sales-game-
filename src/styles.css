@@ -3272,25 +3272,6 @@ img[src*="multiplier"]{
   background: rgba(14, 165, 233, 0.22);
   border-color: rgba(56, 189, 248, 0.45);
 }
-.lobbyJoinBtn--resume{
-  background: #0ea5e9;
-  color: #082f49;
-  box-shadow: 0 6px 16px rgba(14, 165, 233, 0.28);
-}
-.lobbyJoinBtn--resume:hover:not(:disabled){
-  filter: brightness(1.06);
-}
-
-/* Modo espectador: assistir nao ocupa vaga (sala cheia continua assistivel) */
-.lobbyJoinBtn--spectate{
-  background: rgba(148,163,184,.18);
-  color: #e2e8f0;
-  border: 1px solid rgba(148,163,184,.38);
-  box-shadow: none;
-}
-.lobbyJoinBtn--spectate:hover:not(:disabled){
-  background: rgba(148,163,184,.26);
-}
 .startOnlineDisabled{
   margin: 6px 0 0;
   padding: 8px 10px;
@@ -3330,6 +3311,34 @@ img[src*="multiplier"]{
   box-shadow: 0 6px 16px rgba(79,70,229,.28);
   transition: box-shadow .15s ease, opacity .15s ease;
 }
+
+.lobbyJoinBtn--resume{
+  background: #0ea5e9;
+  color: #082f49;
+  box-shadow: 0 6px 16px rgba(14, 165, 233, 0.28);
+}
+.lobbyJoinBtn--resume:hover:not(:disabled){
+  filter: brightness(1.06);
+}
+
+/* Modo espectador: assistir nao ocupa vaga (sala cheia continua assistivel) */
+/* Botão secundário: fica ABAIXO do principal, sem competir com ele. */
+.lobbySpectateBtn{
+  margin-top:8px;
+  opacity:.92;
+}
+.lobbySpectateBtn:hover:not(:disabled){ opacity:1; }
+
+.lobbyJoinBtn--spectate{
+  background: rgba(148,163,184,.18);
+  color: #e2e8f0;
+  border: 1px solid rgba(148,163,184,.38);
+  box-shadow: none;
+}
+.lobbyJoinBtn--spectate:hover:not(:disabled){
+  background: rgba(148,163,184,.26);
+}
+
 .lobbyJoinBtn svg{ width: 16px; height: 16px; flex: none; }
 .lobbyJoinBtn:hover:not(:disabled){
   box-shadow: 0 10px 22px rgba(79,70,229,.40);

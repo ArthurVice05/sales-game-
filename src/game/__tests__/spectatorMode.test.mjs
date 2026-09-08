@@ -296,9 +296,87 @@ test('outsider em partida em andamento recebe assistir mesmo com sala cheia (§4
   }
 })
 
-test('sala apenas bloqueada sem identidade continua indisponível', () => {
-  assert.deepEqual(
-    resolveLobbyEntryAction({ status: 'locked', hasLocalMatchIdentity: false }),
-    { action: 'none', label: 'Sala bloqueada', disabled: true }
+test('sala com status desconhecido/encerrado continua indisponível', () => {
+  // 'locked' deixou de cair aqui: é partida em andamento, logo assistível.
+  for (const status of ['closed', 'finished', 'abortada']) {
+    assert.deepEqual(
+      resolveLobbyEntryAction({ status, hasLocalMatchIdentity: false }),
+      { action: 'none', label: 'Sala bloqueada', disabled: true },
+      `status ${status}`
+    )
+  }
+})
+
+/* ===== Botão "Assistir" sempre disponível quando a partida é assistível ===== */
+
+test('isSpectatableRoomStatus reconhece apenas partidas em andamento', async () => {
+  const { isSpectatableRoomStatus } = await import('../spectatorMode.js')
+  assert.equal(typeof isSpectatableRoomStatus, 'function')
+  for (const status of ['playing', 'in_game']) {
+    assert.equal(isSpectatableRoomStatus(status), true, `status ${status}`)
+  }
+  for (const status of ['open', 'closed', 'finished', '', null, undefined, 123]) {
+    assert.equal(isSpectatableRoomStatus(status), false, `status ${String(status)}`)
+  }
+})
+
+test('assistir continua possível mesmo quando a ação principal é retomar', async () => {
+  const { isSpectatableRoomStatus } = await import('../spectatorMode.js')
+  // Caso real: mesma máquina, jogador já tem assento — o card oferecia só "Retomar".
+  const entry = resolveLobbyEntryAction({
+    status: 'playing',
+    hasLocalMatchIdentity: true,
+    canResume: true,
+  })
+  assert.equal(entry.action, 'resume')
+  assert.equal(isSpectatableRoomStatus('playing'), true, 'assistir não pode depender da ação principal')
+})
+
+test('sala lotada e em andamento continua assistível', async () => {
+  const { isSpectatableRoomStatus } = await import('../spectatorMode.js')
+  const entry = resolveLobbyEntryAction({ status: 'playing', isFull: true })
+  assert.equal(entry.action, 'spectate')
+  assert.equal(isSpectatableRoomStatus('playing'), true)
+})
+
+test('LobbyList renderiza o botão Assistir abaixo do botão principal', async () => {
+  const { readFile } = await import('node:fs/promises')
+  const src = await readFile(new URL('../../pages/LobbyList.jsx', import.meta.url), 'utf8')
+  assert.match(src, /isSpectatableRoomStatus/)
+  assert.match(src, /lobbySpectateBtn/)
+  // botão secundário só some quando o principal JÁ é o de assistir
+  assert.match(src, /podeAssistirSeparado/)
+  // e continua chamando o mesmo fluxo de espectador
+  assert.match(src, /handleSpectate\(r\.id\)/)
+})
+
+/* ===== 'locked' é o status real de partida em andamento (handleStart) ===== */
+
+test('locked e started são assistíveis: é o que o app realmente grava', async () => {
+  const { isSpectatableRoomStatus } = await import('../spectatorMode.js')
+  // PlayersLobby.handleStart grava 'locked'; RoomLobby grava 'started'.
+  // 'playing'/'in_game' só existem como rótulo — nada os escreve.
+  for (const status of ['locked', 'started', 'playing', 'in_game']) {
+    assert.equal(isSpectatableRoomStatus(status), true, `status ${status}`)
+  }
+  for (const status of ['open', 'closed', 'finished', '', null]) {
+    assert.equal(isSpectatableRoomStatus(status), false, `status ${String(status)}`)
+  }
+})
+
+test('sem assento numa sala locked, a ação é assistir e não "sala bloqueada"', () => {
+  for (const status of ['locked', 'started']) {
+    assert.deepEqual(
+      resolveLobbyEntryAction({ status, hasLocalMatchIdentity: false, isFull: true }),
+      { action: 'spectate', label: 'Assistir partida', disabled: false },
+      `status ${status}`
+    )
+  }
+})
+
+test('quem tem assento na sala locked continua retomando, não assistindo', () => {
+  assert.equal(
+    resolveLobbyEntryAction({ status: 'locked', hasLocalMatchIdentity: true, canResume: true }).action,
+    'resume'
   )
 })
