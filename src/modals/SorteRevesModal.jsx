@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import TileContextHint from './TileContextHint.jsx'
 import { SORTE_REVES_CARDS, resolveCardEffect } from './sorteRevesDeck.js'
+import TileModalShell from './TileModalShell.jsx'
 
 /**
  * Modal "Sorte & Revés"
@@ -21,6 +22,7 @@ import { SORTE_REVES_CARDS, resolveCardEffect } from './sorteRevesDeck.js'
 
 export default function SorteRevesModal({ onResolve, player = {} }) {
   const confirmRef = useRef(null)
+  const didResolveRef = useRef(false)
 
   const CARDS = SORTE_REVES_CARDS
 
@@ -31,7 +33,11 @@ export default function SorteRevesModal({ onResolve, player = {} }) {
   // Fonte única: sorteRevesDeck.js (mesma lógica, agora testável sem DOM).
   const resolved = useMemo(() => resolveCardEffect(card, player), [card, player])
 
-  const resolve = () => onResolve?.(resolved.payload)
+  const resolve = () => {
+    if (didResolveRef.current) return
+    didResolveRef.current = true
+    onResolve?.(resolved.payload)
+  }
 
   // Trava o scroll do body e foca no botão de confirmação
   useEffect(() => {
@@ -42,34 +48,25 @@ export default function SorteRevesModal({ onResolve, player = {} }) {
   }, [])
 
   return (
-    <div style={S.wrap} role="dialog" aria-modal="true" aria-label="Sorte e Revés">
-      <div style={S.card}>
-        <div style={S.badge(card.kind)}>{card.kind === 'SORTE' ? 'SORTE' : 'REVÉS'}</div>
-        <TileContextHint kind="LUCK" />
-        {card.title && <h2 style={S.title}>{card.title}</h2>}
-        <p style={S.text}>{resolved.text}</p>
-        <p style={S.hint}>
-          O efeito desta carta é aplicado imediatamente ao confirmar.
-        </p>
-
-        <div style={S.footer}>
-          <button ref={confirmRef} type="button" style={S.okBtn} onClick={resolve}>OK</button>
-        </div>
+    <TileModalShell
+      title="Sorte & Revés"
+      label="Sorte e Revés"
+      size="md"
+      footer={(
+        <button ref={confirmRef} type="button" className="tileModalBtn tileModalBtn--confirm" onClick={resolve}>
+          OK
+        </button>
+      )}
+    >
+      <div className={card.kind === 'SORTE' ? 'tileValueHuge tileValueHuge--pos' : 'tileValueHuge tileValueHuge--neg'}>
+        {card.kind === 'SORTE' ? 'SORTE' : 'REVÉS'}
       </div>
-    </div>
+      <TileContextHint kind="LUCK" />
+      {card.title && <h3 className="tileCertName">{card.title}</h3>}
+      <p className="purchasePreviewHint" style={{ fontSize: 18, color: 'var(--tm-text, #f4f6fb)' }}>{resolved.text}</p>
+      <p className="purchasePreviewHint">
+        O efeito desta carta é aplicado imediatamente ao confirmar.
+      </p>
+    </TileModalShell>
   )
-}
-
-const S = {
-  wrap: { position:'fixed', inset:0, background:'rgba(0,0,0,.55)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 },
-  card: { width:'min(760px, 92vw)', background:'#1b1f2a', color:'#e9ecf1', borderRadius:18, padding:'22px', border:'1px solid rgba(255,255,255,.12)', boxShadow:'0 10px 40px rgba(0,0,0,.4)', position:'relative' },
-  badge:(kind)=>({
-    display:'inline-block', padding:'6px 12px', borderRadius:999, fontWeight:900, marginBottom:8,
-    background: kind==='SORTE' ? '#22c55e' : '#ef4444', color:'#111'
-  }),
-  title:{ margin:'2px 0 6px', fontWeight:900 },
-  text:{ fontSize:18, lineHeight:1.5, opacity:.95, margin:'6px 0 8px' },
-  hint:{ fontSize:13, lineHeight:1.4, opacity:.75, margin:'0 0 14px' },
-  footer:{ display:'flex', justifyContent:'center' },
-  okBtn:{ minWidth:140, padding:'12px 18px', borderRadius:12, border:'none', fontWeight:900, cursor:'pointer', background:'#fff', color:'#111' },
 }

@@ -1,0 +1,698 @@
+/* Modais de casa — tokens no próprio diálogo (não herda HUD). */
+
+.tileModal,
+.tileModal button,
+.tileModal input,
+.tileModal select,
+.tileModal textarea {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.tileModal {
+  --tm-bg: #060d19;
+  --tm-surface: #101a2c;
+  --tm-raised: #162238;
+  --tm-border: rgba(255, 255, 255, 0.1);
+  --tm-text: #f4f6fb;
+  --tm-muted: #c5cbe0;
+  --tm-confirm: #3fbf49;
+  --tm-confirm-text: #09110f;
+  --tm-danger: #dc2626;
+  --tm-secondary: #2a3148;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  width: min(880px, calc(100vw - 24px));
+  max-width: 100%;
+  min-width: 0;
+  max-height: min(90dvh, calc(100dvh - 24px));
+  min-height: 0;
+  overflow: hidden;
+  color: var(--tm-text, #f4f6fb);
+  background: var(--tm-bg, #060d19);
+  border: 1px solid var(--tm-border, rgba(255, 255, 255, 0.1));
+  border-radius: 16px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+}
+
+.tileModal--sm { width: min(480px, calc(100vw - 24px)); }
+.tileModal--md { width: min(640px, calc(100vw - 24px)); }
+.tileModal--xl { width: min(960px, calc(100vw - 24px)); }
+
+.tileModalHeader,
+.tileModalFooter {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+.tileModalHeader {
+  justify-content: space-between;
+  border-bottom: 1px solid var(--tm-border, rgba(255, 255, 255, 0.1));
+  background: var(--tm-surface, #101a2c);
+}
+
+.tileModalFooter {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--tm-border, rgba(255, 255, 255, 0.1));
+  background: var(--tm-surface, #101a2c);
+  padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+}
+
+.tileModalTitle {
+  margin: 0;
+  min-width: 0;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.25;
+  color: var(--tm-text, #f4f6fb);
+  overflow-wrap: break-word;
+  word-break: keep-all;
+  hyphens: none;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.tileModalTitle--empty { flex: 1 1 auto; }
+
+.tileModalClose {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  border-radius: 10px;
+  border: 1px solid var(--tm-border, rgba(255, 255, 255, 0.1));
+  background: var(--tm-secondary, #2a3148);
+  color: var(--tm-text, #f4f6fb);
+  cursor: pointer;
+  font-size: 18px;
+}
+
+.tileModalClose:focus-visible,
+.tileModalBtn:focus-visible,
+.tileModal input:focus-visible {
+  outline: 2px solid #a5b4fc;
+  outline-offset: 2px;
+}
+
+.tileModalBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding: 14px 16px;
+  color: var(--tm-text, #f4f6fb);
+}
+
+.tileModal .tileContextHint {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(96, 165, 250, 0.35);
+  background: rgba(37, 99, 235, 0.16);
+  color: #e8f1ff;
+  line-height: 1.4;
+}
+
+.tileModal .purchasePreviewHint {
+  color: var(--tm-muted, #c5cbe0);
+}
+
+.tileQtyCost {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  margin: 0 0 12px;
+}
+
+.tileStatBlock {
+  min-width: 0;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--tm-border, rgba(255, 255, 255, 0.1));
+  background: var(--tm-raised, #162238);
+}
+
+.tileStatLabel {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--tm-muted, #c5cbe0);
+  margin-bottom: 8px;
+  overflow-wrap: break-word;
+  word-break: keep-all;
+}
+
+.tileStatValue {
+  font-size: 22px;
+  font-weight: 800;
+  color: #7dffa3;
+  margin-bottom: 4px;
+}
+
+.tileStatHint {
+  font-size: 13px;
+  color: var(--tm-muted, #c5cbe0);
+}
+
+.tileModal input[type='number'],
+.tileModal input[type='text'],
+.tileModal select {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  font-size: 16px;
+  border-radius: 10px;
+  padding: 0 12px;
+  border: 1px solid var(--tm-border, rgba(255, 255, 255, 0.1));
+  background: #0b1424;
+  color: var(--tm-text, #f4f6fb);
+}
+
+.tileQuickBtns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.tileStepper {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  gap: 8px;
+  align-items: center;
+}
+
+.tileStepperBtn {
+  width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border-radius: 10px;
+  border: 1px solid var(--tm-border, rgba(255, 255, 255, 0.1));
+  background: var(--tm-secondary, #2a3148);
+  color: var(--tm-text, #f4f6fb);
+  font-size: 22px;
+  font-weight: 800;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.tileStepperBtn:disabled {
+  cursor: not-allowed;
+  color: #9aa3b8;
+  background: #243049;
+}
+
+.tileSectionTitle {
+  margin: 4px 0 10px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--tm-muted, #c5cbe0);
+}
+
+.tileCertMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.tileCertPill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #fff;
+  background: #3b82f6;
+}
+
+.tileCertPill--yellow { background: #ca8a04; color: #111827; }
+.tileCertPill--purple { background: #7c3aed; }
+.tileCertPill--blue { background: #2563eb; }
+.tileCertPill--base { background: #475569; }
+
+.tileCertEffect {
+  display: grid;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.tileCertEffectRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--tm-muted, #c5cbe0);
+}
+
+.tileCertEffectRow strong {
+  color: #7dffa3;
+  font-weight: 800;
+}
+
+.tileModalBtn {
+  min-height: 44px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  font-weight: 800;
+  cursor: pointer;
+  color: var(--tm-text, #f4f6fb);
+  background: var(--tm-secondary, #2a3148);
+}
+
+.tileModalBtn:disabled {
+  cursor: not-allowed;
+  opacity: 1;
+  filter: none;
+  background: #243049;
+  color: #9aa3b8;
+  border-color: #3a4563;
+}
+
+.tileModalBtn--confirm {
+  background: var(--tm-confirm, #3fbf49);
+  color: var(--tm-confirm-text, #09110f);
+}
+
+.tileModalBtn--confirm:disabled {
+  background: #2f5d33;
+  color: #cfe8d1;
+}
+
+.tileModalBtn--danger {
+  background: var(--tm-danger, #dc2626);
+  color: #fff;
+}
+
+.tileModalBtn--ghost {
+  background: #3a4158;
+  color: #fff;
+}
+
+.tileBanner,
+.tileWarn {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  overflow-wrap: break-word;
+  word-break: keep-all;
+}
+
+.tileBanner {
+  border: 1px solid var(--tm-border, rgba(255, 255, 255, 0.1));
+  background: var(--tm-raised, #162238);
+  color: var(--tm-muted, #c5cbe0);
+}
+
+.tileWarn {
+  border: 1px solid rgba(250, 204, 21, 0.45);
+  background: rgba(250, 204, 21, 0.12);
+  color: #fde68a;
+}
+
+.tileValueHuge {
+  font-size: 28px;
+  font-weight: 800;
+  margin: 8px 0 16px;
+  overflow-wrap: break-word;
+}
+
+.tileValueHuge--pos { color: #7dffa3; }
+.tileValueHuge--neg { color: #ffb74d; }
+
+.tileCertGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0 0 12px;
+}
+
+.tileCertGrid--4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.tileOptionCard.is-selected {
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.28);
+}
+
+.tileOptionCard.is-owned {
+  opacity: 0.6;
+}
+
+.tileCertCard {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--tm-border, rgba(255, 255, 255, 0.1));
+  background: var(--tm-raised, #162238);
+  color: var(--tm-text, #f4f6fb);
+}
+
+.tileCertCard .tileModalBtn {
+  width: 100%;
+  margin-top: auto;
+}
+
+.tileCertCard h3,
+.tileCertCard .tileCertName {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 800;
+  overflow-wrap: break-word;
+  word-break: keep-all;
+}
+
+.tileCertCard p,
+.tileCertCard li {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--tm-muted, #c5cbe0);
+  overflow-wrap: break-word;
+}
+
+.tileModal .erpTableScroll,
+.tileModal .purchasePreviewExtra {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.tileModal .purchasePreview {
+  background: var(--tm-raised, #162238);
+  border-color: var(--tm-border, rgba(255, 255, 255, 0.1));
+}
+
+.purchasePreviewTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.purchasePreviewTable th,
+.purchasePreviewTable td {
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  overflow-wrap: break-word;
+  word-break: keep-all;
+}
+
+.purchasePreviewTable th {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--tm-muted, #c5cbe0);
+}
+
+.tileOptionGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+@media (max-width: 720px) {
+  .tileQtyCost,
+  .tileCertGrid,
+  .tileCertGrid--4 {
+    grid-template-columns: 1fr;
+  }
+
+  .purchasePreviewTable,
+  .purchasePreviewTable thead,
+  .purchasePreviewTable tbody,
+  .purchasePreviewTable tr,
+  .purchasePreviewTable th,
+  .purchasePreviewTable td {
+    display: block;
+    width: 100%;
+  }
+
+  .purchasePreviewTable thead { display: none; }
+
+  .purchasePreviewTable tr {
+    margin: 0 0 10px;
+    padding: 8px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: #0b1424;
+  }
+
+  .purchasePreviewTable td {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    border: 0;
+    padding: 4px 0;
+  }
+
+  .purchasePreviewTable td::before {
+    content: attr(data-label);
+    font-weight: 700;
+    color: var(--tm-muted, #c5cbe0);
+  }
+
+  .tileModalFooter {
+    justify-content: stretch;
+  }
+
+  .tileModalFooter .tileModalBtn {
+    flex: 1 1 100%;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 430px) {
+  .tileModal {
+    max-height: min(100dvh, calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)));
+  }
+  .tileModalHeader,
+  .tileModalFooter { padding-top: 8px; padding-bottom: 8px; }
+  .tileModalTitle { font-size: 16px; }
+}
+
+/* Compactação mobile landscape — não altera paddings base do notebook (≥768). */
+@media (orientation: landscape) and (max-height: 500px) {
+  .tileModal {
+    --tm-pad: 10px;
+    --tm-gap: 8px;
+    width: min(880px, calc(100vw - 16px));
+    max-height: min(100dvh, calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)));
+    border-radius: 12px;
+  }
+
+  .tileModal--sm { width: min(480px, calc(100vw - 16px)); }
+  .tileModal--md { width: min(640px, calc(100vw - 16px)); }
+  .tileModal--xl { width: min(960px, calc(100vw - 16px)); }
+
+  .tileModalHeader,
+  .tileModalFooter {
+    gap: 8px;
+    padding: 8px 10px;
+    padding-left: max(10px, env(safe-area-inset-left, 0px));
+    padding-right: max(10px, env(safe-area-inset-right, 0px));
+  }
+
+  .tileModalFooter {
+    padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+  }
+
+  .tileModalBody {
+    padding: 8px 10px;
+  }
+
+  .tileModalTitle {
+    font-size: 16px;
+    line-height: 1.2;
+  }
+
+  .tileModal .tileContextHint {
+    margin: 0 0 8px;
+    padding: 6px 8px;
+    line-height: 1.3;
+  }
+
+  .tileModal .purchasePreviewHint {
+    margin: 0 0 8px;
+    line-height: 1.35;
+  }
+
+  .tileModal .purchasePreview {
+    margin: 0 0 8px;
+    padding: 8px 10px;
+  }
+
+  .tileModal .purchasePreviewTitle {
+    margin-bottom: 6px;
+  }
+
+  .tileQtyCost {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px;
+    margin: 0 0 8px;
+  }
+
+  .tileStatBlock {
+    padding: 8px 10px;
+  }
+
+  .tileStatLabel {
+    margin-bottom: 4px;
+  }
+
+  .tileStatValue {
+    font-size: 18px;
+    margin-bottom: 2px;
+  }
+
+  .tileStatHint--saldo {
+    margin-bottom: 8px;
+  }
+
+  .tileQuickBtns {
+    margin-top: 6px;
+    gap: 6px;
+  }
+
+  .tileSectionTitle {
+    margin: 2px 0 6px;
+  }
+
+  .tileBanner,
+  .tileWarn {
+    margin: 0 0 8px;
+    padding: 6px 8px;
+  }
+
+  .tileValueHuge {
+    font-size: 24px;
+    margin: 4px 0 8px;
+  }
+
+  .tileCertGrid,
+  .tileCertGrid--4 {
+    gap: 8px;
+    margin: 0 0 8px;
+  }
+
+  .tileCertCard {
+    padding: 8px 10px;
+    gap: 4px;
+  }
+
+  .tileCertCard h3,
+  .tileCertCard .tileCertName {
+    margin: 0 0 4px;
+  }
+
+  .tileOptionGrid {
+    gap: 8px;
+  }
+
+  .purchasePreviewTable th,
+  .purchasePreviewTable td {
+    padding: 4px 6px;
+  }
+
+  .purchasePreviewTable tr {
+    margin: 0 0 6px;
+    padding: 6px;
+  }
+
+  .tileModalBtn {
+    padding: 8px 12px;
+  }
+
+  .tileModal .tileDenseSection {
+    margin-bottom: 8px !important;
+    margin-top: 0 !important;
+  }
+
+  /* Recovery: sobrescreve paddings inline só no landscape curto */
+  .recovery-card.tileModal {
+    max-height: min(100dvh, calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)));
+    border-radius: 12px;
+  }
+
+  .recovery-card.tileModal .recovery-header {
+    padding: 8px 10px !important;
+  }
+
+  .recovery-card.tileModal .recovery-header > div {
+    font-size: 16px !important;
+  }
+
+  .recovery-card.tileModal .recovery-body {
+    padding: 8px 10px !important;
+  }
+
+  .recovery-card.tileModal .recovery-row-btns {
+    margin-top: 8px !important;
+    gap: 8px !important;
+  }
+
+  .recovery-card.tileModal .recovery-alert {
+    margin-bottom: 8px !important;
+  }
+
+  .recovery-card.tileModal .rr-root {
+    gap: 8px;
+  }
+
+  .recovery-card.tileModal .rr-lead,
+  .recovery-card.tileModal .rr-title {
+    margin: 0 0 6px;
+  }
+
+  .recovery-card.tileModal .rr-footer {
+    padding-top: 8px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 500px) and (max-width: 700px) {
+  .tileQtyCost,
+  .tileCertGrid,
+  .tileCertGrid--4 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Recovery: mesma tipografia/tokens, sem segundo sistema visual. */
+.recovery-card.tileModal {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: var(--tm-text, #f4f6fb);
+  background: var(--tm-bg, #060d19);
+}
+
+.recovery-card.tileModal .recovery-header {
+  flex: 0 0 auto;
+}
+
+.recovery-card.tileModal button {
+  min-height: 44px;
+  font-family: inherit;
+}
+
+@media (orientation: landscape) and (max-height: 430px) {
+  .recovery-card.tileModal {
+    max-height: min(100dvh, calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)));
+  }
+}

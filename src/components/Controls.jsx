@@ -135,7 +135,8 @@ export default function Controls({
             disabled={!canRoll}
             aria-disabled={!canRoll}
           >
-            Rolar Dado &amp; Andar
+            <span className="rollLabelFull">Rolar Dado &amp; Andar</span>
+            <span className="rollLabelShort">Rolar dado</span>
           </button>
         </div>
       )}

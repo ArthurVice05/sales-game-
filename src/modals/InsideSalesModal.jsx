@@ -7,6 +7,7 @@ import { CERT_EFFECTS, VENDOR_RULES, certDeltaForVendor } from '../game/gameRule
 import { buildInsideSalesPurchaseDeltas } from '../game/insideSalesPurchase.js'
 import { previewPurchaseImpact } from '../game/purchasePreview.js'
 import TileContextHint from './TileContextHint.jsx'
+import TileModalShell from './TileModalShell.jsx'
 
 /**
  * onResolve(payload)
@@ -97,7 +98,7 @@ export default function InsideSalesModal({ onResolve, currentCash = 0, currentPl
 
   const bump = (n) => {
     const cur = Number(qty) || 0
-    const next = Math.min(maxBySaldo || Infinity, cur + n)
+    const next = Math.max(0, Math.min(maxBySaldo || Infinity, cur + n))
     setQty(next || '')
   }
   const setMax = () => setQty(maxBySaldo || '')
@@ -145,168 +146,126 @@ export default function InsideSalesModal({ onResolve, currentCash = 0, currentPl
   }, [])
 
   return (
-    <div className="isWrap" role="dialog" aria-modal="true" aria-label="Inside Sales">
-      <div className="isCard">
-        <button
-          ref={closeRef}
-          type="button"
-          style={S.close}
-          onClick={handleClose}
-          aria-label="Fechar"
-        >✕</button>
-
-        <h2 className="isTitle">Você pode escolher quantos <b>Inside Sales</b> quer comprar:</h2>
-
-        <TileContextHint kind="INSIDE" />
-
-        <p className="purchasePreviewHint">
-          O Inside Sales aumenta a capacidade de atendimento em {attendsUpTo} clientes,
-          gera faturamento pelas regras atuais da equipe e adiciona despesas mensais.
-          Cada cor de certificado tem efeito financeiro diferente (não são equivalentes).
-          Capacidade não muda com treinamento. Gestores certificados podem potencializar
-          o faturamento dos vendedores.
-        </p>
-
-        {/* Aviso (texto do manual) */}
-        <div style={S.note}>
-          <div style={{fontWeight:900, marginBottom:4}}>INSIDE SALES (SDR/BDR + CLOSER + CS)</div>
-          <div><b>Base para cálculo despesa:</b> × quantidade <b>field sales</b> ou <b>inside sales</b>.</div>
-          <div><b>Base para cálculo faturamento:</b> × quantidade <b>máxima de clientes que cada vendedor pode atender</b>.</div>
-        </div>
-
-        {/* Linha de saldo e máximo por saldo */}
-        <div className="isSaldoRow" style={S.saldoRow}>
-          <div>Saldo disponível: <b>$ {Number(currentCash || 0).toLocaleString()}</b></div>
-          <div>Máximo por saldo: <b>{maxBySaldo}</b></div>
-        </div>
-
-        {/* Input + atalhos rápidos */}
-        <div className="isInputRow">
-          <input
-            type="number"
-            inputMode="numeric"
-            min={1}
-            placeholder="Digite o número de Inside Sales"
-            value={qty}
-            onChange={(e) => setQty(e.target.value)}
-            className="isInput"
-            style={S.input}
-          />
-          <div className="isQuickBtns">
-            <button type="button" className="isQuickBtn" style={S.quickBtn} onClick={() => bump(1)}>+1</button>
-            <button type="button" className="isQuickBtn" style={S.quickBtn} onClick={() => bump(5)}>+5</button>
-            <button type="button" className="isQuickBtn" style={S.quickBtn} onClick={() => bump(10)}>+10</button>
-            <button type="button" className="isQuickBtn" style={{...S.quickBtn, fontWeight:900}} onClick={setMax}>Máx</button>
-          </div>
-          <div className="isTotalBox" style={S.totalBox}>
-            Total contratar: <b>$ {Number(totalCost).toLocaleString()}</b>
-          </div>
-        </div>
-
-        {/* Cards por COR (efeitos acumulam; não são níveis 1/2/3 genéricos) */}
-        <div className="isCards">
-          <Card
-            title="Sem certificado"
-            bg="#2a2f3b"
-            pill="BASE"
-            lines={[
-              `Contratação: $ ${unitHire.toLocaleString()}`,
-              `Despesa: ${money(expenseAt(0))}`,
-              `Faturamento: ${money(revenueAt(0))}`,
-            ]}
-          />
-          {certCards.map((card) => (
-            <Card
-              key={card.id}
-              title={card.title}
-              bg={card.bg}
-              pill={card.pill}
-              dark={card.dark}
-              lines={card.lines}
-            />
-          ))}
-        </div>
-
-        <PurchaseImpactPreview impact={purchaseImpact} />
-
-        <div className="isActions" style={S.actions}>
+    <TileModalShell
+      title="Inside Sales"
+      label="Inside Sales"
+      onClose={handleClose}
+      closeRef={closeRef}
+      footer={(
+        <>
           {allowBack && (
-            <button type="button" className="isBigBtn" style={{ ...S.bigBtn, background:'#2a2f3b', color:'#fff' }} onClick={handleBack}>
+            <button type="button" className="tileModalBtn tileModalBtn--ghost" onClick={handleBack}>
               Voltar
             </button>
           )}
-          <button type="button" className="isBigBtn" style={{ ...S.bigBtn, background:'#666', color:'#fff' }} onClick={handleClose}>
+          <button type="button" className="tileModalBtn tileModalBtn--ghost" onClick={handleClose}>
             Não comprar
           </button>
           <button
             type="button"
-            className="isBigBtn"
-            style={{ ...S.bigBtn, background: canBuy ? '#3fbf49' : '#2f5d33', color:'#09110f' }}
+            className="tileModalBtn tileModalBtn--confirm"
             onClick={handleBuy}
             disabled={!canBuy}
             title={!canBuy ? 'Informe uma quantidade válida' : undefined}
           >
-            Comprar {canBuy ? `($ ${totalCost.toLocaleString()})` : ''}
+            {canBuy ? `Contratar por ${money(totalCost)}` : 'Contratar'}
           </button>
+        </>
+      )}
+    >
+      <TileContextHint kind="INSIDE" />
+
+      <p className="purchasePreviewHint">
+        O Inside Sales aumenta a capacidade de atendimento em {attendsUpTo} clientes,
+        gera faturamento pelas regras atuais da equipe e adiciona despesas mensais.
+        Cada cor de certificado tem efeito financeiro diferente (não são equivalentes).
+        Capacidade não muda com treinamento. Gestores certificados podem potencializar
+        o faturamento dos vendedores.
+      </p>
+
+      <div className="tileBanner">
+        <div style={{ fontWeight: 900, marginBottom: 4 }}>INSIDE SALES (SDR/BDR + CLOSER + CS)</div>
+        <div><b>Base para cálculo despesa:</b> × quantidade <b>field sales</b> ou <b>inside sales</b>.</div>
+        <div><b>Base para cálculo faturamento:</b> × quantidade <b>máxima de clientes que cada vendedor pode atender</b>.</div>
+      </div>
+
+      <div className="tileQtyCost">
+        <div className="tileStatBlock">
+          <div className="tileStatLabel">Quantidade de representantes</div>
+          <div className="tileStepper">
+            <button
+              type="button"
+              className="tileStepperBtn"
+              aria-label="Diminuir quantidade"
+              disabled={qtyNum <= 0}
+              onClick={() => bump(-1)}
+            >
+              −
+            </button>
+            <input
+              type="number"
+              inputMode="numeric"
+              min={0}
+              placeholder="0"
+              value={qty}
+              onChange={(e) => setQty(e.target.value)}
+              aria-label="Quantidade de Inside Sales"
+            />
+            <button
+              type="button"
+              className="tileStepperBtn"
+              aria-label="Aumentar quantidade"
+              onClick={() => bump(1)}
+            >
+              +
+            </button>
+          </div>
+          <div className="tileQuickBtns">
+            <button type="button" className="tileModalBtn" onClick={() => bump(5)}>+5</button>
+            <button type="button" className="tileModalBtn" onClick={() => bump(10)}>+10</button>
+            <button type="button" className="tileModalBtn" onClick={setMax}>Máx</button>
+          </div>
+          <div className="tileStatHint">Máximo por saldo: <b>{maxBySaldo}</b></div>
+        </div>
+        <div className="tileStatBlock">
+          <div className="tileStatLabel">Custo por representante</div>
+          <div className="tileStatValue">{money(unitHire)}</div>
+          <div className="tileStatHint">Pagamento único · saldo {money(currentCash)}</div>
+          <div className="tileStatHint">Total contratar: <b>{money(totalCost)}</b></div>
         </div>
       </div>
-    </div>
-  )
-}
 
-function Card({ title, pill, lines, bg, dark=false }) {
-  return (
-    <div style={{...S.cardItem, background:bg, color: dark ? '#111' : '#fff', borderColor: 'rgba(255,255,255,.15)'}}>
-      <div className="isCardHead" style={S.cardHeader}>
-        <span className="isPill" style={{...S.pill, background: dark ? '#111' : '#fff', color: dark ? '#fff' : '#111'}}>{pill}</span>
-        <div style={{fontWeight:900}}>{title}</div>
+      <div className="tileSectionTitle">Certificações disponíveis</div>
+      <div className="tileBanner" style={{ marginBottom: 10 }}>
+        <div className="tileCertMeta">
+          <span className="tileCertPill tileCertPill--base">S/ certificado</span>
+        </div>
+        <div className="tileCertEffect">
+          <div className="tileCertEffectRow"><span>Contratação</span><strong>$ {unitHire.toLocaleString()}</strong></div>
+          <div className="tileCertEffectRow"><span>Despesa mensal</span><strong>{money(expenseAt(0))}</strong></div>
+          <div className="tileCertEffectRow"><span>Faturamento mensal</span><strong>{money(revenueAt(0))}</strong></div>
+        </div>
       </div>
-      <ul style={S.lines}>
-        {lines.map((ln,i)=><li key={i}>{ln}</li>)}
-      </ul>
-    </div>
+      <div className="tileCertGrid">
+        {certCards.map((card) => {
+          const tone = card.id === 'personalizado' ? 'blue' : card.id === 'fieldsales' ? 'yellow' : 'purple'
+          return (
+            <article key={card.id} className="tileCertCard">
+              <div className="tileCertMeta">
+                <span className={`tileCertPill tileCertPill--${tone}`}>{card.pill}</span>
+              </div>
+              <h3 className="tileCertName">{card.title}</h3>
+              <div className="tileCertEffect">
+                {card.lines.map((ln, i) => (
+                  <div key={i} className="tileCertEffectRow"><span>{ln}</span></div>
+                ))}
+              </div>
+            </article>
+          )
+        })}
+      </div>
+
+      <PurchaseImpactPreview impact={purchaseImpact} />
+    </TileModalShell>
   )
-}
-
-const S = {
-  /* wrap, card, title, inputRow (grid), quickBtns (layout) e cards migraram
-     para classes CSS responsivas (.isWrap, .isCard, .isTitle, .isInputRow,
-     .isQuickBtns, .isCards em styles.css) */
-  close: { position:'absolute', right:10, top:10, width:36, height:36, borderRadius:10, border:'1px solid rgba(255,255,255,.15)', background:'#2a2f3b', color:'#fff', cursor:'pointer' },
-
-  note: {
-    background:'#2a2f3b',
-    border:'1px solid rgba(255,255,255,.15)',
-    borderRadius:12,
-    padding:'10px 12px',
-    margin:'0 0 10px'
-  },
-
-  saldoRow: {
-    display:'flex', justifyContent:'space-between', gap:12,
-    padding:'8px 12px', border:'1px dashed rgba(255,255,255,.25)', borderRadius:10, marginBottom:8
-  },
-
-  input: {
-    height:42, borderRadius:10, padding:'0 12px',
-    border:'1px solid rgba(255,255,255,.18)', background:'#0f1320', color:'#fff',
-    outline:'none'
-  },
-
-  /* min-width migrou para .isQuickBtn (zera no mobile) */
-  quickBtn:{
-    height:42, borderRadius:10, border:'1px solid rgba(255,255,255,.18)',
-    background:'#2a2f3b', color:'#fff', fontWeight:800, cursor:'pointer', padding:'0 10px'
-  },
-
-  totalBox:{ padding:'8px 12px', borderRadius:10, border:'1px solid rgba(255,255,255,.15)', background:'#0f1320', fontWeight:900 },
-
-  cardItem:{ border:'1px solid', borderRadius:14, padding:'14px' },
-  cardHeader:{ display:'flex', alignItems:'center', gap:8, marginBottom:8 },
-  pill:{ fontSize:12, fontWeight:900, padding:'4px 8px', borderRadius:999 },
-  lines:{ margin:0, padding:'0 0 0 16px', lineHeight:1.35 },
-
-  actions: { display:'flex', gap:12, justifyContent:'center', marginTop:8 },
-  /* min-width migrou para .isBigBtn (largura total no mobile) */
-  bigBtn: { padding:'12px 18px', borderRadius:12, border:'none', fontWeight:900, cursor:'pointer' },
 }

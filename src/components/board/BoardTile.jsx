@@ -3,6 +3,20 @@ import React from 'react'
 import { getBoardVisualCoordinate } from './boardVisualCoordinates.js'
 import { getTileHint } from '../../modals/tileContext.js'
 
+function longestWordChars(line) {
+  return Math.max(1, ...String(line).split(/\s+/g).map((part) => part.length))
+}
+
+function labelFitVars(labelLines) {
+  const lines = Array.isArray(labelLines) ? labelLines : []
+  const longestWord = Math.max(1, ...lines.map((line) => longestWordChars(line)))
+  const longestLine = Math.max(1, ...lines.map((line) => String(line).length))
+  return {
+    '--sg40-longest': String(longestWord),
+    '--sg40-chars': String(longestLine),
+  }
+}
+
 export default function BoardTile({
   tile,
   selected = false,
@@ -39,9 +53,11 @@ export default function BoardTile({
           draggable="false"
         />
       </span>
-      <span className="sg40Preview__tileLabel" aria-hidden="true">
+      <span className="sg40Preview__tileLabel" aria-hidden="true" style={labelFitVars(tile.labelLines)}>
         {tile.labelLines.map((line) => (
-          <span key={line} className="sg40Preview__tileLabelLine">{line}</span>
+          <span key={line} className="sg40Preview__tileLabelLine">
+            {line}
+          </span>
         ))}
       </span>
     </>

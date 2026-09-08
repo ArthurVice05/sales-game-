@@ -7,13 +7,14 @@ import { buildClientsPurchaseDeltas } from '../game/clientsPurchase.js'
 import { previewPurchaseImpact } from '../game/purchasePreview.js'
 import { MANUAL_CONSTANTS } from '../game/manualConstants.js'
 import TileContextHint from './TileContextHint.jsx'
+import TileModalShell from './TileModalShell.jsx'
 
 /**
  * Modal para compra de clientes.
  *
  * Props:
  *  - onResolve: function
- *      • { action:'BUY',
+ *      â€¢ { action:'BUY',
  *          qty:number,
  *          unitAcquisition:number,
  *          totalCost:number,
@@ -21,10 +22,10 @@ import TileContextHint from './TileContextHint.jsx'
  *          maintenanceDelta:number,
  *          bensDelta:number,
  *          clientsAdded:number }
- *      • { action:'SKIP' }
- *  - unitAcquisition?: number   (preço por cliente)   -> padrão 1000
- *  - unitMaintenance?: number   (despesa por cliente) -> padrão 50
- *  - currentCash?: number       (saldo atual do jogador) -> obrigatório para validar saldo
+ *      â€¢ { action:'SKIP' }
+ *  - unitAcquisition?: number   (preÃ§o por cliente)   -> padrÃ£o 1000
+ *  - unitMaintenance?: number   (despesa por cliente) -> padrÃ£o 50
+ *  - currentCash?: number       (saldo atual do jogador) -> obrigatÃ³rio para validar saldo
  *  - currentPlayer?: object     (snapshot somente leitura para preview)
  */
 export default function BuyClientsModal({
@@ -105,10 +106,10 @@ export default function BuyClientsModal({
       unitAcquisition: pricePer,
       totalCost,
       unitMaintenance: mPer,
-      // ✅ EXTRA: manutenção deve ser POSITIVA (despesa mensal adicionada). O restante do jogo trata manutencao como número positivo.
+      // âœ… EXTRA: manutenÃ§Ã£o deve ser POSITIVA (despesa mensal adicionada). O restante do jogo trata manutencao como nÃºmero positivo.
       maintenanceDelta,
-      bensDelta: totalCost,   // bens aumentam pelo valor da aquisição
-      clientsAdded: qtyNum,   // útil para cálculos externos
+      bensDelta: totalCost,   // bens aumentam pelo valor da aquisiÃ§Ã£o
+      clientsAdded: qtyNum,   // Ãºtil para cÃ¡lculos externos
       source: { modal: 'BuyClientsModal', file: 'src/modals/BuyClientsModal.jsx' },
     })
   }
@@ -139,160 +140,101 @@ export default function BuyClientsModal({
   }
 
   return (
-    <div
-      style={styles.wrap}
-      role="dialog"
-      aria-modal="true"
-      onMouseDown={(e) => { if (e.target === e.currentTarget) e.stopPropagation() }}
+    <TileModalShell
+      title="Carteira de Clientes"
+      onClose={handleClose}
+      closeRef={closeRef}
+      footer={(
+        <>
+          {allowBack && (
+            <button type="button" className="tileModalBtn tileModalBtn--ghost" onClick={handleBack}>
+              Voltar
+            </button>
+          )}
+          <button type="button" className="tileModalBtn tileModalBtn--ghost" onClick={handleClose}>
+            Não comprar
+          </button>
+          <button
+            type="button"
+            className="tileModalBtn tileModalBtn--confirm"
+            onClick={handleBuy}
+            disabled={!canBuy}
+            title={!canBuy ? 'Informe uma quantidade válida' : (cashNow < totalCost ? 'Saldo insuficiente' : undefined)}
+          >
+            {canBuy ? `Contratar por $ ${totalCost.toLocaleString()}` : 'Contratar'}
+          </button>
+        </>
+      )}
     >
-      <div style={styles.card} onMouseDown={(e) => e.stopPropagation()}>
-        <button
-          ref={closeRef}
-          type="button"
-          style={styles.close}
-          onClick={handleClose}
-          aria-label="Fechar"
-        >
-          ✕
-        </button>
+      <TileContextHint kind="CLIENTS" />
 
-        <h2 style={styles.title}>
-          Você pode escolher quantos clientes quer comprar,
-          <br />Digite o número de clientes:
-        </h2>
+      <div className="tileWarn">
+        <b>Mas cuidado com a capacidade de atendimento da sua equipe!</b><br />
+        Se o jogador adquirir mais clientes do que os vendedores podem atender,
+        assim que passar na casa <i>Faturamento do Mês</i> não receberá o faturamento
+        dos clientes excedentes e perderá o(s) cliente(s) que não foram atendidos.
+      </div>
 
-        <TileContextHint kind="CLIENTS" />
+      <p className="purchasePreviewHint">
+        Novos clientes podem aumentar seu faturamento, mas exigem capacidade suficiente
+        da sua equipe para serem atendidos.
+      </p>
 
-        <p style={styles.warn}>
-          <b>Mas cuidado com a capacidade de atendimento da sua equipe!</b><br />
-          Se o jogador adquirir mais clientes do que os vendedores podem atender,
-          assim que passar na casa <i>Faturamento do Mês</i> não receberá o faturamento
-          dos clientes excedentes e perderá o(s) cliente(s) que não foram atendidos.
-        </p>
-
-        <p className="purchasePreviewHint">
-          Novos clientes podem aumentar seu faturamento, mas exigem capacidade suficiente
-          da sua equipe para serem atendidos.
-        </p>
-
-        <div style={styles.inlineInfo}>
-          <div>Saldo disponível: <b>$ {cashNow.toLocaleString()}</b></div>
-          <div>Máximo por saldo: <b>{maxQtyByCash}</b></div>
-        </div>
-
-        <div style={styles.qtyRow}>
-          <input
-            ref={inputRef}
-            type="number"
-            inputMode="numeric"
-            min={1}
-            placeholder="Digite o número de Clientes"
-            value={qty}
-            onChange={(e) => setBoundedQty(e.target.value)}
-            style={styles.input}
-          />
-          <div style={styles.quickBtns}>
-            <button type="button" style={styles.qbtn} onClick={() => setBoundedQty(qtyNum + 1)}>+1</button>
-            <button type="button" style={styles.qbtn} onClick={() => setBoundedQty(qtyNum + 5)}>+5</button>
-            <button type="button" style={styles.qbtn} onClick={() => setBoundedQty(qtyNum + 10)}>+10</button>
+      <div className="tileQtyCost">
+        <div className="tileStatBlock">
+          <div className="tileStatLabel">Quantidade de clientes</div>
+          <div className="tileStepper">
             <button
               type="button"
-              style={styles.qbtn}
+              className="tileStepperBtn"
+              aria-label="Diminuir quantidade"
+              disabled={qtyNum <= 0}
+              onClick={() => setBoundedQty(Math.max(0, qtyNum - 1))}
+            >
+              −
+            </button>
+            <input
+              ref={inputRef}
+              type="number"
+              inputMode="numeric"
+              min={0}
+              placeholder="0"
+              value={qty}
+              onChange={(e) => setBoundedQty(e.target.value)}
+              aria-label="Quantidade de Clientes"
+            />
+            <button
+              type="button"
+              className="tileStepperBtn"
+              aria-label="Aumentar quantidade"
+              onClick={() => setBoundedQty(qtyNum + 1)}
+            >
+              +
+            </button>
+          </div>
+          <div className="tileQuickBtns">
+            <button type="button" className="tileModalBtn" onClick={() => setBoundedQty(qtyNum + 5)}>+5</button>
+            <button type="button" className="tileModalBtn" onClick={() => setBoundedQty(qtyNum + 10)}>+10</button>
+            <button
+              type="button"
+              className="tileModalBtn"
               onClick={() => setBoundedQty(maxQtyByCash)}
               title="Comprar o máximo possível com o saldo atual"
             >
               Máx
             </button>
           </div>
+          <div className="tileStatHint">Máximo por saldo: <b>{maxQtyByCash}</b></div>
         </div>
-
-        <div style={styles.summary}>
-          <div>Preço por cliente: <b>$ {pricePer.toLocaleString()}</b></div>
-          <div>Despesa mensal por cliente: <b>$ {mPer.toLocaleString()}</b></div>
-        </div>
-
-        <div style={styles.summaryStrong}>
-          <div>Total compra: <b>$ {Number(totalCost).toLocaleString()}</b></div>
-          <div>Manutenção mensal adicionada: <b>$ {Number(maintenanceDelta).toLocaleString()}</b></div>
-        </div>
-
-        <PurchaseImpactPreview impact={purchaseImpact} />
-
-        <div style={styles.actions}>
-          {allowBack && (
-            <button type="button" style={{ ...styles.bigBtn, background:'#2a2f3b', color:'#fff' }} onClick={handleBack}>
-              Voltar
-            </button>
-          )}
-          <button type="button" style={{ ...styles.bigBtn, background:'#666', color:'#fff' }} onClick={handleClose}>
-            Não comprar
-          </button>
-          <button
-            type="button"
-            style={{ ...styles.bigBtn, background: canBuy ? '#3fbf49' : '#2f5d33', color:'#09110f' }}
-            onClick={handleBuy}
-            disabled={!canBuy}
-            title={!canBuy ? 'Informe uma quantidade válida' : (cashNow < totalCost ? 'Saldo insuficiente' : undefined)}
-          >
-            Comprar {canBuy ? `($ ${totalCost.toLocaleString()})` : ''}
-          </button>
+        <div className="tileStatBlock">
+          <div className="tileStatLabel">Preço por cliente</div>
+          <div className="tileStatValue">$ {pricePer.toLocaleString()}</div>
+          <div className="tileStatHint">Pagamento único · saldo $ {cashNow.toLocaleString()}</div>
+          <div className="tileStatHint">Despesa mensal por cliente: <b>$ {mPer.toLocaleString()}</b></div>
         </div>
       </div>
-    </div>
-  )
-}
 
-const styles = {
-  wrap: {
-    position:'fixed', inset:0, background:'rgba(0,0,0,.55)',
-    display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000
-  },
-  card: {
-    width:'min(820px, 92vw)', maxWidth:820, background:'#1b1f2a',
-    color:'#e9ecf1', borderRadius:16, padding:'20px 20px 16px',
-    boxShadow:'0 10px 40px rgba(0,0,0,.4)', border:'1px solid rgba(255,255,255,.12)',
-    position:'relative',
-    maxHeight: '92vh',
-    overflowY: 'auto',
-  },
-  close: {
-    position:'absolute', right:10, top:10, width:36, height:36,
-    borderRadius:10, border:'1px solid rgba(255,255,255,.15)', background:'#2a2f3b',
-    color:'#fff', cursor:'pointer'
-  },
-  title: { margin:'6px 0 12px', fontWeight:800, lineHeight:1.3 },
-  warn: {
-    background:'#271c12', border:'1px solid rgba(255,180,0,.35)',
-    color:'#ffd489', borderRadius:10, padding:'10px 12px', margin:'0 0 12px'
-  },
-  inlineInfo: {
-    display:'flex', justifyContent:'space-between', gap:10,
-    margin:'0 0 8px', opacity:.95, fontWeight:700, flexWrap:'wrap'
-  },
-  qtyRow: { display:'flex', gap:8, alignItems:'center', marginBottom:12, flexWrap:'wrap' },
-  input: {
-    flex:'1 1 260px', height:42, borderRadius:10, padding:'0 12px',
-    border:'1px solid rgba(255,255,255,.18)', background:'#0f1320', color:'#fff',
-    outline:'none'
-  },
-  quickBtns: { display:'flex', gap:6, flexWrap:'wrap' },
-  qbtn: {
-    height:42, padding:'0 12px', borderRadius:10, border:'1px solid rgba(255,255,255,.18)',
-    background:'#2a2f3b', color:'#fff', cursor:'pointer', fontWeight:800
-  },
-  summary: {
-    display:'flex', justifyContent:'space-between', gap:10,
-    border:'1px dashed rgba(255,255,255,.2)', borderRadius:10, padding:'8px 12px',
-    marginBottom:8, fontWeight:700, flexWrap:'wrap'
-  },
-  summaryStrong: {
-    display:'flex', justifyContent:'space-between', gap:10,
-    border:'1px solid rgba(255,255,255,.25)', borderRadius:10, padding:'10px 12px',
-    marginBottom:10, fontWeight:800, flexWrap:'wrap'
-  },
-  actions: { display:'flex', gap:12, justifyContent:'center', marginTop:4, flexWrap:'wrap' },
-  bigBtn: {
-    minWidth:180, padding:'12px 18px', borderRadius:12, border:'none',
-    fontWeight:900, cursor:'pointer'
-  },
+      <PurchaseImpactPreview impact={purchaseImpact} />
+    </TileModalShell>
+  )
 }

@@ -12,6 +12,8 @@ import {
 import { previewPurchaseImpact } from '../game/purchasePreview.js'
 import { DEFAULT_MAX_ROUNDS, normalizeMaxRounds } from '../game/roundConfig'
 import TileContextHint from './TileContextHint.jsx'
+import TileModalShell from './TileModalShell.jsx'
+import './training-erp-modals.css'
 
 const LEVEL_META = {
   A: { color: '#1d4ed8', pill: 'NÍVEL A' },
@@ -167,226 +169,222 @@ export default function ERPSystemsModal({
   })()
 
   return (
-    <div className="erpWrap" role="dialog" aria-modal="true" aria-label="ERP/Sistemas">
-      <div className="erpCard">
-        <button ref={closeRef} type="button" style={S.close} onClick={handleClose} aria-label="Fechar">✕</button>
-
-        <h2 className="erpTitle">Escolha o nível de <b>ERP / Sistemas</b>:</h2>
-
-        <TileContextHint kind="ERP" />
-
-        <div style={S.note}>
-          <div style={{ fontWeight: 900, marginBottom: 4 }}>ERP / SISTEMAS</div>
-          <div>
-            O benefício do ERP cresce conforme o tamanho da sua equipe.
-          </div>
-          <div style={{ marginTop: 4 }}>
-            Quanto mais colaboradores sua empresa possui (vendedores e gestores),
-            maior o impacto financeiro do sistema.
-          </div>
-        </div>
-
-        <p className="purchasePreviewHint">
-          O ERP gera faturamento e despesas por colaborador da equipe comercial.
-          Ele não escala com a quantidade de clientes — o Mix de Produtos já cobre essa parte.
-          Avalie o ganho líquido por ciclo e o tempo estimado para recuperar o investimento.
-        </p>
-
-        <div style={S.saldo}>
-          Saldo disponível: <b>$ {cashNow.toLocaleString()}</b>
-          {' · '}
-          Equipe atual: <b>{staffCount}</b> colaborador{staffCount === 1 ? '' : 'es'}
-        </div>
-
-        <div className="erpTableScroll">
-          <div className="erpTable">
-            <div style={S.trHead}>
-              <div className="erpStickyCell erpStickyHead" style={S.th}></div>
-              <div style={{ ...S.th, background: '#10214d' }}>Nível A</div>
-              <div style={{ ...S.th, background: '#0f3a1c' }}>Nível B</div>
-              <div style={{ ...S.th, background: '#4a3705' }}>Nível C</div>
-              <div style={{ ...S.th, background: '#2a2f3b' }}>Nível D</div>
-            </div>
-            <Row label="COMPRA" fmt vA={LEVELS.A.compra} vB={LEVELS.B.compra} vC={LEVELS.C.compra} vD={LEVELS.D.compra} />
-            <Row label="DESPESA" fmt vA={LEVELS.A.despesa} vB={LEVELS.B.despesa} vC={LEVELS.C.despesa} vD={LEVELS.D.despesa} />
-            <Row label="FATURAMENTO" fmt vA={LEVELS.A.faturamento} vB={LEVELS.B.faturamento} vC={LEVELS.C.faturamento} vD={LEVELS.D.faturamento} />
-          </div>
-        </div>
-        <div style={S.perStaffNote}>
-          Valores de despesa e faturamento na tabela são <b>por colaborador</b>. Upgrade cobra o preço cheio do nível escolhido.
-        </div>
-
-        <div className="erpCards">
-          {(['A', 'B', 'C', 'D']).map((k) => {
-            const v = LEVELS[k]
-            const isOwned = current === k
-            const isDisabled = isOwned
-            const isSelected = selectedLevel === k
-
-            return (
-              <div
-                key={k}
-                style={{
-                  ...S.cardItem,
-                  borderColor: isOwned ? '#16a34a' : (isSelected ? '#2442f9' : 'rgba(255,255,255,.15)'),
-                  opacity: isDisabled ? 0.6 : 1,
-                }}
-              >
-                <div
-                  className="erpPill"
-                  style={{
-                    ...S.pill,
-                    background: isOwned ? '#16a34a' : '#fff',
-                    color: isOwned ? '#fff' : '#111',
-                  }}
-                >
-                  {isOwned ? '✓ ADQUIRIDO' : v.pill}
-                </div>
-                <div style={{ ...S.cardBadge, background: v.color }} />
-                <ul style={S.lines}>
-                  <li>Compra: <b>$ {v.compra.toLocaleString()}</b></li>
-                  <li>Despesa: <b>$ {v.despesa.toLocaleString()}</b> / colab.</li>
-                  <li>Faturamento: <b>$ {v.faturamento.toLocaleString()}</b> / colab.</li>
-                </ul>
-                <button
-                  type="button"
-                  className="erpBuyBtn"
-                  style={{
-                    ...S.buyBtn,
-                    background: isDisabled ? '#6b7280' : (isSelected ? '#1d4ed8' : '#2442f9'),
-                    cursor: isDisabled ? 'not-allowed' : 'pointer',
-                  }}
-                  onClick={() => handleSelect(k)}
-                  disabled={isDisabled}
-                  title={isDisabled ? `ERP nível ${k} já adquirido` : `Selecionar ERP nível ${k}`}
-                >
-                  {isDisabled ? 'Já Adquirido' : (isSelected ? `Selecionado ${k}` : `Selecionar ${k}`)}
-                </button>
-              </div>
-            )
-          })}
-        </div>
-
-        {purchaseImpact && erpReturn && (
-          <>
-            <PurchaseImpactPreview impact={purchaseImpact} />
-
-            <div className="purchasePreviewExtra">
-              <div className="purchasePreviewExtraTitle">Retorno do investimento (ERP)</div>
-              <div className="purchasePreviewRow">
-                <span>Investimento</span>
-                <span>$ {Number(erpReturn.immediateCost || 0).toLocaleString()}</span>
-              </div>
-              <div className="purchasePreviewRow">
-                <span>Equipe atual</span>
-                <span>{staffCount} colaborador{staffCount === 1 ? '' : 'es'}</span>
-              </div>
-              <div className="purchasePreviewRow">
-                <span>Faturamento adicional estimado por ciclo</span>
-                <span>{formatMoneySigned(erpReturn.revenueDelta)}</span>
-              </div>
-              <div className="purchasePreviewRow">
-                <span>Despesa adicional estimada por ciclo</span>
-                <span>{formatMoneySigned(erpReturn.expensesDelta)}</span>
-              </div>
-              <div className="purchasePreviewRow purchasePreviewRowStrong">
-                <span>Ganho líquido adicional por ciclo</span>
-                <span>{formatMoneySigned(erpReturn.incrementalNet)}</span>
-              </div>
-              <div className="purchasePreviewRow">
-                <span>Projeção em {safeHorizon} rodada(s) (equipe atual)</span>
-                <span>{formatMoneySigned(erpReturn.horizonNet)}</span>
-              </div>
-              <div className="purchasePreviewRow purchasePreviewRowStrong">
-                <span>{paybackLabel}</span>
-              </div>
-              {erpReturn.guidance && (
-                <div className="purchasePreviewGuidance" role="note">
-                  {erpReturn.guidance}
-                </div>
-              )}
-              {staffCount <= 0 && (
-                <div className="purchasePreviewAlert">
-                  Sem colaboradores, o ERP não gera faturamento nem despesa operacional neste momento.
-                </div>
-              )}
-              {erpReturn && !erpReturn.paysBackWithinHorizon && erpReturn.status !== 'no_cost' && (
-                <div className="purchasePreviewAlert">
-                  Este investimento não se recupera no horizonte atual de {safeHorizon} rodada(s) com a equipe atual.
-                </div>
-              )}
-            </div>
-          </>
-        )}
-
-        <div style={S.actions}>
+    <TileModalShell
+      title="ERP / Sistemas"
+      label="ERP/Sistemas"
+      onClose={handleClose}
+      closeRef={closeRef}
+      footer={(
+        <>
           {allowBack && (
-            <button type="button" className="erpBigBtn" style={{ ...S.bigBtn, background: '#2a2f3b', color: '#fff' }} onClick={handleBack}>
+            <button type="button" className="tileModalBtn tileModalBtn--ghost" onClick={handleBack}>
               Voltar
             </button>
           )}
-          <button type="button" className="erpBigBtn" style={{ ...S.bigBtn, background: '#444', color: '#fff' }} onClick={handleClose}>
+          <button type="button" className="tileModalBtn tileModalBtn--ghost" onClick={handleClose}>
             Não comprar
           </button>
           <button
             type="button"
-            className="erpBigBtn"
-            style={{
-              ...S.bigBtn,
-              background: draftPayload ? '#75e16c' : '#365b31',
-              color: '#0b120a',
-              cursor: draftPayload ? 'pointer' : 'not-allowed',
-            }}
+            className="tileModalBtn tileModalBtn--confirm"
             onClick={handleBuy}
             disabled={!draftPayload}
             title={!draftPayload ? 'Selecione um nível diferente do atual' : `Confirmar compra do nível ${draftPayload.level}`}
           >
             {draftPayload ? `Confirmar compra ${draftPayload.level}` : 'Confirmar compra'}
           </button>
+        </>
+      )}
+    >
+      <TileContextHint kind="ERP" />
+
+      <p className="purchasePreviewHint">
+        O ERP gera faturamento e despesas por colaborador da equipe comercial.
+        O benefício cresce com o tamanho da equipe (vendedores e gestores) e não escala
+        com a quantidade de clientes — o Mix de Produtos já cobre essa parte.
+        Avalie o ganho líquido por ciclo e o tempo estimado para recuperar o investimento.
+      </p>
+
+      <div className="erpSupportRow">
+        <div className="erpSupportItem">
+          <span className="erpSupportLabel">Saldo disponível</span>
+          <div className="erpSupportValue">$ {cashNow.toLocaleString()}</div>
+        </div>
+        <div className="erpSupportItem">
+          <span className="erpSupportLabel">Equipe atual</span>
+          <div className="erpSupportValue">
+            {staffCount} colaborador{staffCount === 1 ? '' : 'es'}
+          </div>
         </div>
       </div>
-    </div>
+
+      <div className="erpCompare" role="region" aria-label="Comparativo de níveis ERP">
+        <table className="erpCompareTable">
+          <thead>
+            <tr>
+              <th className="erpCompareMetricHead">Métrica</th>
+              {(['A', 'B', 'C', 'D']).map((k) => (
+                <th
+                  key={k}
+                  className={`${selectedLevel === k ? 'is-selected' : ''} ${current === k ? 'is-current' : ''}`.trim()}
+                >
+                  Nível {k}
+                  {current === k ? ' · atual' : ''}
+                  {selectedLevel === k ? ' · sel.' : ''}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            <ErpCompareRow
+              label="Compra (única)"
+              values={{ A: LEVELS.A.compra, B: LEVELS.B.compra, C: LEVELS.C.compra, D: LEVELS.D.compra }}
+              current={current}
+              selected={selectedLevel}
+            />
+            <ErpCompareRow
+              label="Despesa / colaborador"
+              values={{ A: LEVELS.A.despesa, B: LEVELS.B.despesa, C: LEVELS.C.despesa, D: LEVELS.D.despesa }}
+              current={current}
+              selected={selectedLevel}
+            />
+            <ErpCompareRow
+              label="Faturamento / colaborador"
+              values={{ A: LEVELS.A.faturamento, B: LEVELS.B.faturamento, C: LEVELS.C.faturamento, D: LEVELS.D.faturamento }}
+              current={current}
+              selected={selectedLevel}
+            />
+          </tbody>
+        </table>
+      </div>
+
+      <div className="erpMobileBlocks" aria-label="Comparativo ERP por métrica">
+        {[
+          { key: 'compra', title: 'Compra (única)', pick: (v) => v.compra },
+          { key: 'despesa', title: 'Despesa / colaborador', pick: (v) => v.despesa },
+          { key: 'fat', title: 'Faturamento / colaborador', pick: (v) => v.faturamento },
+        ].map((block) => (
+          <div key={block.key} className="erpMobileBlock">
+            <div className="erpMobileBlockTitle">{block.title}</div>
+            {(['A', 'B', 'C', 'D']).map((k) => (
+              <div
+                key={k}
+                className={`erpMobileBlockRow${current === k ? ' is-current' : ''}${selectedLevel === k ? ' is-selected' : ''}`}
+              >
+                <span>Nível {k}{current === k ? ' (atual)' : ''}{selectedLevel === k ? ' (selecionado)' : ''}</span>
+                <b>$ {Number(block.pick(LEVELS[k])).toLocaleString()}</b>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+
+      <p className="erpCompareNote">
+        Despesa e faturamento são <b>recorrentes por colaborador</b>.
+        A compra é <b>pagamento único</b>. Upgrade cobra o preço cheio do nível escolhido.
+      </p>
+
+      <div className="erpLevelGrid">
+        {(['A', 'B', 'C', 'D']).map((k) => {
+          const v = LEVELS[k]
+          const isOwned = current === k
+          const isDisabled = isOwned
+          const isSelected = selectedLevel === k
+
+          return (
+            <article
+              key={k}
+              className={`erpLevelCard${isSelected ? ' is-selected' : ''}${isOwned ? ' is-owned is-current' : ''}`}
+            >
+              <span className="erpLevelBadge" style={{ background: v.color }}>{v.pill}</span>
+              <span className="erpLevelStatus">
+                {isOwned ? 'Nível atual · adquirido' : (isSelected ? 'Selecionado' : 'Disponível')}
+              </span>
+              <div className="erpLevelPrice">$ {v.compra.toLocaleString()}</div>
+              <p className="erpLevelMeta">Despesa: $ {v.despesa.toLocaleString()} / colab.</p>
+              <p className="erpLevelMeta">Faturamento: $ {v.faturamento.toLocaleString()} / colab.</p>
+              <button
+                type="button"
+                className="tileModalBtn"
+                onClick={() => handleSelect(k)}
+                disabled={isDisabled}
+                title={isDisabled ? `ERP nível ${k} já adquirido` : `Selecionar ERP nível ${k}`}
+              >
+                {isDisabled ? 'Já adquirido' : (isSelected ? `Selecionado ${k}` : `Selecionar ${k}`)}
+              </button>
+            </article>
+          )
+        })}
+      </div>
+
+      {purchaseImpact && erpReturn && (
+        <>
+          <PurchaseImpactPreview impact={purchaseImpact} />
+
+          <div className="purchasePreviewExtra">
+            <div className="purchasePreviewExtraTitle">Retorno do investimento (ERP)</div>
+            <div className="purchasePreviewRow">
+              <span>Investimento</span>
+              <span>$ {Number(erpReturn.immediateCost || 0).toLocaleString()}</span>
+            </div>
+            <div className="purchasePreviewRow">
+              <span>Equipe atual</span>
+              <span>{staffCount} colaborador{staffCount === 1 ? '' : 'es'}</span>
+            </div>
+            <div className="purchasePreviewRow">
+              <span>Faturamento adicional estimado por ciclo</span>
+              <span>{formatMoneySigned(erpReturn.revenueDelta)}</span>
+            </div>
+            <div className="purchasePreviewRow">
+              <span>Despesa adicional estimada por ciclo</span>
+              <span>{formatMoneySigned(erpReturn.expensesDelta)}</span>
+            </div>
+            <div className="purchasePreviewRow purchasePreviewRowStrong">
+              <span>Ganho líquido adicional por ciclo</span>
+              <span>{formatMoneySigned(erpReturn.incrementalNet)}</span>
+            </div>
+            <div className="purchasePreviewRow">
+              <span>Projeção em {safeHorizon} rodada(s) (equipe atual)</span>
+              <span>{formatMoneySigned(erpReturn.horizonNet)}</span>
+            </div>
+            <div className="purchasePreviewRow purchasePreviewRowStrong">
+              <span>{paybackLabel}</span>
+            </div>
+            {erpReturn.guidance && (
+              <div className="purchasePreviewGuidance" role="note">
+                {erpReturn.guidance}
+              </div>
+            )}
+            {staffCount <= 0 && (
+              <div className="purchasePreviewAlert">
+                Sem colaboradores, o ERP não gera faturamento nem despesa operacional neste momento.
+              </div>
+            )}
+            {erpReturn && !erpReturn.paysBackWithinHorizon && erpReturn.status !== 'no_cost' && (
+              <div className="purchasePreviewAlert">
+                Este investimento não se recupera no horizonte atual de {safeHorizon} rodada(s) com a equipe atual.
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+    </TileModalShell>
   )
 }
 
-function Row({ label, vA, vB, vC, vD, fmt }) {
-  const f = (n) => (fmt ? `$ ${Number(n).toLocaleString()}` : n)
+function ErpCompareRow({ label, values, current, selected }) {
   return (
-    <div style={S.tr}>
-      <div className="erpStickyCell" style={{ ...S.td, fontWeight: 700 }}>{label}</div>
-      <div style={S.td}>{f(vA)}</div>
-      <div style={S.td}>{f(vB)}</div>
-      <div style={S.td}>{f(vC)}</div>
-      <div style={S.td}>{f(vD)}</div>
-    </div>
+    <tr>
+      <td className="erpCompareMetric">{label}</td>
+      {(['A', 'B', 'C', 'D']).map((k) => (
+        <td
+          key={k}
+          className={`erpCompareMoney${current === k ? ' is-current' : ''}${selected === k ? ' is-selected' : ''}`.trim()}
+        >
+          $ {Number(values[k]).toLocaleString()}
+        </td>
+      ))}
+    </tr>
   )
-}
-
-const S = {
-  close: { position: 'absolute', right: 10, top: 10, width: 36, height: 36, borderRadius: 10, border: '1px solid rgba(255,255,255,.15)', background: '#2a2f3b', color: '#fff', cursor: 'pointer' },
-
-  note: {
-    background: '#2a2f3b',
-    border: '1px solid rgba(255,255,255,.15)',
-    borderRadius: 12,
-    padding: '10px 12px',
-    margin: '0 0 10px',
-  },
-
-  saldo: { margin: '0 0 10px', padding: '8px 12px', border: '1px dashed rgba(255,255,255,.25)', borderRadius: 10 },
-  perStaffNote: { margin: '0 0 10px', fontSize: 13, opacity: 0.9 },
-
-  trHead: { display: 'grid', gridTemplateColumns: 'minmax(140px, 1fr) repeat(4, minmax(0, 1fr))', background: '#121621' },
-  th: { padding: '10px 12px', fontWeight: 800, borderLeft: '1px solid rgba(255,255,255,.06)' },
-  tr: { display: 'grid', gridTemplateColumns: 'minmax(140px, 1fr) repeat(4, minmax(0, 1fr))', background: '#0f1320' },
-  td: { padding: '10px 12px', borderTop: '1px solid rgba(255,255,255,.06)', borderLeft: '1px solid rgba(255,255,255,.06)' },
-
-  cardItem: { border: '1px solid rgba(255,255,255,.15)', borderRadius: 14, padding: 12, background: '#121621', display: 'grid', gap: 8 },
-  pill: { display: 'inline-block', padding: '4px 8px', borderRadius: 999, fontWeight: 900, fontSize: 12 },
-  cardBadge: { height: 6, borderRadius: 999 },
-  lines: { margin: 0, paddingLeft: 18, lineHeight: 1.45 },
-  buyBtn: { border: 0, borderRadius: 10, padding: '10px 12px', color: '#fff', fontWeight: 800 },
-
-  actions: { display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 14 },
-  bigBtn: { flex: '1 1 140px', border: 0, borderRadius: 12, padding: '12px 14px', fontWeight: 900 },
 }

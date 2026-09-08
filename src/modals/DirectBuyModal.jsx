@@ -3,6 +3,7 @@ import React, { useEffect, useRef } from 'react'
 import { ERP_RULES, VENDOR_RULES } from '../game/gameRules.js'
 import { MIX_PURCHASE_PRICES, MANUAL_CONSTANTS } from '../game/manualConstants.js'
 import TileContextHint from './TileContextHint.jsx'
+import TileModalShell from './TileModalShell.jsx'
 
 /**
  * Modal “roteador de compras”.
@@ -121,72 +122,39 @@ export default function DirectBuyModal({ onResolve, currentCash = 0 }) {
   ]
 
   return (
-    <div
-      className="directBuyWrap"
-      role="dialog"
-      aria-modal="true"
-    >
-      <div className="directBuyCard">
-        <button
-          ref={closeRef}
-          type="button"
-          style={styles.close}
-          onClick={handleClose}
-          aria-label="Fechar"
-        >
-          ✕
+    <TileModalShell
+      title="Direito de Compra"
+      onClose={handleClose}
+      closeRef={closeRef}
+      size="xl"
+      footer={(
+        <button type="button" className="tileModalBtn tileModalBtn--ghost" onClick={handleClose}>
+          Não comprar
         </button>
+      )}
+    >
+      <TileContextHint kind="DIRECT_BUY" />
 
-        <h2 className="directBuyTitle">Direto de Compra — escolha um recurso:</h2>
+      <p className="purchasePreviewHint">
+        Cada decisão pode alterar caixa, despesa, faturamento ou capacidade — o impacto
+        aparece na tela seguinte antes de confirmar.
+      </p>
 
-        <TileContextHint kind="DIRECT_BUY" />
-
-        <p className="directBuyContext">
-          Cada decisão pode alterar caixa, despesa, faturamento ou capacidade — o impacto
-          aparece na tela seguinte antes de confirmar.
-        </p>
-
-        <div style={{ marginBottom: 8, opacity: .8, fontSize: 13 }}>
-          Saldo atual: <b>${Number(currentCash).toLocaleString()}</b>
-        </div>
-
-        <div className="directBuyGrid">
-          {CARDS.map((c) => (
-            <div key={c.key} style={styles.cell}>
-              <div style={styles.cellTitle}>{c.title}</div>
-              <ul style={styles.lines}>
-                {c.lines.map((ln, i) => <li key={i}>{ln}</li>)}
-              </ul>
-              <button type="button" className="directBuyBtn" style={{ background:'#3fbf49', color:'#09110f' }} onClick={c.onBuy}>
-                Comprar
-              </button>
-            </div>
-          ))}
-        </div>
-
-        <div style={{ display:'flex', justifyContent:'center', marginTop:16 }}>
-          <button type="button" className="directBuyBtn" style={{ background:'#666', color:'#09110f' }} onClick={handleClose}>
-            Não Comprar
-          </button>
-        </div>
+      <div className="tileStatHint tileStatHint--saldo">
+        Saldo atual: <b>${Number(currentCash).toLocaleString()}</b>
       </div>
-    </div>
-  )
-}
 
-const styles = {
-  /* wrap, card, grid, título e botões migraram para classes CSS responsivas
-     (.directBuyWrap, .directBuyCard, .directBuyGrid, .directBuyTitle,
-      .directBuyBtn em styles.css) */
-  close: {
-    position:'absolute', right:10, top:10, width:36, height:36,
-    borderRadius:10, border:'1px solid rgba(255,255,255,.15)', background:'#2a2f3b',
-    color:'#fff', cursor:'pointer', flex:'0 0 auto'
-  },
-  cell: {
-    background:'#0f1320', border:'1px solid rgba(255,255,255,.08)', borderRadius:12,
-    padding:12, display:'flex', flexDirection:'column', gap:8, minHeight:160
-  },
-  cellTitle: { fontWeight:800, marginBottom:4 },
-  lines: { margin:0, padding:'0 0 0 16px', opacity:.85, lineHeight:1.3 },
+      <div className="tileCertGrid tileCertGrid--4">
+        {CARDS.map((c) => (
+          <article key={c.key} className="tileCertCard">
+            <h3 className="tileCertName">{c.title}</h3>
+            {c.lines.map((ln, i) => <p key={i}>{ln}</p>)}
+            <button type="button" className="tileModalBtn tileModalBtn--confirm" onClick={c.onBuy}>
+              Comprar
+            </button>
+          </article>
+        ))}
+      </div>
+    </TileModalShell>
+  )
 }
