@@ -1041,16 +1041,21 @@
    Decorativo e não clicável: não pode roubar clique de casa nenhuma. */
 .sg40GameBoard__spectators{
   position: absolute;
-  /* Encostado no canto superior esquerdo do miolo, rente à borda cinza onde
-     o preto termina e começam as casas (~15,4% da largura, ~22,3% da altura
-     no layout paisagem), à esquerda do baralho. */
-  top: 22.9%;
-  left: 15.6%;
-  z-index: 6;
+  /* Vão livre ACIMA e À ESQUERDA do baralho, logo abaixo das casas 21/22.
+     Medido no layout paisagem: a linha de cima termina em 11,2% da altura, a
+     coluna esquerda em 7,8% da largura e o baralho só começa em 17%/16,8%.
+     Unidades relativas ao tabuleiro para acompanhar qualquer tamanho. */
+  top: 12.5%;
+  left: 9%;
+  z-index: 6;              /* acima do baralho, que usa z-index 4 */
+  min-width: 32px;
+  min-height: 32px;
+  box-sizing: border-box;
+  justify-content: center;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 6px;
+  gap: 5px;
+  padding: 4px 9px;
   border-radius: 999px;
   background: rgba(8, 14, 24, .72);
   border: 1px solid rgba(255, 255, 255, .16);
@@ -1062,3 +1067,22 @@
   backdrop-filter: blur(2px);
 }
 .sg40GameBoard__spectatorsCount{ font-variant-numeric: tabular-nums; }
+
+/* Telas pequenas: o baralho tem tamanho fixo (88x132px) e, num tabuleiro
+   proporcionalmente menor, cobre todo o canto superior esquerdo do miolo
+   (medido em 858x394: baralho de 3,1% a 39,2% da largura). Não sobra vão de
+   32px ali, então o contador vai para a faixa livre logo à direita dele,
+   ainda na parte de cima e sem encostar em casas, tokens ou logo. */
+@media (max-width: 960px) and (orientation: landscape) {
+  .sg40GameBoard__spectators{
+    top: 9%;
+    left: 42%;
+  }
+}
+
+@media (orientation: portrait) and (max-width: 599px) {
+  .sg40GameBoard__spectators{
+    top: 9%;
+    left: 42%;
+  }
+}
