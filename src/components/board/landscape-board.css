@@ -1041,13 +1041,16 @@
    Decorativo e não clicável: não pode roubar clique de casa nenhuma. */
 .sg40GameBoard__spectators{
   position: absolute;
-  top: 12%;
-  left: 11%;
+  /* Encostado no canto superior esquerdo do miolo, rente à borda cinza onde
+     o preto termina e começam as casas (~15,4% da largura, ~22,3% da altura
+     no layout paisagem), à esquerda do baralho. */
+  top: 22.9%;
+  left: 15.6%;
   z-index: 6;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 3px 8px;
+  gap: 4px;
+  padding: 2px 6px;
   border-radius: 999px;
   background: rgba(8, 14, 24, .72);
   border: 1px solid rgba(255, 255, 255, .16);
