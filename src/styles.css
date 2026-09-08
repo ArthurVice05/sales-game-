@@ -5623,6 +5623,12 @@ img[src*="multiplier"]{
     display: flex; flex-direction: column; gap: 3px;
     min-height: 0; overflow: hidden; padding-bottom: 8px;
   }
+  /* Chrome mobile: não reativar painel financeiro/ações expandidas nesta faixa */
+  .page[data-hud-mode="mobile-landscape"] .content .side > .hud,
+  .page[data-hud-mode="mobile-landscape"] .content .side .sideSecondary,
+  .page[data-hud-mode="mobile-landscape"] .content .side .sideQuickActions {
+    display: none !important;
+  }
   .page .content .side > .hud {
     flex: 1 1 auto; height: auto; min-height: 0;
     overflow-x: hidden; overflow-y: auto;
@@ -7067,9 +7073,13 @@ img[src*="multiplier"]{
     max-width: 100%;
     box-sizing: border-box;
   }
-}
 
-@media (max-width: 1199px) and (orientation: landscape) and (max-height: 450px) {
+  /* Chrome mobile: Resumo/Mais — independente da altura (sem lacuna >450px) */
+  .page[data-game-shell][data-hud-mode="mobile-landscape"] .debugToggle,
+  .page[data-game-shell][data-hud-mode="mobile-landscape"] .sideSecondary,
+  .page[data-game-shell][data-hud-mode="mobile-landscape"] .side > .hud--inline,
+  .page[data-game-shell][data-hud-mode="mobile-landscape"] .hud.hud--inline,
+  .page[data-game-shell][data-hud-mode="mobile-landscape"] .sideQuickActions,
   .page[data-game-shell] .debugToggle,
   .page[data-game-shell] .sideSecondary,
   .page[data-game-shell] .side > .hud--inline,
@@ -7103,6 +7113,10 @@ img[src*="multiplier"]{
     min-height: 36px;
     display: block;
   }
+}
+
+/* Densidade extra só em landscape baixo — não troca o chrome */
+@media (max-width: 1199px) and (orientation: landscape) and (max-height: 450px) {
   .page[data-game-shell] .turnPrimaryActions .btn.go {
     min-height: 44px;
   }

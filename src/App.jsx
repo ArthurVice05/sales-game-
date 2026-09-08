@@ -202,6 +202,11 @@ export default function App() {
   const DEBUG_VALIDATE = import.meta.env.DEV && localStorage.getItem('SALES_DEBUG_VALIDATE') === '1'
   const desktopHud = useDesktopHudLayout()
   const compactLandscapeHud = useCompactLandscapeHud()
+  const hudChromeMode = desktopHud
+    ? 'desktop'
+    : compactLandscapeHud
+      ? 'mobile-landscape'
+      : 'default'
 
   // Comparação rápida (sem deep compare / sem JSON.stringify) para reduzir custo no hot-path
   const isSameValue = React.useCallback((a, b, depth = 0) => {
@@ -3661,7 +3666,7 @@ export default function App() {
     <>
     <OrientationGuard enabled>
     <ModalProvider>
-    <div className="page" data-game-shell>
+    <div className="page" data-game-shell data-hud-mode={hudChromeMode}>
       {desktopHud ? (
       <GameDesktopHeader
         playerName={meHudLive.name}
@@ -3810,12 +3815,13 @@ export default function App() {
             turnAbsenceStatus={turnAbsenceStatus}
             meId={gameplayActorId}
           />
-          ) : (
+          ) : compactLandscapeHud ? null : (
           <div className="hud hud--inline">
             <HUD totals={totals} players={players} />
           </div>
           )}
 
+          {!compactLandscapeHud && (
           <div className="sideSecondary">
             <div className="controlsSticky">
               {!desktopHud && (
@@ -3824,6 +3830,7 @@ export default function App() {
             </div>
 
           </div>
+          )}
 
           <div className="turnPrimaryActions">
             {progressiveTip && (

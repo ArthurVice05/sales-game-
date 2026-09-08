@@ -33,6 +33,20 @@ export function hudLayerForViewport(width, height) {
   return 'landscape-high'
 }
 
+/**
+ * Chrome montado (Resumo/Mais vs painel antigo vs desktop).
+ * Independente da faixa de densidade (hudLayerForViewport): altura >450
+ * não pode reativar o HUD financeiro expandido abaixo de 1200px.
+ */
+export function hudChromeModeForViewport(width, height) {
+  const w = Number(width)
+  const h = Number(height)
+  if (!Number.isFinite(w) || !Number.isFinite(h)) return 'default'
+  if (w >= 1200) return 'desktop'
+  if (w > h) return 'mobile-landscape'
+  return 'default'
+}
+
 export function isPlausibleLandscape(width, height) {
   return Number(width) > Number(height)
 }

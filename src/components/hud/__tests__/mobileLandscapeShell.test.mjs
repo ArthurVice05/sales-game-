@@ -61,8 +61,8 @@ test('shell landscape trava viewport em dvh + safe-area e preenche o board no wr
   assert.doesNotMatch(block, /min\(100cqw,\s*calc\(100cqh\s*\*\s*13\s*\/\s*9\)\)/)
   assert.doesNotMatch(block, /100vw/)
   assert.doesNotMatch(block, /transform:\s*scale\(/)
-  assert.match(block, /max-height:\s*450px/)
-  assert.match(COMPACT_LANDSCAPE_MEDIA, /max-height: 450px/)
+  assert.doesNotMatch(COMPACT_LANDSCAPE_MEDIA, /max-height/)
+  assert.match(COMPACT_LANDSCAPE_MEDIA, /max-width:\s*1199px/)
   assert.equal(DESKTOP_HUD_MEDIA, '(min-width: 1200px)')
 })
 
@@ -155,7 +155,8 @@ test('tablet e landscape curto preenchem o board no wrapper', () => {
   assert.match(short, /moreSheetBackdrop\.is-open/)
   assert.match(short, /position:\s*fixed/)
   assert.match(short, /min\(56vw,\s*360px\)/)
-  assert.match(short, /max-height:\s*450px/)
+  assert.match(short, /data-hud-mode="mobile-landscape"/)
+  assert.match(short, /hud--inline[\s\S]*?display:\s*none/)
 })
 
 test('shell não usa CSS por marca/modelo; Mais/Resumo são overlay', () => {
@@ -184,5 +185,6 @@ test('Resumo compacto fica abaixo dos controles e usa o espaço da coluna', () =
   assert.match(desktopHud, /:has\(\.compactActionRow\) \.side > \.hud\.hud--inline/)
   assert.match(desktopHud, /hudSheetBackdrop[\s\S]{0,220}position:\s*fixed/)
   const short = styles.slice(styles.indexOf('/* Landscape abaixo do HUD desktop'))
-  assert.match(short, /max-height:\s*450px[\s\S]{0,800}hud--inline/)
+  assert.match(short, /hud--inline[\s\S]*?display:\s*none/)
+  assert.doesNotMatch(COMPACT_LANDSCAPE_MEDIA, /max-height:\s*450px/)
 })

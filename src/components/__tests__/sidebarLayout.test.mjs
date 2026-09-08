@@ -164,7 +164,12 @@ describe('sidebar player summary layout', () => {
     // startSummaryNote pode usar display:none; controles do jogo na sidebar não
     assert.doesNotMatch(tablet, /\.side\s+\.controlsSticky[^{]*\{[^}]*display:\s*none/)
     assert.doesNotMatch(tablet, /\.turnPrimaryActions[^{]*\{[^}]*display:\s*none/)
-    assert.doesNotMatch(tablet, /\.sideSecondary[^{]*\{[^}]*display:\s*none/)
+    // Genérico do tablet permanece visível; só o chrome mobile-landscape oculta
+    assert.doesNotMatch(tablet, /\.page \.content \.side \.sideSecondary\s*\{[^}]*display:\s*none/)
+    assert.match(
+      tablet,
+      /data-hud-mode="mobile-landscape"[\s\S]*?\.sideSecondary[\s\S]*?display:\s*none/,
+    )
   })
 
   it('controlsSticky e turnPrimaryActions não sobrepõem com sticky/fixed', () => {

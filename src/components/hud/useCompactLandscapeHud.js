@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react'
 
-/** Landscape curto abaixo do desktop HUD — compacta chrome, não o board. */
+/**
+ * Landscape abaixo do desktop HUD — chrome mobile (Resumo/Mais).
+ * Sem max-height: altura só afeta densidade/rolagem, não o modo.
+ */
 export const COMPACT_LANDSCAPE_MEDIA =
-  '(max-width: 1199px) and (orientation: landscape) and (max-height: 450px)'
+  '(max-width: 1199px) and (orientation: landscape)'
 
 export function getCompactLandscapeHudMatches(
   target = typeof window === 'undefined' ? undefined : window,
