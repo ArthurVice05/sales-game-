@@ -1035,3 +1035,27 @@
     -webkit-text-stroke: 1.1px #0b1220;
   }
 }
+
+/* Contador de espectadores — dentro do miolo do tabuleiro, canto superior
+   esquerdo, perto do baralho de Sorte & Revés (que fica em 24%/24%).
+   Decorativo e não clicável: não pode roubar clique de casa nenhuma. */
+.sg40GameBoard__spectators{
+  position: absolute;
+  top: 12%;
+  left: 11%;
+  z-index: 6;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(8, 14, 24, .72);
+  border: 1px solid rgba(255, 255, 255, .16);
+  color: #dbe7f3;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  pointer-events: none;
+  backdrop-filter: blur(2px);
+}
+.sg40GameBoard__spectatorsCount{ font-variant-numeric: tabular-nums; }

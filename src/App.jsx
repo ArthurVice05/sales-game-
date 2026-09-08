@@ -8,6 +8,7 @@ import LocalGameSetup from './components/LocalGameSetup.jsx'
 import LobbyList from './pages/LobbyList.jsx'
 import PlayersLobby from './pages/PlayersLobby.jsx'
 import Board from './components/board/Board.jsx'
+import { useSpectatorCount } from './components/spectators/useSpectatorCount.js'
 import HUD from './components/panel/HUD.jsx'
 import GameDesktopHeader from './components/hud/GameDesktopHeader.jsx'
 import HudDesktopSidebar from './components/hud/HudDesktopSidebar.jsx'
@@ -286,6 +287,14 @@ export default function App() {
   })
   const [currentLobbyId, setCurrentLobbyId] = useState(null)
   const [roomId, setRoomId] = useState(null)
+
+  // Quantas pessoas estão assistindo. Canal de presença próprio: não toca no
+  // estado da partida. Jogadores só leem; quem assiste é que se anuncia.
+  const spectatorCount = useSpectatorCount({
+    roomCode: currentLobbyId || roomId,
+    isSpectator,
+    enabled: gameMode !== GAME_MODE.LOCAL,
+  })
   const [boardVersion, setBoardVersion] = useState(getNewGameBoardVersion)
   const boardVersionRef = useRef(boardVersion)
   useEffect(() => { boardVersionRef.current = boardVersion }, [boardVersion])
@@ -2835,6 +2844,11 @@ export default function App() {
     setGameMode(GAME_MODE.ONLINE)
     setSessionRole(SESSION_ROLE.SPECTATOR)
     isSpectatorRef.current = true
+    // "Jogar online" semeia `players` com o próprio usuário na casa 0. Como o
+    // espectador não tem assento, esse resto virava um peão fantasma no
+    // tabuleiro — visível só para ele. O roster passa a vir apenas do estado
+    // autoritativo da sala.
+    setPlayers([], { source: 'SPECTATOR_ENTER' })
     setCurrentLobbyId(roomCode)
     setRoomId(roomCode)
     // GameNetProvider continua ENABLED: o espectador precisa de rooms.state,
@@ -2848,7 +2862,7 @@ export default function App() {
     } catch {}
     setPhase('game')
     return { ok: true }
-  }, [])
+  }, [setPlayers])
 
   // Sair do modo espectador: nunca forfeit / leaveRoom / clearMatchIdentity,
   // porque o espectador jamais entrou como jogador.
@@ -3773,6 +3787,7 @@ export default function App() {
             boardVersion={boardVersion}
             me={players.find(isMine) || null}
             matchId={gameMode === GAME_MODE.LOCAL ? localMatchId : (currentLobbyId || roomId)}
+            spectatorCount={spectatorCount}
           />
           <SorteRevesDeck />
           <DiceRollOverlay

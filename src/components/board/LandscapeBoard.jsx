@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 
 import { getOrCreateTabPlayerId } from '../../auth.js'
+import { spectatorCountLabel } from '../../game/spectatorPresence.js'
 import {
   BOARD_40_CONFIG,
   getDeterministicTokenSlots,
@@ -32,6 +33,18 @@ const TOKEN_CELL_OFFSETS = Object.freeze([
   Object.freeze({ x: 0.22, y: 0.22 }),
 ])
 
+
+/** Olho pequeno, decorativo: o número ao lado é quem informa. */
+function IconEyeSmall () {
+  return (
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
+         strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  )
+}
+
 const getTokenVisualPosition = (index, layout, slot) => {
   const { columns, rows } = BOARD_VISUAL_LAYOUTS[layout]
   const safeIndex = normalizeBoardPos(index, TRACK_LEN)
@@ -55,6 +68,7 @@ export default function LandscapeBoard({
   matchId,
   me,
   onMeHud,
+  spectatorCount = 0,
 }) {
   const [selectedIndex, setSelectedIndex] = useState(null)
   const [hoveredIndex, setHoveredIndex] = useState(null)
@@ -247,6 +261,18 @@ export default function LandscapeBoard({
         alt="Sales GAME"
         draggable="false"
       />
+
+      {spectatorCount > 0 && (
+        <div
+          className="sg40GameBoard__spectators"
+          role="status"
+          aria-label={spectatorCountLabel(spectatorCount)}
+          title={spectatorCountLabel(spectatorCount)}
+        >
+          <IconEyeSmall />
+          <span className="sg40GameBoard__spectatorsCount" aria-hidden="true">{spectatorCount}</span>
+        </div>
+      )}
 
       <div className="sg40Preview__track" role="group" aria-label="Percurso de 40 casas">
         {BOARD_40_CONFIG.map((tile) => (

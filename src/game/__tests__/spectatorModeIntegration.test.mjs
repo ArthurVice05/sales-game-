@@ -154,12 +154,14 @@ test('a entrada de espectador valida o snapshot autoritativo antes de phase=game
   const source = await readApp()
   const start = source.search(/const enterSpectatorMode = React\.useCallback/)
   assert.notEqual(start, -1)
-  const block = source.slice(start, start + 1800)
+  const block = source.slice(start, start + 2600)
 
   assert.match(block, /findAuthoritativeRoomMeta\(roomCode\)/)
   assert.match(block, /resolveSpectatorEntry\(\{ roomCode, meta \}\)/)
   const validate = block.search(/resolveSpectatorEntry/)
   const enterGame = block.search(/setPhase\('game'\)/)
+  assert.notEqual(validate, -1, 'validação deve estar no bloco')
+  assert.notEqual(enterGame, -1, 'phase=game deve estar no bloco')
   assert.ok(validate < enterGame, 'validação precisa preceder phase=game')
 
   assert.match(block, /setSessionRole\(SESSION_ROLE\.SPECTATOR\)/)
@@ -348,4 +350,19 @@ test('hot-seat permanece intacto', async () => {
 test('o motor de turnos não conhece o modo espectador (§34)', async () => {
   const engine = await readSource(new URL('../useTurnEngine.jsx', import.meta.url))
   assert.doesNotMatch(engine, /spectator|sessionRole/i)
+})
+
+test('espectador não carrega peão local: o roster vem só do estado autoritativo (§43)', async () => {
+  const source = await readSource(appPath)
+  const start = source.search(/const enterSpectatorMode = React\.useCallback/)
+  assert.ok(start >= 0, 'enterSpectatorMode deve existir')
+  const bloco = source.slice(start, start + 2200)
+
+  // "Jogar online" semeia players com o próprio usuário (pos 0). Ao virar
+  // espectador esse assento precisa sair, senão aparece um token fantasma
+  // na casa 01 visível só para ele.
+  assert.match(bloco, /setPlayers\(\[\], \{ source: 'SPECTATOR_ENTER' \}\)/)
+
+  // e continua sem criar identidade/assento
+  assert.doesNotMatch(bloco, /setMatchIdentity|joinLobby|resolvePlayerIdForRoom|setPlayerReady/)
 })
