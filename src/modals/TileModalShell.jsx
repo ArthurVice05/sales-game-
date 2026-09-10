@@ -14,10 +14,13 @@ export default function TileModalShell({
   children,
   size = 'lg',
   label,
+  className = '',
 }) {
+  const sizeClass = `tileModal tileModal--${size}`
+  const extra = typeof className === 'string' && className.trim() ? ` ${className.trim()}` : ''
   return (
     <div
-      className={`tileModal tileModal--${size}`}
+      className={`${sizeClass}${extra}`}
       role="dialog"
       aria-modal="true"
       aria-labelledby={title ? titleId : undefined}

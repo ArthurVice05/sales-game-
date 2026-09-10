@@ -1,12 +1,13 @@
 // src/modals/BuyClientsModal.jsx
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useModal } from './ModalContext'
 import InsufficientFundsModal from './InsufficientFundsModal'
 import PurchaseImpactPreview from '../components/PurchaseImpactPreview.jsx'
 import { buildClientsPurchaseDeltas } from '../game/clientsPurchase.js'
 import { previewPurchaseImpact } from '../game/purchasePreview.js'
 import { MANUAL_CONSTANTS } from '../game/manualConstants.js'
-import TileContextHint from './TileContextHint.jsx'
+import { getTileContext } from './tileContext.js'
+import CompanySnapshotSummary from './CompanySnapshotSummary.jsx'
 import TileModalShell from './TileModalShell.jsx'
 
 /**
@@ -14,7 +15,7 @@ import TileModalShell from './TileModalShell.jsx'
  *
  * Props:
  *  - onResolve: function
- *      â€¢ { action:'BUY',
+ *      • { action:'BUY',
  *          qty:number,
  *          unitAcquisition:number,
  *          totalCost:number,
@@ -22,10 +23,10 @@ import TileModalShell from './TileModalShell.jsx'
  *          maintenanceDelta:number,
  *          bensDelta:number,
  *          clientsAdded:number }
- *      â€¢ { action:'SKIP' }
- *  - unitAcquisition?: number   (preÃ§o por cliente)   -> padrÃ£o 1000
- *  - unitMaintenance?: number   (despesa por cliente) -> padrÃ£o 50
- *  - currentCash?: number       (saldo atual do jogador) -> obrigatÃ³rio para validar saldo
+ *      • { action:'SKIP' }
+ *  - unitAcquisition?: number   (preço por cliente)   -> padrão 1000
+ *  - unitMaintenance?: number   (despesa por cliente) -> padrão 50
+ *  - currentCash?: number       (saldo atual do jogador) -> obrigatório para validar saldo
  *  - currentPlayer?: object     (snapshot somente leitura para preview)
  */
 export default function BuyClientsModal({
@@ -39,8 +40,10 @@ export default function BuyClientsModal({
   const closeRef = useRef(null)
   const inputRef = useRef(null)
   const { pushModal, awaitTop } = useModal()
+  const capacityDetailsId = useId()
 
   const [qty, setQty] = useState('')
+  const [capacityOpen, setCapacityOpen] = useState(false)
 
   const qtyNum = useMemo(() => {
     const n = Math.floor(Number(qty))
@@ -106,10 +109,10 @@ export default function BuyClientsModal({
       unitAcquisition: pricePer,
       totalCost,
       unitMaintenance: mPer,
-      // âœ… EXTRA: manutenÃ§Ã£o deve ser POSITIVA (despesa mensal adicionada). O restante do jogo trata manutencao como nÃºmero positivo.
+      // ✅ EXTRA: manutenção deve ser POSITIVA (despesa mensal adicionada). O restante do jogo trata manutencao como número positivo.
       maintenanceDelta,
-      bensDelta: totalCost,   // bens aumentam pelo valor da aquisiÃ§Ã£o
-      clientsAdded: qtyNum,   // Ãºtil para cÃ¡lculos externos
+      bensDelta: totalCost,   // bens aumentam pelo valor da aquisição
+      clientsAdded: qtyNum,   // útil para cálculos externos
       source: { modal: 'BuyClientsModal', file: 'src/modals/BuyClientsModal.jsx' },
     })
   }
@@ -139,11 +142,15 @@ export default function BuyClientsModal({
     setQty(String(v))
   }
 
+  const contextText = getTileContext('CLIENTS')
+
   return (
     <TileModalShell
       title="Carteira de Clientes"
       onClose={handleClose}
       closeRef={closeRef}
+      size="md"
+      className="tileModal--clients"
       footer={(
         <>
           {allowBack && (
@@ -166,19 +173,35 @@ export default function BuyClientsModal({
         </>
       )}
     >
-      <TileContextHint kind="CLIENTS" />
+      <CompanySnapshotSummary player={currentPlayer} cash={cashNow} />
 
-      <div className="tileWarn">
-        <b>Mas cuidado com a capacidade de atendimento da sua equipe!</b><br />
-        Se o jogador adquirir mais clientes do que os vendedores podem atender,
-        assim que passar na casa <i>Faturamento do Mês</i> não receberá o faturamento
-        dos clientes excedentes e perderá o(s) cliente(s) que não foram atendidos.
+      <div className="tileWarn tileWarn--compact" role="status">
+        Sem capacidade suficiente, clientes excedentes não faturam no Faturamento do Mês e são perdidos.
       </div>
 
-      <p className="purchasePreviewHint">
-        Novos clientes podem aumentar seu faturamento, mas exigem capacidade suficiente
-        da sua equipe para serem atendidos.
-      </p>
+      <div className="companySnapshotDetails">
+        <button
+          type="button"
+          className="companySnapshotDetailsBtn"
+          aria-expanded={capacityOpen}
+          aria-controls={capacityDetailsId}
+          onClick={() => setCapacityOpen((v) => !v)}
+        >
+          {capacityOpen ? 'Ocultar detalhes da capacidade' : 'Entenda a capacidade'}
+        </button>
+        {capacityOpen ? (
+          <div id={capacityDetailsId} className="companySnapshotDetailsBody">
+            {contextText ? <p className="tileContextHint" role="note">{contextText}</p> : null}
+            <p className="purchasePreviewHint">
+              Se o jogador adquirir mais clientes do que os vendedores podem atender,
+              assim que passar na casa <i>Faturamento do Mês</i> não receberá o faturamento
+              dos clientes excedentes e perderá o(s) cliente(s) que não foram atendidos.
+              Novos clientes podem aumentar seu faturamento, mas exigem capacidade suficiente
+              da sua equipe para serem atendidos.
+            </p>
+          </div>
+        ) : null}
+      </div>
 
       <div className="tileQtyCost">
         <div className="tileStatBlock">
@@ -229,12 +252,12 @@ export default function BuyClientsModal({
         <div className="tileStatBlock">
           <div className="tileStatLabel">Preço por cliente</div>
           <div className="tileStatValue">$ {pricePer.toLocaleString()}</div>
-          <div className="tileStatHint">Pagamento único · saldo $ {cashNow.toLocaleString()}</div>
-          <div className="tileStatHint">Despesa mensal por cliente: <b>$ {mPer.toLocaleString()}</b></div>
+          <div className="tileStatHint">Pagamento único</div>
+          <div className="tileStatHint">Despesa mensal: <b>$ {mPer.toLocaleString()}</b>/cliente</div>
         </div>
       </div>
 
-      <PurchaseImpactPreview impact={purchaseImpact} />
+      <PurchaseImpactPreview impact={purchaseImpact} density="compact" />
     </TileModalShell>
   )
 }

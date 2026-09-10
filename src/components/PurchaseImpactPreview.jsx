@@ -26,13 +26,13 @@ function deltaClass(value) {
   return 'purchasePreviewDeltaNeutral'
 }
 
-function Row({ metric, current, after, variation, variationClass, strong }) {
+function Row({ metric, current, after, variation, variationClass, strong, labelCurrent = 'Atual', labelAfter = 'Após a ação', labelDelta = 'Variação' }) {
   return (
     <tr className={strong ? 'purchasePreviewRowStrong' : undefined}>
       <td data-label="Métrica">{metric}</td>
-      <td data-label="Atual">{current}</td>
-      <td data-label="Após a ação">{after}</td>
-      <td data-label="Variação" className={variationClass}>{variation}</td>
+      <td data-label={labelCurrent}>{current}</td>
+      <td data-label={labelAfter}>{after}</td>
+      <td data-label={labelDelta} className={variationClass}>{variation}</td>
     </tr>
   )
 }
@@ -40,23 +40,29 @@ function Row({ metric, current, after, variation, variationClass, strong }) {
 /**
  * Bloco visual reutilizável de preview financeiro.
  * Apenas apresenta dados; não aplica compra nem altera estado.
+ * density="compact": rótulos curtos (Agora / Após / Variação) — opcional por modal.
  */
-export default function PurchaseImpactPreview({ impact }) {
+export default function PurchaseImpactPreview({ impact, density = 'default' }) {
   if (!impact) return null
 
   const { immediateCost, current, after, difference } = impact
+  const compact = density === 'compact'
+  const hCurrent = compact ? 'Agora' : 'Atual'
+  const hAfter = compact ? 'Após' : 'Após a ação'
+  const hDelta = 'Variação'
+  const rowLabels = { labelCurrent: hCurrent, labelAfter: hAfter, labelDelta: hDelta }
 
   return (
-    <div className="purchasePreview">
+    <div className={`purchasePreview${compact ? ' purchasePreview--compact' : ''}`}>
       <div className="purchasePreviewTitle">Impacto da contratação</div>
 
       <table className="purchasePreviewTable">
         <thead>
           <tr>
             <th>Métrica</th>
-            <th>Atual</th>
-            <th>Após a ação</th>
-            <th>Variação</th>
+            <th>{hCurrent}</th>
+            <th>{hAfter}</th>
+            <th>{hDelta}</th>
           </tr>
         </thead>
         <tbody>
@@ -67,6 +73,7 @@ export default function PurchaseImpactPreview({ impact }) {
             after={formatCash(immediateCost)}
             variation={formatCash(immediateCost)}
             variationClass="purchasePreviewDeltaNegative"
+            {...rowLabels}
           />
           <Row
             metric="Caixa"
@@ -74,6 +81,7 @@ export default function PurchaseImpactPreview({ impact }) {
             after={formatCash(after.cash)}
             variation={formatMoney(difference.cash)}
             variationClass={deltaClass(difference.cash)}
+            {...rowLabels}
           />
           <Row
             metric="Faturamento"
@@ -81,6 +89,7 @@ export default function PurchaseImpactPreview({ impact }) {
             after={formatCash(after.revenue)}
             variation={formatMoney(difference.revenue)}
             variationClass={deltaClass(difference.revenue)}
+            {...rowLabels}
           />
           <Row
             metric="Despesas"
@@ -88,6 +97,7 @@ export default function PurchaseImpactPreview({ impact }) {
             after={formatCash(after.expenses)}
             variation={formatMoney(difference.expenses)}
             variationClass={deltaClass(difference.expenses)}
+            {...rowLabels}
           />
           <Row
             metric="Capacidade"
@@ -95,6 +105,7 @@ export default function PurchaseImpactPreview({ impact }) {
             after={Number(after.capacity || 0).toLocaleString()}
             variation={formatNumber(difference.capacity)}
             variationClass={deltaClass(difference.capacity)}
+            {...rowLabels}
           />
           <Row
             metric="Patrimônio"
@@ -102,6 +113,7 @@ export default function PurchaseImpactPreview({ impact }) {
             after={formatCash(after.patrimonio)}
             variation={formatMoney(difference.patrimonio)}
             variationClass={deltaClass(difference.patrimonio)}
+            {...rowLabels}
           />
           <Row
             strong
@@ -110,6 +122,7 @@ export default function PurchaseImpactPreview({ impact }) {
             after={formatMoney(difference.monthlyNet)}
             variation={formatMoney(difference.monthlyNet)}
             variationClass={deltaClass(difference.monthlyNet)}
+            {...rowLabels}
           />
         </tbody>
       </table>

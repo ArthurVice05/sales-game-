@@ -696,3 +696,123 @@
     max-height: min(100dvh, calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)));
   }
 }
+
+/* Variante exclusiva: Carteira de Clientes (não afeta outros modais). */
+.tileModal.tileModal--clients {
+  width: min(720px, calc(100vw - 24px));
+  max-height: min(86dvh, calc(100dvh - 20px));
+}
+
+.tileModal.tileModal--clients .tileModalHeader {
+  padding: 8px 12px;
+  gap: 8px;
+}
+
+.tileModal.tileModal--clients .tileModalTitle {
+  font-size: 16px;
+}
+
+.tileModal.tileModal--clients .tileModalBody {
+  padding: 10px 12px;
+}
+
+.tileModal.tileModal--clients .tileModalFooter {
+  padding: 8px 12px;
+  padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+  gap: 8px;
+}
+
+.tileModal.tileModal--clients .tileWarn--compact {
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.tileModal.tileModal--clients .tileQtyCost {
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.tileModal.tileModal--clients .tileStatBlock {
+  padding: 8px 10px;
+}
+
+.tileModal.tileModal--clients .tileStatLabel {
+  margin-bottom: 6px;
+}
+
+.tileModal.tileModal--clients .tileStatValue {
+  font-size: 20px;
+}
+
+.tileModal.tileModal--clients .purchasePreview--compact {
+  margin-top: 0;
+}
+
+.tileModal.tileModal--clients .purchasePreview--compact .purchasePreviewTitle {
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+.tileModal.tileModal--clients .purchasePreview--compact .purchasePreviewTable th,
+.tileModal.tileModal--clients .purchasePreview--compact .purchasePreviewTable td {
+  padding: 5px 6px;
+  font-size: 12px;
+}
+
+.companySnapshotDetails {
+  margin: 0 0 8px;
+}
+
+.companySnapshotDetailsBtn {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 36px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--tm-border, rgba(255, 255, 255, 0.1));
+  background: transparent;
+  color: var(--tm-text, #f4f6fb);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.companySnapshotDetailsBtn:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 2px;
+}
+
+.companySnapshotDetailsBody {
+  margin-top: 6px;
+}
+
+.companySnapshotDetailsBody .tileContextHint {
+  margin-bottom: 8px;
+}
+
+.companySnapshotDetailsBody .purchasePreviewHint {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+@media (max-width: 720px), (max-height: 560px) {
+  .tileModal.tileModal--clients {
+    width: min(100vw - 12px, 720px);
+    max-height: min(92dvh, calc(100dvh - 12px));
+  }
+
+  .tileModal.tileModal--clients .tileQtyCost {
+    grid-template-columns: 1fr;
+  }
+
+  .tileModal.tileModal--clients .tileModalHeader,
+  .tileModal.tileModal--clients .tileModalBody,
+  .tileModal.tileModal--clients .tileModalFooter {
+    padding-left: max(10px, env(safe-area-inset-left, 0px));
+    padding-right: max(10px, env(safe-area-inset-right, 0px));
+  }
+}

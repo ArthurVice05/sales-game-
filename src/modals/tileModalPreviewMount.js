@@ -47,15 +47,18 @@ const samplePlayer = {
   fat: 2000,
   desp: 800,
   clients: 4,
-  capacidade: 8,
   bens: 6000,
   patrimonio: 24000,
   fieldSales: 1,
-  insideSales: 0,
-  vendedoresComuns: 1,
-  gestores: 0,
-  mix: 'D',
-  erp: 'D',
+  insideSales: 1,
+  vendedoresComuns: 2,
+  gestores: 1,
+  mixProdutos: 'B',
+  erpLevel: 'C',
+  trainingsByVendor: {
+    comum: ['personalizado'],
+    field: ['fieldsales'],
+  },
 }
 
 function defaultProps(kind) {
