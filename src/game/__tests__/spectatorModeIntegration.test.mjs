@@ -154,10 +154,12 @@ test('a entrada de espectador valida o snapshot autoritativo antes de phase=game
   const source = await readApp()
   const start = source.search(/const enterSpectatorMode = React\.useCallback/)
   assert.notEqual(start, -1)
-  const block = source.slice(start, start + 2600)
+  const end = source.search(/const exitSpectatorMode = React\.useCallback/)
+  assert.ok(end > start, 'exitSpectatorMode delimita o bloco de entrada')
+  const block = source.slice(start, end)
 
   assert.match(block, /findAuthoritativeRoomMeta\(roomCode\)/)
-  assert.match(block, /resolveSpectatorEntry\(\{ roomCode, meta \}\)/)
+  assert.match(block, /resolveSpectatorEntry\(\{ roomCode, meta, lookupFailed \}\)/)
   const validate = block.search(/resolveSpectatorEntry/)
   const enterGame = block.search(/setPhase\('game'\)/)
   assert.notEqual(validate, -1, 'validação deve estar no bloco')
@@ -167,16 +169,39 @@ test('a entrada de espectador valida o snapshot autoritativo antes de phase=game
   assert.match(block, /setSessionRole\(SESSION_ROLE\.SPECTATOR\)/)
   assert.match(block, /setGameMode\(GAME_MODE\.ONLINE\)/)
   // recusa volta às salas, sem inventar jogador
-  assert.match(block, /if \(!entry\.ok\) \{[\s\S]{0,800}?setPhase\('lobbies'\)/)
+  assert.match(block, /if \(!entry\.ok\) \{[\s\S]{0,1400}?setPhase\('lobbies'\)/)
   assert.doesNotMatch(block, /joinLobby|resolvePlayerIdForRoom|setMatchIdentity|setPlayerReady|touchLobbyPlayer/)
+
+  // Ordem exigida pela correção: o papel de espectador (bloqueio de escrita) vem
+  // antes do reinício/hidratação, e a expectativa é vinculada à partida
+  // observada antes de o Provider trocar de sala.
+  const role = block.search(/setSessionRole\(SESSION_ROLE\.SPECTATOR\)/)
+  const bind = block.search(/resetMatchLocalUi\(\{ expectedMatchId: entry\.matchId \}\)/)
+  const provider = block.search(/window\.__setRoomCode\?\.\(roomCode, \{ spectate: true \}\)/)
+  assert.ok(bind !== -1, 'a expectativa precisa ser vinculada explicitamente')
+  assert.ok(role < bind, 'papel precede o reinício do transitório')
+  assert.ok(bind < provider, 'expectativa vinculada antes de trocar a sala do Provider')
+  assert.ok(provider < enterGame, 'Provider aponta para a sala antes de phase=game')
+
+  // Geração de entrada: conclusão obsoleta é descartada, não aplicada.
+  assert.match(block, /spectatorEntryRef\.current = \{ generation, roomCode \}/)
+  assert.match(block, /if \(spectatorEntryRef\.current\.generation !== generation\)/)
 })
 
 test('bootstrap por URL reconhece spectate e não passa por StartScreen/PlayersLobby (§48)', async () => {
   const source = await readApp()
   assert.match(source, /const spectateRequest = parseSpectateRequest\(url\.search\)/)
   assert.match(source, /if \(spectateRequest\.requested\) \{\s*\n\s*enterSpectatorMode\(spectateRequest\.roomCode\)\s*\n\s*return\s*\n\s*\}/)
-  assert.match(source, /const \[spectatorBooting, setSpectatorBooting\] = useState/)
-  assert.match(source, /if \(phase === 'start'\) \{\s*\n\s*if \(spectatorBooting\) \{/)
+  // O estado da ENTRADA passou a ser um só (idle/looking-up/hydrating/...); o
+  // "booting" antigo é derivado dele, sem segunda fonte de verdade.
+  assert.match(source, /const \[spectatorEntry, setSpectatorEntry\] = useState/)
+  assert.match(source, /const spectatorBooting = spectatorEntry\.status === SPECTATOR_ENTRY_STATUS\.LOOKING_UP/)
+  assert.doesNotMatch(source, /setSpectatorBooting/)
+  // A tela de consulta/falha vem ANTES das fases: espera sempre com saída.
+  const entryScreen = source.search(/spectatorEntry\.status === SPECTATOR_ENTRY_STATUS\.LOOKING_UP \|\|/)
+  const startPhase = source.search(/if \(phase === 'start'\) \{\n\s*return \(/)
+  assert.notEqual(entryScreen, -1, 'a tela de entrada precisa existir')
+  assert.ok(entryScreen < startPhase, 'tela de entrada precede as fases')
   assert.match(source, /buildSpectateSearch\(url\.search, \{ roomCode \}\)/)
 })
 
@@ -210,7 +235,7 @@ test('App marca a sessão de rede como espectadora ao entrar', async () => {
   const source = await readApp()
   assert.match(source, /window\.__setRoomCode\?\.\(roomCode, \{ spectate: true \}\)/)
   // saída volta ao padrão de jogador
-  assert.match(source, /const exitSpectatorMode = React\.useCallback[\s\S]{0,600}?window\.__setRoomCode\?\.\(null\)/)
+  assert.match(source, /const exitSpectatorMode = React\.useCallback[\s\S]{0,1600}?window\.__setRoomCode\?\.\(null\)/)
 })
 
 /* ------------------------------------------------------------ saída (§31) */
@@ -219,7 +244,9 @@ test('sair do modo espectador não executa forfeit/leaveRoom/clearMatchIdentity 
   const source = await readApp()
   const start = source.search(/const exitSpectatorMode = React\.useCallback/)
   assert.notEqual(start, -1)
-  const block = source.slice(start, start + 900)
+  // A saída também é o cancelamento de uma entrada pendente, então o bloco
+  // cresceu; delimitamos pelo fim da função em vez de por tamanho fixo.
+  const block = source.slice(start, start + 2200)
 
   assert.doesNotMatch(block, /forfeitMatch|leaveRoom|leaveLobby|clearMatchIdentity/)
   assert.match(block, /setSessionRole\(SESSION_ROLE\.PLAYER\)/)
@@ -227,6 +254,11 @@ test('sair do modo espectador não executa forfeit/leaveRoom/clearMatchIdentity 
   assert.match(block, /window\.__setRoomCode\?\.\(null\)/)
   assert.match(block, /clearSpectateFromSearch\(url\.search\)/)
   assert.match(block, /setPhase\('lobbies'\)/)
+  // Entrada pendente é invalidada: consulta que responder depois não reabre nada.
+  assert.match(block, /generation: spectatorEntryRef\.current\.generation \+ 1/)
+  assert.match(block, /resetMatchLocalUi\(\{ expectedMatchId: null \}\)/)
+  // A última sala do JOGADOR não é apagada por quem só assistiu.
+  assert.doesNotMatch(block, /removeItem\('sg:lastRoomName'\)/)
 
   // exitCurrentGame desvia para o fluxo de espectador antes de qualquer forfeit
   assert.match(source, /async function exitCurrentGame\(\) \{\s*\n\s*if \(isSpectator\) \{\s*\n\s*exitSpectatorMode\(\)/)
@@ -356,7 +388,8 @@ test('espectador não carrega peão local: o roster vem só do estado autoritati
   const source = await readSource(appPath)
   const start = source.search(/const enterSpectatorMode = React\.useCallback/)
   assert.ok(start >= 0, 'enterSpectatorMode deve existir')
-  const bloco = source.slice(start, start + 2200)
+  const end = source.search(/const exitSpectatorMode = React\.useCallback/)
+  const bloco = source.slice(start, end)
 
   // "Jogar online" semeia players com o próprio usuário (pos 0). Ao virar
   // espectador esse assento precisa sair, senão aparece um token fantasma

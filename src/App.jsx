@@ -131,6 +131,7 @@ import {
 } from './game/localHotseat.js'
 import {
   SESSION_ROLE,
+  SPECTATOR_ENTRY_STATUS,
   SPECTATOR_READ_ONLY,
   buildSpectateSearch,
   clearSpectateFromSearch,
@@ -276,17 +277,41 @@ export default function App() {
   const isSpectatorRef = useRef(isSpectator)
   useEffect(() => { isSpectatorRef.current = isSpectator }, [isSpectator])
   const [spectatorEntryError, setSpectatorEntryError] = useState('')
+  // Estado da ENTRADA em modo espectador — separado do estado da partida.
   // Reconhecido de forma síncrona no primeiro render: evita piscar a StartScreen
   // enquanto a sala autoritativa está sendo validada.
-  const [spectatorBooting, setSpectatorBooting] = useState(() => {
+  const [spectatorEntry, setSpectatorEntry] = useState(() => {
     try {
-      return parseSpectateRequest(window.location.search).requested
-    } catch {
-      return false
-    }
+      const requested = parseSpectateRequest(window.location.search)
+      if (requested.requested) {
+        return {
+          status: SPECTATOR_ENTRY_STATUS.LOOKING_UP,
+          roomCode: requested.roomCode,
+          message: '',
+          reason: null,
+        }
+      }
+    } catch {}
+    return { status: SPECTATOR_ENTRY_STATUS.IDLE, roomCode: null, message: '', reason: null }
   })
+  const spectatorBooting = spectatorEntry.status === SPECTATOR_ENTRY_STATUS.LOOKING_UP
+  /**
+   * Geração da entrada: cada pedido de "assistir" recebe um número novo, e toda
+   * conclusão assíncrona confere o seu antes de agir. É o que faz a resposta
+   * atrasada da sala A — ou de uma entrada cancelada — ser descartada em vez de
+   * reabrir uma partida que a sessão já não está observando.
+   */
+  const spectatorEntryRef = useRef({ generation: 0, roomCode: null })
+  /** Snapshot já validado na consulta de entrada, à espera do próximo effect. */
+  const spectatorSeedRef = useRef(null)
+  /** Snapshot que o Provider ainda carrega da sala anterior — nunca aplicar. */
+  const staleNetStateRef = useRef(null)
   const [currentLobbyId, setCurrentLobbyId] = useState(null)
   const [roomId, setRoomId] = useState(null)
+  // Sala à qual esta sessão está vinculada agora (code da sala, não matchId nem
+  // id físico da row de rooms). Usada para saber se a troca de sala é real.
+  const currentRoomRef = useRef(null)
+  useEffect(() => { currentRoomRef.current = currentLobbyId || roomId || null }, [currentLobbyId, roomId])
 
   // Quantas pessoas estão assistindo. Canal de presença próprio: não toca no
   // estado da partida. Jogadores só leem; quem assiste é que se anuncia.
@@ -1112,6 +1137,10 @@ export default function App() {
   const netVersion = net?.version
   const netState = net?.state
   const netStateId = net?.stateId
+  // Qual snapshot o Provider está entregando AGORA (para identificar, na troca
+  // de sala, o que ainda pertence à sala anterior).
+  const netStateRef = useRef(netState)
+  useEffect(() => { netStateRef.current = netState }, [netState])
 
   // Handoff: sanitize deadline quando identidade de turno muda (local + multiplayer).
   useEffect(() => {
@@ -1767,10 +1796,29 @@ export default function App() {
 
   useEffect(() => {
     if (gameMode === GAME_MODE.LOCAL) return
+
+    // Semente da própria consulta de entrada do espectador: procedência já
+    // verificada (sala, versão e stateId vieram do mesmo SELECT por code).
+    // Aplicada aqui, e não dentro da entrada, porque só depois do commit o
+    // roster local já está vazio — aplicar antes mesclaria com a partida velha.
+    const seed = spectatorSeedRef.current
+    if (seed) {
+      const boundRoom = String(currentLobbyId || roomId || '')
+      const stillWanted =
+        seed.generation === spectatorEntryRef.current.generation &&
+        String(seed.roomCode) === boundRoom
+      spectatorSeedRef.current = null
+      if (stillWanted) applyRemoteNetState(seed.state, seed.version, seed.stateId)
+    }
+
     if (!net?.enabled || !net?.ready) return
     if (!netState) return
+    // O Provider leva um commit para soltar a sala anterior: o snapshot que ele
+    // ainda carrega nesse intervalo é da sala de onde a sessão acabou de sair.
+    if (staleNetStateRef.current && netState === staleNetStateRef.current) return
+    staleNetStateRef.current = null
     applyRemoteNetState(netState, netVersion, netStateId)
-  }, [gameMode, netVersion, netState, netStateId, net?.enabled, net?.ready, applyRemoteNetState, resumeHydrateNonce])
+  }, [gameMode, netVersion, netState, netStateId, net?.enabled, net?.ready, applyRemoteNetState, resumeHydrateNonce, currentLobbyId, roomId])
 
   // ✅ BUG 2 FIX: Watchdog anti-trava - libera turnLock se travado por muito tempo
   useEffect(() => {
@@ -2576,8 +2624,15 @@ export default function App() {
   const [progressiveTip, setProgressiveTip] = useState(null)
   const progressiveTipTimerRef = useRef(null)
 
-  /** Limpa flags locais de partida (evita gameOver/turnLock grudados entre matches). */
-  const resetMatchLocalUi = React.useCallback(() => {
+  /**
+   * Limpa flags locais de partida (evita gameOver/turnLock grudados entre matches).
+   *
+   * `expectedMatchId` é OPCIONAL e explícito: quem troca de partida diz a qual
+   * passa a esperar (`null` = sem expectativa, contrato das partidas legadas sem
+   * matchId). Sem a opção o vínculo atual é preservado — zerar a expectativa de
+   * forma global faria qualquer snapshot de qualquer partida ser aceito.
+   */
+  const resetMatchLocalUi = React.useCallback((options) => {
     setGameOver(false)
     setWinner(null)
     setTurnLock(false)
@@ -2603,6 +2658,11 @@ export default function App() {
     lastAppliedStateIdRef.current = null
     lastLocalStateRef.current = null
     playersBeforeRef.current = null
+    if (options && Object.prototype.hasOwnProperty.call(options, 'expectedMatchId')) {
+      const next = options.expectedMatchId
+      expectedMatchIdRef.current =
+        next == null || String(next).trim() === '' ? null : String(next)
+    }
   }, [clearDiceUi])
 
   function startLocalGame({ names, maxRounds: requestedRounds, turnTimeSec: requestedTime }) {
@@ -2815,19 +2875,53 @@ export default function App() {
   // validada contra o snapshot autoritativo de rooms.state antes de virar 'game'.
   const enterSpectatorMode = React.useCallback(async (lobbyId) => {
     const roomCode = String(lobbyId ?? '').trim()
+
+    // 1) Nova sessão de observação: invalida qualquer entrada ainda pendente.
+    const generation = spectatorEntryRef.current.generation + 1
+    spectatorEntryRef.current = { generation, roomCode }
+    spectatorSeedRef.current = null
+    setSpectatorEntryError('')
+    setSpectatorEntry({
+      status: SPECTATOR_ENTRY_STATUS.LOOKING_UP,
+      roomCode,
+      message: '',
+      reason: null,
+    })
+
+    // 2) Consulta a sala pedida (nunca cria nada).
     let meta = null
-    try {
-      meta = roomCode ? await findAuthoritativeRoomMeta(roomCode) : null
-    } catch (error) {
-      console.warn('[spectator] falha ao consultar sala autoritativa:', error)
-      meta = null
+    let lookupFailed = false
+    if (roomCode) {
+      try {
+        meta = await findAuthoritativeRoomMeta(roomCode)
+      } catch (error) {
+        // Falha de SELECT/acesso NÃO é "sala inexistente".
+        console.warn('[spectator] falha ao consultar sala autoritativa:', error)
+        lookupFailed = true
+      }
     }
 
-    const entry = resolveSpectatorEntry({ roomCode, meta })
+    // 3) Conclusão obsoleta (outra entrada assumiu, ou a entrada foi cancelada).
+    if (spectatorEntryRef.current.generation !== generation) {
+      return { ok: false, reason: 'superseded' }
+    }
+
+    const entry = resolveSpectatorEntry({ roomCode, meta, lookupFailed })
     if (!entry.ok) {
+      if (entry.status === SPECTATOR_ENTRY_STATUS.FAILED) {
+        // Erro de acesso/conexão: nada de sala, jogador ou partida — só a
+        // possibilidade de tentar de novo ou sair.
+        setSpectatorEntry({
+          status: SPECTATOR_ENTRY_STATUS.FAILED,
+          roomCode,
+          message: entry.message,
+          reason: entry.reason,
+        })
+        return { ok: false, reason: entry.reason }
+      }
       // Nunca criar jogador como fallback: apenas recusa e volta às salas.
       window.__setRoomCode?.(null)
-      setSpectatorBooting(false)
+      setSpectatorEntry({ status: SPECTATOR_ENTRY_STATUS.IDLE, roomCode: null, message: '', reason: null })
       setSessionRole(SESSION_ROLE.PLAYER)
       setSpectatorEntryError(entry.message)
       try {
@@ -2839,18 +2933,33 @@ export default function App() {
       return { ok: false, reason: entry.reason }
     }
 
-    setSpectatorBooting(false)
-    setSpectatorEntryError('')
+    // 4) Papel de espectador ANTES de qualquer hidratação: escrita bloqueada.
     setGameMode(GAME_MODE.ONLINE)
     setSessionRole(SESSION_ROLE.SPECTATOR)
     isSpectatorRef.current = true
+
+    // 5) Reinicia só o transitório e vincula a expectativa à partida observada.
+    //    Partida legada (sem matchId) entra com expectativa nula — contrato já
+    //    existente de `shouldApplyRoomStateForMatch` — em vez de um id fictício;
+    //    nesse caso o vínculo é a sala, garantida pelo Provider.
+    const previousRoom = String(currentRoomRef.current || '')
+    resetMatchLocalUi({ expectedMatchId: entry.matchId })
+    setIdentityMismatch(false)
+    setRound(1)
+    setRoundFlags([])
     // "Jogar online" semeia `players` com o próprio usuário na casa 0. Como o
     // espectador não tem assento, esse resto virava um peão fantasma no
     // tabuleiro — visível só para ele. O roster passa a vir apenas do estado
     // autoritativo da sala.
     setPlayers([], { source: 'SPECTATOR_ENTER' })
+
+    // 6) O snapshot que o Provider ainda carrega é da sala anterior.
+    staleNetStateRef.current =
+      previousRoom && previousRoom !== roomCode ? netStateRef.current : null
+
     setCurrentLobbyId(roomCode)
     setRoomId(roomCode)
+    currentRoomRef.current = roomCode
     // GameNetProvider continua ENABLED: o espectador precisa de rooms.state,
     // realtime e polling fallback para RECEBER estado. A flag `spectate` o
     // coloca em read-only (não cria sala, não aceita commit).
@@ -2860,29 +2969,74 @@ export default function App() {
       url.search = buildSpectateSearch(url.search, { roomCode })
       history.replaceState(null, '', url.toString())
     } catch {}
+
+    // 7) Hidrata com o snapshot desta consulta (mesma implementação de sempre) e
+    //    segue acompanhando pelo Provider. O nonce força o effect a reavaliar
+    //    mesmo quando o Provider já estava nesta sala e não recebe update novo.
+    spectatorSeedRef.current = {
+      generation,
+      roomCode,
+      state: entry.snapshot,
+      version: entry.version,
+      stateId: entry.stateId,
+    }
+    setSpectatorEntry({
+      status: SPECTATOR_ENTRY_STATUS.HYDRATING,
+      roomCode,
+      message: '',
+      reason: null,
+    })
     setPhase('game')
+    setResumeHydrateNonce((n) => n + 1)
     return { ok: true }
-  }, [setPlayers])
+  }, [resetMatchLocalUi, setPlayers])
 
   // Sair do modo espectador: nunca forfeit / leaveRoom / clearMatchIdentity,
-  // porque o espectador jamais entrou como jogador.
+  // porque o espectador jamais entrou como jogador. Também serve de cancelamento
+  // enquanto a consulta de entrada ainda está pendente.
   const exitSpectatorMode = React.useCallback(() => {
+    // Invalida a entrada em curso: uma consulta que ainda vai responder não pode
+    // reabrir a partida depois da saída.
+    spectatorEntryRef.current = {
+      generation: spectatorEntryRef.current.generation + 1,
+      roomCode: null,
+    }
+    spectatorSeedRef.current = null
+    staleNetStateRef.current = null
     isSpectatorRef.current = false
-    setSpectatorBooting(false)
+    setSpectatorEntry({ status: SPECTATOR_ENTRY_STATUS.IDLE, roomCode: null, message: '', reason: null })
     setSessionRole(SESSION_ROLE.PLAYER)
     setSpectatorEntryError('')
     setCurrentLobbyId(null)
     setRoomId(null)
+    currentRoomRef.current = null
     window.__setRoomCode?.(null)
     try {
       const url = new URL(window.location.href)
       url.search = clearSpectateFromSearch(url.search)
       history.replaceState(null, '', url.toString())
-      localStorage.removeItem('sg:lastRoomName')
     } catch {}
-    resetMatchLocalUi()
+    // `sg:lastRoomName` pertence à sessão de JOGADOR: assistir não pode apagar a
+    // última sala legítima de outra partida.
+    resetMatchLocalUi({ expectedMatchId: null })
+    setRound(1)
+    setRoundFlags([])
+    setPlayers([], { source: 'SPECTATOR_EXIT' })
     setPhase('lobbies')
-  }, [resetMatchLocalUi])
+  }, [resetMatchLocalUi, setPlayers])
+
+  // Assistir de fato: o roster autoritativo chegou. Estado explícito para a UI
+  // não precisar adivinhar entre "carregando" e "assistindo".
+  useEffect(() => {
+    if (!isSpectator) return
+    if (spectatorEntry.status !== SPECTATOR_ENTRY_STATUS.HYDRATING) return
+    if (!Array.isArray(players) || players.length === 0) return
+    setSpectatorEntry((prev) => (
+      prev.status === SPECTATOR_ENTRY_STATUS.HYDRATING
+        ? { ...prev, status: SPECTATOR_ENTRY_STATUS.WATCHING }
+        : prev
+    ))
+  }, [isSpectator, players, spectatorEntry.status])
 
   async function exitCurrentGame() {
     if (isSpectator) {
@@ -3297,19 +3451,47 @@ export default function App() {
     ? ''
     : 'Multiplayer online indisponível: defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY em um arquivo .env na raiz do projeto. O jogo neste dispositivo funciona normalmente.'
 
-  if (phase === 'start') {
-    if (spectatorBooting) {
-      return (
-        <ModalProvider>
-          <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff' }}>
-            <div style={{ maxWidth: 520, padding: 16, textAlign: 'center' }}>
-              <div style={{ fontSize: 18, marginBottom: 8 }}>👁 Entrando como espectador…</div>
-              <div style={{ opacity: .75 }}>Validando a partida nesta sala.</div>
+  // 0) Entrada em modo espectador: consulta em andamento ou falha de acesso.
+  // Vem antes das fases porque não pertence a nenhuma delas — a sessão ainda não
+  // é jogadora nem está na partida, e em nenhum dos dois estados existe espera
+  // sem saída: sempre há nova tentativa e volta para as salas.
+  if (
+    spectatorEntry.status === SPECTATOR_ENTRY_STATUS.LOOKING_UP ||
+    spectatorEntry.status === SPECTATOR_ENTRY_STATUS.FAILED
+  ) {
+    const failed = spectatorEntry.status === SPECTATOR_ENTRY_STATUS.FAILED
+    return (
+      <ModalProvider>
+        <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff' }}>
+          <div style={{ maxWidth: 520, padding: 16, textAlign: 'center' }}>
+            <div style={{ fontSize: 18, marginBottom: 8 }}>
+              {failed ? '⚠️ Não foi possível abrir a partida' : '👁 Consultando partida…'}
+            </div>
+            <div style={{ opacity: .75, marginBottom: 12 }}>
+              {failed
+                ? spectatorEntry.message
+                : 'Validando a partida nesta sala.'}
+            </div>
+            <div style={{ display:'flex', gap: 8, justifyContent:'center', flexWrap:'wrap' }}>
+              {failed && (
+                <button
+                  onClick={() => enterSpectatorMode(spectatorEntry.roomCode)}
+                  style={{ padding:'10px 12px', borderRadius: 10 }}
+                >
+                  Tentar novamente
+                </button>
+              )}
+              <button onClick={exitSpectatorMode} style={{ padding:'10px 12px', borderRadius: 10 }}>
+                Voltar para salas
+              </button>
             </div>
           </div>
-        </ModalProvider>
-      )
-    }
+        </div>
+      </ModalProvider>
+    )
+  }
+
+  if (phase === 'start') {
     return (
       <ModalProvider>
         <StartScreen
@@ -3628,26 +3810,43 @@ export default function App() {
 
   // 4) Jogo
   if (!Array.isArray(players) || players.length === 0) {
+    // Quem entra para assistir não espera um START novo: a partida já começou e
+    // o que falta é o estado ATUAL chegar. O texto de START só vale para quem
+    // está entrando numa partida que ainda vai começar.
     return (
       <ModalProvider>
         <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff' }}>
           <div style={{ maxWidth: 520, padding: 16 }}>
-            <div style={{ fontSize: 18, marginBottom: 8 }}>Carregando estado do jogo...</div>
-            <div style={{ opacity: .75, marginBottom: 12 }}>
-              Aguardando snapshot do Supabase (START). Se ficar preso, volte para Lobbies e entre novamente.
+            <div style={{ fontSize: 18, marginBottom: 8 }}>
+              {isSpectator ? 'Carregando a partida em andamento...' : 'Carregando estado do jogo...'}
             </div>
-            <button onClick={() => {
-              if (isSpectator) { exitSpectatorMode(); return }
-              // NÃO clearMatchIdentity aqui: voltar da tela de loading NÃO é abandonar a partida.
-              // Apagar a identidade impede "Reentrar" no card locked.
-              if (isDevVerbose()) {
-                console.log('[resume] back-to-lobbies from loading (identity preserved)')
-              }
-              window.__setRoomCode?.(null)
-              setPhase('lobbies')
-            }} style={{ padding:'10px 12px', borderRadius: 10 }}>
-              Voltar para Lobbies
-            </button>
+            <div style={{ opacity: .75, marginBottom: 12 }}>
+              {isSpectator
+                ? 'Buscando o estado atual desta sala. Se demorar, tente de novo ou volte para as salas.'
+                : 'Aguardando snapshot do Supabase (START). Se ficar preso, volte para Lobbies e entre novamente.'}
+            </div>
+            <div style={{ display:'flex', gap: 8, flexWrap:'wrap' }}>
+              {isSpectator && (
+                <button
+                  onClick={() => enterSpectatorMode(currentLobbyId || roomId)}
+                  style={{ padding:'10px 12px', borderRadius: 10 }}
+                >
+                  Tentar novamente
+                </button>
+              )}
+              <button onClick={() => {
+                if (isSpectator) { exitSpectatorMode(); return }
+                // NÃO clearMatchIdentity aqui: voltar da tela de loading NÃO é abandonar a partida.
+                // Apagar a identidade impede "Reentrar" no card locked.
+                if (isDevVerbose()) {
+                  console.log('[resume] back-to-lobbies from loading (identity preserved)')
+                }
+                window.__setRoomCode?.(null)
+                setPhase('lobbies')
+              }} style={{ padding:'10px 12px', borderRadius: 10 }}>
+                {isSpectator ? 'Sair do modo espectador' : 'Voltar para Lobbies'}
+              </button>
+            </div>
           </div>
         </div>
       </ModalProvider>
@@ -3704,7 +3903,13 @@ export default function App() {
               👤 {meHudLive.name}
             </span>
             {isSpectator && (
-              <span className="spectatorBadge" title="Você está assistindo esta partida">
+              <span className="spectatorBadge"
+                title={
+                  spectatorEntry.status === SPECTATOR_ENTRY_STATUS.WATCHING
+                    ? 'Você está assistindo esta partida'
+                    : 'Carregando o estado atual desta partida'
+                }
+              >
                 👁 Modo espectador
               </span>
             )}

@@ -121,6 +121,12 @@ export function useGamePresenceAutoSkip({
       return
     }
 
+    // Toda presença desta montagem morre junto com ela: os touches fora do
+    // intervalo (imediato e por visibilidade) também precisam do cancelamento,
+    // senão recriam a row depois de a sessão ter saído do lobby.
+    let cancelled = false
+    const isCancelled = () => cancelled
+
     const stop = startLobbyHeartbeat({
       lobbyId,
       playerId: String(presenceId),
@@ -132,10 +138,12 @@ export function useGamePresenceAutoSkip({
       lobbyId,
       playerId: String(presenceId),
       allowRecreateIfSeated: true,
+      isCancelled,
     }).catch(() => {})
     devLog('[presence] heartbeat started canonical=' + presenceId)
 
     const bump = () => {
+      if (cancelled) return
       try {
         if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
       } catch {}
@@ -143,6 +151,7 @@ export function useGamePresenceAutoSkip({
         lobbyId,
         playerId: String(presenceId),
         allowRecreateIfSeated: true,
+        isCancelled,
       }).catch(() => {})
     }
     const onVis = () => bump()
@@ -152,6 +161,7 @@ export function useGamePresenceAutoSkip({
     } catch {}
 
     return () => {
+      cancelled = true
       try { stop?.() } catch {}
       try {
         document.removeEventListener('visibilitychange', onVis)
@@ -206,6 +216,7 @@ export function useGamePresenceAutoSkip({
           lobbyId,
           playerId: String(presenceId),
           allowRecreateIfSeated: true,
+          isCancelled: () => cancelled,
         })
       } catch {}
 

@@ -295,10 +295,17 @@ export async function getLatestMatch(lobbyId) {
  * Busca o state autoritativo em `rooms` pelo code (= lobbyId).
  * Preferência: row com state.players.length > 0.
  * Não altera schema; só leitura.
+ *
+ * Devolve também a procedência do snapshot — `roomId` é o id FÍSICO da row de
+ * `rooms`, que não é o code da sala, nem o id do lobby, nem o matchId. Quem
+ * reaproveita este snapshot para hidratar precisa de `version`/`stateId` para
+ * não misturar o controle de versão de salas diferentes.
  */
 export async function findAuthoritativeRoomMeta (roomCode) {
   const code = String(roomCode ?? '').trim()
-  if (!code) return { state: null, updatedAt: null }
+  if (!code) {
+    return { state: null, updatedAt: null, roomId: null, code: null, version: null, stateId: null }
+  }
 
   const { data, error } = await supabase
     .from('rooms')
@@ -316,6 +323,10 @@ export async function findAuthoritativeRoomMeta (roomCode) {
   return {
     state: row?.state ?? null,
     updatedAt: row?.updated_at ?? null,
+    roomId: row?.id ?? null,
+    code: row?.code ?? (row ? code : null),
+    version: Number.isFinite(Number(row?.version)) ? Number(row.version) : null,
+    stateId: row?.state?.stateId != null ? String(row.state.stateId) : null,
   }
 }
 
@@ -581,22 +592,44 @@ export const GAME_HEARTBEAT_INTERVAL_MS = 10_000
 export const GAME_OFFLINE_THRESHOLD_MS = 35_000
 export const GAME_PRESENCE_POLL_INTERVAL_MS = 5_000
 
+/** Violação de chave estrangeira: o lobby sumiu entre a checagem e a escrita. */
+const FK_VIOLATION = '23503'
+
 /**
  * Atualiza last_seen do jogador.
  * - Caminho normal: UPDATE
  * - Se a row sumiu (ex.: cleanup) e allowRecreateIfSeated=true:
  *   só recria via UPSERT se playerId existir em rooms.state.players.
  *   Não abre sala, não faz joinLobby, não cria assento novo na partida.
+ *
+ * `isCancelled` é revalidado DEPOIS de cada await e ANTES de cada escrita: sem
+ * isso, um tick que já estava dentro desta função quando a sessão terminou
+ * seguia até o UPSERT e ressuscitava a presença de um lobby já excluído. O que
+ * é abortado é a escrita seguinte, não a requisição que já saiu antes do
+ * cancelamento.
+ *
+ * A corrida com a exclusão do lobby não é eliminável por consulta prévia — o
+ * lobby pode sumir entre o SELECT e o UPSERT — então a violação de chave
+ * estrangeira é tratada como resposta legítima: encerra o tick, sem recriar o
+ * lobby e sem repetir.
  */
 export async function touchLobbyPlayer({
   lobbyId,
   playerId,
   allowRecreateIfSeated = false,
+  isCancelled = null,
 } = {}) {
   if (!lobbyId || !playerId) return { ok: false, skipped: true }
 
+  const cancelled = () => {
+    try { return typeof isCancelled === 'function' && !!isCancelled() } catch { return false }
+  }
+
+  if (cancelled()) return { ok: false, skipped: true, cancelled: true }
+
   const supported = await isLastSeenSupported()
   if (!supported) return { ok: false, skipped: true }
+  if (cancelled()) return { ok: false, skipped: true, cancelled: true }
 
   const nowIso = new Date().toISOString()
   const { data, error } = await supabase
@@ -619,6 +652,7 @@ export async function touchLobbyPlayer({
   if (!allowRecreateIfSeated) {
     return { ok: false, missing: true }
   }
+  if (cancelled()) return { ok: false, missing: true, cancelled: true }
 
   let state = null
   try {
@@ -634,6 +668,9 @@ export async function touchLobbyPlayer({
   if (!seated) {
     return { ok: false, missing: true, notSeated: true }
   }
+
+  // Última revalidação antes da única escrita que pode recriar presença.
+  if (cancelled()) return { ok: false, missing: true, cancelled: true }
 
   const playerName =
     typeof seated.name === 'string' && seated.name.trim()
@@ -655,6 +692,10 @@ export async function touchLobbyPlayer({
     )
 
   if (upsertErr) {
+    // Lobby excluído no meio da corrida: não recria o lobby e não repete.
+    if (String(upsertErr?.code || '') === FK_VIOLATION) {
+      return { ok: false, missing: true, lobbyGone: true, error: upsertErr }
+    }
     console.warn('[hb] falha ao recriar presença:', upsertErr?.message || upsertErr)
     return { ok: false, error: upsertErr }
   }
@@ -865,10 +906,13 @@ export function startLobbyHeartbeat({
   const ms = Number.isFinite(intervalMs) ? intervalMs : cfg.heartbeatIntervalMs
 
   let stopped = false
+  const isCancelled = () => stopped
 
   const tick = async () => {
     if (stopped) return
-    await touchLobbyPlayer({ lobbyId, playerId, allowRecreateIfSeated })
+    // O tick leva o cancelamento junto: parar o agendamento não basta, porque um
+    // tick já iniciado continuaria escrevendo depois da saída.
+    await touchLobbyPlayer({ lobbyId, playerId, allowRecreateIfSeated, isCancelled })
   }
 
   // dispara já (não esperar o intervalo)
@@ -876,6 +920,7 @@ export function startLobbyHeartbeat({
   const t = setInterval(() => tick().catch(() => {}), ms)
 
   return () => {
+    // Ordem importa: invalida os ticks em andamento ANTES de soltar o intervalo.
     stopped = true
     clearInterval(t)
   }
