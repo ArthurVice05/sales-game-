@@ -33,7 +33,7 @@ export function buildGameStatSections(totals = {}) {
       title: 'Estrutura comercial',
       rows: [
         metric('vendedoresComuns', 'Vendedores Comuns', totals.vendedoresComuns),
-        metric('fieldSales', 'Field Sales', totals.fieldSales),
+        metric('fieldSales', 'Canal representantes', totals.fieldSales),
         metric('insideSales', 'Inside Sales', totals.insideSales),
         metric(
           'gestores',

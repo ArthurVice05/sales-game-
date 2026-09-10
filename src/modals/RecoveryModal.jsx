@@ -123,7 +123,7 @@ export default function RecoveryModal({ playerName = 'Jogador', bens = 0, curren
   // Demissão: crédito = hire × recoveryCreditRatio
   const ROLES = useMemo(() => ([
     { key:'comum',  label:'Vendedor Comum', unit: MANUAL_CONSTANTS.commonHire, owned: snapshot.vendedoresComuns },
-    { key:'field',  label:'Field Sales',     unit: VENDOR_RULES.field.hire, owned: snapshot.fieldSales },
+    { key:'field',  label:'Canal representantes',     unit: VENDOR_RULES.field.hire, owned: snapshot.fieldSales },
     { key:'inside', label:'Inside Sales',    unit: VENDOR_RULES.inside.hire, owned: snapshot.insideSales },
     { key:'gestor', label:'Gestor',          unit: MANUAL_CONSTANTS.managerHire, owned: snapshot.gestores },
   ]), [snapshot])

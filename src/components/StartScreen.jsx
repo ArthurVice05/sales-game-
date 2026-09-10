@@ -3,7 +3,6 @@ import {
   setTabPlayerName,      // grava o nome nesta ABA
 } from '../auth'
 import TutorialModal from './TutorialModal.jsx'
-import TironiCredit from './TironiCredit.jsx'
 
 // ajuste os paths dos assets conforme você salvou
 import bgImg from '/dynamic-data-visualization-3d.jpg'
@@ -94,13 +93,6 @@ export default function StartScreen({ onEnter, onLocal, onlineDisabledReason = '
           >
             Como jogar
           </button>
-        </div>
-      </div>
-
-      {/* rodapé: só Tironi Tech (sem Multiplier) */}
-      <div className="startFooter startFooter--solo">
-        <div className="startBrand">
-          <TironiCredit compact />
         </div>
       </div>
 

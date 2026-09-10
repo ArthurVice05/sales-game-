@@ -96,7 +96,7 @@ export default function BuyFieldSalesModal({
   const baseRevenue = VENDOR_RULES.field.baseFat
   const certRows = [
     { id: 'personalizado', label: 'Azul (personalizado)' },
-    { id: 'fieldsales', label: 'Amarelo (Field Sales Collab)' },
+    { id: 'fieldsales', label: 'Amarelo (Canal representantes Collab)' },
     { id: 'imersaomultiplier', label: 'Roxo (Imersões)' },
   ].map((row) => {
     const d = certDeltaForVendor('field', row.id)
@@ -129,7 +129,7 @@ export default function BuyFieldSalesModal({
         <InsufficientFundsModal
           requiredAmount={totalHire}
           currentCash={cashNow}
-          title="Saldo insuficiente para contratar Field Sales"
+          title="Saldo insuficiente para contratar Canal representantes"
           message="Você não possui saldo suficiente para concluir esta contratação."
           okLabel="Entendi"
         />
@@ -181,7 +181,7 @@ export default function BuyFieldSalesModal({
 
   return (
     <TileModalShell
-      title="Field Sales"
+      title="Canal representantes"
       onClose={handleClose}
       closeRef={closeRef}
       footer={(
@@ -209,10 +209,10 @@ export default function BuyFieldSalesModal({
       <TileContextHint kind="FIELD" />
 
       <p className="purchasePreviewHint">
-        O Field Sales aumenta a capacidade de atendimento em {attendsUpTo} clientes,
+        O Canal representantes aumenta a capacidade de atendimento em {attendsUpTo} clientes,
         gera faturamento e adiciona uma despesa mensal. Cada cor de certificado tem
         efeito financeiro diferente. Gestores certificados podem potencializar o
-        faturamento dos vendedores. Base de despesa: × quantidade de Field Sales.
+        faturamento dos vendedores. Base de despesa: × quantidade de representantes do Canal representantes.
         Base de faturamento: × quantidade máxima de clientes que cada vendedor pode
         atender. Cada vendedor atende até {attendsUpTo} clientes. Efeitos de cor
         acumulam; capacidade não muda.
@@ -239,7 +239,7 @@ export default function BuyFieldSalesModal({
               placeholder="0"
               value={qty}
               onChange={(e) => setBoundedQty(e.target.value)}
-              aria-label="Quantidade de Field Sales"
+              aria-label="Quantidade de representantes do Canal representantes"
             />
             <button
               type="button"

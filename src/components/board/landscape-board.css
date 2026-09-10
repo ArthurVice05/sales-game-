@@ -249,6 +249,23 @@
   --sg40-icon-art-y: 28;
   --sg40-icon-art-w: 39;
   --sg40-icon-art-h: 37;
+  padding-left: 1px;
+  padding-right: 1px;
+}
+
+.sg40GameBoard .sg40Preview__tile[data-tile-type="FIELD"] .sg40Preview__tileLabel {
+  width: 100%;
+  max-width: 100%;
+  font-size: clamp(6.5px, 0.88cqi, 9.5px);
+  letter-spacing: -0.025em;
+  line-height: 1.12;
+}
+
+.sg40GameBoard .sg40Preview__tile[data-tile-type="FIELD"] .sg40Preview__tileLabelLine {
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+  max-width: none;
 }
 
 .sg40GameBoard .sg40Preview__tile[data-tile-type="MANAGER"],

@@ -76,7 +76,7 @@ export default function DirectBuyModal({ onResolve, currentCash = 0 }) {
     },
     {
       key: 'field',
-      title: 'Field Sales',
+      title: 'Canal representantes',
       lines: [
         `Contratação: $${VENDOR_RULES.field.hire}`,
         `Manutenção: $${VENDOR_RULES.field.baseDesp}`,

@@ -158,8 +158,8 @@ export const TOUR_TILES = [
   },
   {
     key: 'FIELD',
-    title: 'Field Sales',
-    body: `Vendedor de rua / externo: vende com ticket maior. Capacidade ${VENDOR_RULES.field.cap} (atende até ${VENDOR_RULES.field.cap} clientes). Contratação ${money(VENDOR_RULES.field.hire)}; desp. base ${money(VENDOR_RULES.field.baseDesp)}; fat base ${money(VENDOR_RULES.field.baseFat)}. Bom quando você quer faturar forte por pessoa.`,
+    title: 'Canal representantes',
+    body: `Representantes externos do Canal representantes: vendem com ticket maior. Capacidade ${VENDOR_RULES.field.cap} (atende até ${VENDOR_RULES.field.cap} clientes). Contratação ${money(VENDOR_RULES.field.hire)}; desp. base ${money(VENDOR_RULES.field.baseDesp)}; fat base ${money(VENDOR_RULES.field.baseFat)}. Bom quando você quer faturar forte por pessoa.`,
   },
   {
     key: 'INSIDE',
@@ -215,7 +215,7 @@ export const TOUR_HUD = [
   },
   {
     title: 'Estrutura comercial',
-    body: 'Conta as pessoas do time: Vendedores Comuns, Field Sales, Inside Sales e Gestores. Mais gente = mais clientes você consegue atender… mas também mais salário todo mês.',
+    body: 'Conta as pessoas do time: Vendedores Comuns, Canal representantes, Inside Sales e Gestores. Mais gente = mais clientes você consegue atender… mas também mais salário todo mês.',
   },
   {
     title: 'Infraestrutura',

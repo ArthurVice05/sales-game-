@@ -13,7 +13,7 @@ export const TILE_CONTEXT = Object.freeze({
   COMMON:
     `Vendedor Comum: atende até ${VENDOR_RULES.comum.cap} clientes. Contratação ${money(MANUAL_CONSTANTS.commonHire)}; desp. base ${money(VENDOR_RULES.comum.baseDesp)}; fat base ${money(VENDOR_RULES.comum.baseFat)}.`,
   FIELD:
-    `Field Sales: atende até ${VENDOR_RULES.field.cap} clientes. Contratação ${money(VENDOR_RULES.field.hire)}; desp. base ${money(VENDOR_RULES.field.baseDesp)}; fat base ${money(VENDOR_RULES.field.baseFat)}.`,
+    `Canal representantes: atende até ${VENDOR_RULES.field.cap} clientes. Contratação ${money(VENDOR_RULES.field.hire)}; desp. base ${money(VENDOR_RULES.field.baseDesp)}; fat base ${money(VENDOR_RULES.field.baseFat)}.`,
   INSIDE:
     `Inside Sales: atende até ${VENDOR_RULES.inside.cap} clientes. Contratação ${money(VENDOR_RULES.inside.hire)}; desp. base ${money(VENDOR_RULES.inside.baseDesp)}; fat base ${money(VENDOR_RULES.inside.baseFat)}.`,
   MANAGER:
@@ -49,7 +49,7 @@ export const TILE_HINTS = Object.freeze({
   TRAINING:
     `Treinamento: certificados (azul, amarelo ou roxo) a ${money(MANUAL_CONSTANTS.trainingPrice)} cada.`,
   FIELD:
-    `Field Sales: vendedores externos (até ${VENDOR_RULES.field.cap} clientes). Contratação ${money(VENDOR_RULES.field.hire)}.`,
+    `Canal representantes: representantes externos (até ${VENDOR_RULES.field.cap} clientes). Contratação ${money(VENDOR_RULES.field.hire)}.`,
   DIRECT_BUY:
     'Direito de Compra: escolha exatamente um investimento agora — equipe, mix, ERP, treinamento ou clientes.',
   LUCK:

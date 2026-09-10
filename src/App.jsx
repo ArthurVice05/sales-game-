@@ -3828,6 +3828,7 @@ export default function App() {
           )}
 
           <div className="turnPrimaryActions">
+            <div className="turnPrimaryActionsStack">
             {progressiveTip && (
               <div className="progressiveTip" role="status" aria-live="polite">
                 <div className="progressiveTipBody">
@@ -3932,6 +3933,7 @@ export default function App() {
             </button>
             )
             )}
+            </div>
             {!isSpectator && (
               <Controls
                 section="primary"

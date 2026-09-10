@@ -554,6 +554,22 @@
   .page[data-game-shell] .turnPrimaryActions {
     gap: 8px;
     padding-top: 8px;
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 auto;
+    min-height: 0;
+  }
+
+  .page[data-game-shell] .turnPrimaryActionsStack {
+    display: flex;
+    flex-direction: column;
+    gap: inherit;
+    flex: 0 1 auto;
+    min-height: 0;
+  }
+
+  .page[data-game-shell] .turnPrimaryActions > .controls {
+    flex: 0 0 auto;
   }
 
   .page[data-game-shell] .turnPrimaryActions .nextStepHint {
@@ -575,6 +591,86 @@
     min-height: 56px;
     border-radius: 12px;
     font-weight: 800;
+  }
+}
+
+/*
+ * Notebook / viewport baixa (~1366×768 e alturas úteis 700/650/600):
+ * Causa: .side { overflow:hidden } + bloco de ações (dica+hint+quick+rolar)
+ * maior que a altura restante → .btn.go era clipado abaixo de side.bottom.
+ * Correção: HUD com flex-basis 0 (encolhe/rola); stack secundária com teto
+ * e scroll; .controls/.btn.go reservados no fundo do aside.
+ */
+@media (min-width: 1024px) and (max-height: 820px) {
+  .page[data-game-shell] .content > .side {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    max-height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .page[data-game-shell] .hudDesktop {
+    flex: 1 1 0%;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .page[data-game-shell] .turnPrimaryActions {
+    flex: 0 0 auto;
+    min-height: 0;
+    overflow: hidden;
+    gap: 6px;
+    padding-top: 6px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .page[data-game-shell] .turnPrimaryActionsStack {
+    flex: 0 1 auto;
+    min-height: 0;
+    max-height: clamp(64px, 26vh, 180px);
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .page[data-game-shell] .turnPrimaryActions > .controls {
+    flex: 0 0 auto;
+  }
+
+  .page[data-game-shell] .turnPrimaryActions .btn.go {
+    min-height: 48px;
+  }
+
+  .page[data-game-shell] .turnPrimaryActions .nextStepHint {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  .page[data-game-shell] .sideQuickActions {
+    gap: 6px;
+  }
+
+  .page[data-game-shell] .sideQuickActions .btn {
+    min-height: 36px;
+  }
+}
+
+@media (min-width: 1024px) and (max-height: 680px) {
+  .page[data-game-shell] .turnPrimaryActions .btn.go {
+    min-height: 44px;
+  }
+
+  .page[data-game-shell] .hudDesktop {
+    gap: 8px;
+  }
+
+  .page[data-game-shell] .turnPrimaryActionsStack {
+    max-height: clamp(56px, 22vh, 140px);
   }
 }
 

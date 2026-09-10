@@ -54,7 +54,7 @@ test('stats adapter creates one ordered row for every previously displayed value
     'Empréstimos',
     'Bens',
     'Vendedores Comuns',
-    'Field Sales',
+    'Canal representantes',
     'Inside Sales',
     'Gestores Comerciais',
     'Mix de Produtos',

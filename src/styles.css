@@ -1710,6 +1710,18 @@ img[src*="multiplier"]{
   gap: 6px;
 }
 
+.turnPrimaryActionsStack {
+  display: flex;
+  flex-direction: column;
+  gap: inherit;
+  flex: 0 1 auto;
+  min-height: 0;
+}
+
+.turnPrimaryActions > .controls {
+  flex: 0 0 auto;
+}
+
 /* bloco de controles no fluxo do secundário (não sobrepõe o resumo) */
 .controlsSticky {
   position: static;

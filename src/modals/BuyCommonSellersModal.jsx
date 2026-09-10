@@ -61,7 +61,7 @@ export default function BuyCommonSellersModal({
   const baseRevenue = VENDOR_RULES.comum.baseFat
   const certRows = [
     { id: 'personalizado', label: 'Azul (personalizado)' },
-    { id: 'fieldsales', label: 'Amarelo (Field Sales Collab)' },
+    { id: 'fieldsales', label: 'Amarelo (Canal representantes Collab)' },
     { id: 'imersaomultiplier', label: 'Roxo (Imersões)' },
   ].map((row) => {
     const d = certDeltaForVendor('comum', row.id)

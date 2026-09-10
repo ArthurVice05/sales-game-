@@ -10,13 +10,12 @@ const start = readFileSync(join(root, 'src/components/StartScreen.jsx'), 'utf8')
 const app = readFileSync(join(root, 'src/App.jsx'), 'utf8')
 const lobby = readFileSync(join(root, 'src/pages/LobbyList.jsx'), 'utf8')
 
-test('crédito Tironi Tech só na tela de entrada', () => {
-  assert.match(credit, /https:\/\/tironitech\.com\//)
-  assert.match(credit, /Desenvolvido por/)
+test('crédito Tironi Tech não aparece na tela de entrada', () => {
+  // Componente pode existir no projeto, mas não deve ser montado na StartScreen
   assert.match(credit, /Tironi Tech/)
-  assert.match(credit, /noopener noreferrer/)
-  assert.match(start, /TironiCredit/)
-  // Tabuleiro / lobbies: sem crédito (evita sobrepor o board)
+  assert.doesNotMatch(start, /TironiCredit/)
+  assert.doesNotMatch(start, /tironiCredit|tironitech\.com|Desenvolvido por/i)
+  assert.doesNotMatch(start, /startFooter|startBrand/)
   assert.doesNotMatch(app, /TironiCredit/)
   assert.doesNotMatch(lobby, /TironiCredit/)
   assert.match(app, /shouldAutoOpenTutorial/)

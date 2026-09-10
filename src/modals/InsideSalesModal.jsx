@@ -185,7 +185,7 @@ export default function InsideSalesModal({ onResolve, currentCash = 0, currentPl
 
       <div className="tileBanner">
         <div style={{ fontWeight: 900, marginBottom: 4 }}>INSIDE SALES (SDR/BDR + CLOSER + CS)</div>
-        <div><b>Base para cálculo despesa:</b> × quantidade <b>field sales</b> ou <b>inside sales</b>.</div>
+        <div><b>Base para cálculo despesa:</b> × quantidade <b>Canal representantes</b> ou <b>Inside Sales</b>.</div>
         <div><b>Base para cálculo faturamento:</b> × quantidade <b>máxima de clientes que cada vendedor pode atender</b>.</div>
       </div>
 

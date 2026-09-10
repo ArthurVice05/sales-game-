@@ -72,7 +72,7 @@ export function buildTourGlossary() {
       headers: ['Tipo', 'Cap.', 'Contratação', 'Desp. base', 'Fat base', 'Δ cert (fat/desp)'],
       rows: [
         vendorRow('comum', 'Vendedor Comum', c.commonHire),
-        vendorRow('field', 'Field Sales', VENDOR_RULES.field.hire),
+        vendorRow('field', 'Canal representantes', VENDOR_RULES.field.hire),
         vendorRow('inside', 'Inside Sales', VENDOR_RULES.inside.hire),
         [
           'Gestor Comercial',

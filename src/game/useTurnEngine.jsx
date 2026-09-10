@@ -2324,7 +2324,7 @@ export function useTurnEngine({
             if (r2.action === 'HIRE' || r2.action === 'BUY') {
               const deltas = buildFieldSalesPurchaseDeltas(r2)
               const payAbs = deltas.cashDelta < 0 ? -deltas.cashDelta : 0
-              if (payAbs > 0 && !requireFunds(curIdx, payAbs, 'contratar Field Sales')) { setTurnLockBroadcast(false); return }
+              if (payAbs > 0 && !requireFunds(curIdx, payAbs, 'contratar Canal representantes')) { setTurnLockBroadcast(false); return }
               setPlayers(ps => {
                 const upd = mapById(ps, ownerId, (p) => applyDeltas(p, deltas))
                 // ✅ CORREÇÃO: Usa turnIdx e round atuais para compras durante o turno
@@ -2603,7 +2603,7 @@ export function useTurnEngine({
         if (res && (res.action === 'HIRE' || res.action === 'BUY')) {
           const deltas = buildFieldSalesPurchaseDeltas(res)
           const payAbs = deltas.cashDelta < 0 ? -deltas.cashDelta : 0
-          if (payAbs > 0 && !requireFunds(curIdx, payAbs, 'contratar Field Sales')) { setTurnLockBroadcast(false); return }
+          if (payAbs > 0 && !requireFunds(curIdx, payAbs, 'contratar Canal representantes')) { setTurnLockBroadcast(false); return }
           setPlayers(ps => {
             const upd = mapById(ps, ownerId, (p) => applyDeltas(p, deltas))
             // ✅ CORREÇÃO: Usa turnIdx e round atuais para compras durante o turno
@@ -3069,7 +3069,7 @@ export function useTurnEngine({
                 broadcastState(localPlayers, turnIdxRef.current, currentRoundRef.current)
                 if (pendingTurnDataRef.current) pendingTurnDataRef.current.nextPlayers = localPlayers
               } else {
-                appendLog('Saldo insuficiente para contratar Field Sales.')
+                appendLog('Saldo insuficiente para contratar Canal representantes.')
               }
             }
             continue
