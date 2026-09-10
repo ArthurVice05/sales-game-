@@ -30,7 +30,29 @@ const SPECTATOR_ENTRY_MESSAGES = Object.freeze({
   'invalid-room': 'Sala inválida para o modo espectador.',
   'room-not-found': 'Esta sala não está mais disponível.',
   'match-not-started': 'Partida ainda não está disponível para assistir.',
+  'lookup-failed': 'Não foi possível consultar esta sala agora. Verifique a conexão e tente novamente.',
 })
+
+/**
+ * Estados da entrada em modo espectador.
+ *
+ * Existem separados porque "não achei a sala" e "não consegui perguntar" pedem
+ * respostas diferentes: a primeira devolve a pessoa para a lista de salas, a
+ * segunda mantém a sessão parada com nova tentativa. Confundir as duas era o
+ * que transformava falha de SELECT em "sala inexistente".
+ */
+export const SPECTATOR_ENTRY_STATUS = Object.freeze({
+  IDLE: 'idle',
+  LOOKING_UP: 'looking-up',
+  HYDRATING: 'hydrating',
+  WATCHING: 'watching',
+  UNAVAILABLE: 'unavailable',
+  FAILED: 'failed',
+})
+
+function idStr (value) {
+  return value != null && String(value).trim() !== '' ? String(value) : ''
+}
 
 /** Papel desconhecido/ausente vira PLAYER — preserva todo o fluxo atual. */
 export function normalizeSessionRole (sessionRole) {
@@ -82,23 +104,77 @@ export function hasSpectatableMatchState (state) {
 /**
  * Valida a entrada em modo espectador a partir do snapshot autoritativo
  * (findAuthoritativeRoomMeta). NUNCA cria jogador como fallback.
+ *
+ * O resultado carrega os metadados de procedência do snapshot (sala, versão,
+ * stateId) porque quem entra usa esse mesmo snapshot para hidratar: sem eles a
+ * hidratação seria "aplique qualquer estado", e o controle de versão da sessão
+ * ficaria com os números da sala anterior.
+ *
+ * `lookupFailed` distingue "a consulta falhou" de "a sala não existe".
+ * Partida legada sem `matchId` devolve `matchId: null` + `legacyMatch: true`:
+ * o vínculo passa a ser só a sala — nenhum identificador é inventado.
  */
-export function resolveSpectatorEntry ({ roomCode, meta } = {}) {
+export function resolveSpectatorEntry ({ roomCode, meta, lookupFailed = false } = {}) {
   const code = String(roomCode ?? '').trim()
   if (!code) {
-    return { ok: false, reason: 'invalid-room', message: SPECTATOR_ENTRY_MESSAGES['invalid-room'] }
+    return {
+      ok: false,
+      reason: 'invalid-room',
+      status: SPECTATOR_ENTRY_STATUS.UNAVAILABLE,
+      retryable: false,
+      message: SPECTATOR_ENTRY_MESSAGES['invalid-room'],
+    }
+  }
+
+  if (lookupFailed) {
+    return {
+      ok: false,
+      reason: 'lookup-failed',
+      status: SPECTATOR_ENTRY_STATUS.FAILED,
+      retryable: true,
+      message: SPECTATOR_ENTRY_MESSAGES['lookup-failed'],
+      roomCode: code,
+    }
   }
 
   const state = meta?.state ?? null
   if (!state) {
-    return { ok: false, reason: 'room-not-found', message: SPECTATOR_ENTRY_MESSAGES['room-not-found'], roomCode: code }
+    return {
+      ok: false,
+      reason: 'room-not-found',
+      status: SPECTATOR_ENTRY_STATUS.UNAVAILABLE,
+      retryable: false,
+      message: SPECTATOR_ENTRY_MESSAGES['room-not-found'],
+      roomCode: code,
+    }
   }
 
   if (!hasSpectatableMatchState(state)) {
-    return { ok: false, reason: 'match-not-started', message: SPECTATOR_ENTRY_MESSAGES['match-not-started'], roomCode: code }
+    return {
+      ok: false,
+      reason: 'match-not-started',
+      status: SPECTATOR_ENTRY_STATUS.UNAVAILABLE,
+      retryable: false,
+      message: SPECTATOR_ENTRY_MESSAGES['match-not-started'],
+      roomCode: code,
+    }
   }
 
-  return { ok: true, reason: null, message: '', roomCode: code }
+  const matchId = idStr(state.matchId)
+  const version = Number(meta?.version)
+
+  return {
+    ok: true,
+    reason: null,
+    status: SPECTATOR_ENTRY_STATUS.HYDRATING,
+    message: '',
+    roomCode: code,
+    matchId: matchId || null,
+    legacyMatch: !matchId,
+    snapshot: state,
+    version: Number.isFinite(version) ? version : null,
+    stateId: idStr(meta?.stateId) || idStr(state?.stateId) || null,
+  }
 }
 
 function toSearchParams (search) {

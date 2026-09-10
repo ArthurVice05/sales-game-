@@ -35,7 +35,9 @@ function initialSpectateFromURL () {
   }
 }
 
-function Root() {
+// Exportado para que o teste de integração monte a MESMA árvore que o app usa
+// (Provider + readOnly + __setRoomCode), sem recriar essa fiação no teste.
+export function Root() {
   const [roomCode, setRoomCode] = React.useState(initialRoomFromURL())
   // Espectador: o Provider continua ENABLED (precisa de rooms.state, realtime e
   // polling), mas em modo read-only — não cria sala nem aceita commit.
@@ -140,8 +142,14 @@ function Root() {
   )
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <Root />
-  </React.StrictMode>
-)
+const rootElement = typeof document !== 'undefined'
+  ? document.getElementById('root')
+  : null
+
+if (rootElement) {
+  ReactDOM.createRoot(rootElement).render(
+    <React.StrictMode>
+      <Root />
+    </React.StrictMode>
+  )
+}
