@@ -28,7 +28,9 @@ import TutorialModal, { shouldAutoOpenTutorial } from './components/TutorialModa
 import TurnTimer from './components/TurnTimer.jsx'
 import BankruptOverlay from './modals/BankruptOverlay.jsx'
 import DebugPanel from './components/DebugPanel.jsx'
-import { ModalProvider } from './modals/ModalContext.jsx'
+import { ModalProvider } from './modals/ModalContext'
+import { DecisionBuyerProvider } from './modals/decisionBuyerContext.jsx'
+import HudConsultBridge from './components/hud/HudConsultBridge.jsx'
 
 // Regras / Engine
 import { useTurnEngine } from './game/useTurnEngine.jsx'
@@ -3857,6 +3859,7 @@ export default function App() {
   return (
     <>
     <OrientationGuard enabled>
+    <DecisionBuyerProvider>
     <ModalProvider>
     <div className="page" data-game-shell data-hud-mode={hudChromeMode}>
       {desktopHud ? (
@@ -4004,8 +4007,10 @@ export default function App() {
         </div>
 
         <aside className="side">
-          {desktopHud ? (
-          <HudDesktopSidebar
+          <HudConsultBridge
+            desktopHud={desktopHud}
+            compactLandscapeHud={compactLandscapeHud}
+            fallbackPlayer={current}
             totals={totals}
             players={players}
             lastRoll={lastRollUI}
@@ -4014,8 +4019,9 @@ export default function App() {
             turnPlayerId={turnPlayerId}
             turnAbsenceStatus={turnAbsenceStatus}
             meId={gameplayActorId}
+            cash={myCash}
           />
-          ) : compactLandscapeHud ? null : (
+          {desktopHud || compactLandscapeHud ? null : (
           <div className="hud hud--inline">
             <HUD totals={totals} players={players} />
           </div>
@@ -4276,6 +4282,7 @@ export default function App() {
       )}
     </div>
     </ModalProvider>
+    </DecisionBuyerProvider>
     </OrientationGuard>
 
       {/* Fora de .page (overflow) — FinalWinners ainda usa portal no body */}

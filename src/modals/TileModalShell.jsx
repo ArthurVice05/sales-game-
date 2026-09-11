@@ -1,9 +1,13 @@
 import './tile-modal.css'
+import { useModal } from './ModalContext'
 
 /**
  * Casca visual dos modais de casa. Não resolve ações e não pinta backdrop —
  * o ModalContext já cobre a pilha. onClose só renderiza o X se o fluxo atual
  * já tiver essa permissão.
+ *
+ * Com uma única decisão aberta, aria-modal=false permite Tab no HUD lateral
+ * consultável. Com filho obrigatório no topo, aria-modal=true.
  */
 export default function TileModalShell({
   title,
@@ -16,13 +20,17 @@ export default function TileModalShell({
   label,
   className = '',
 }) {
+  const modalApi = useModal()
+  const depth = Array.isArray(modalApi?.stack) ? modalApi.stack.length : 0
+  const ariaModal = depth > 1 ? 'true' : 'false'
   const sizeClass = `tileModal tileModal--${size}`
   const extra = typeof className === 'string' && className.trim() ? ` ${className.trim()}` : ''
+
   return (
     <div
       className={`${sizeClass}${extra}`}
       role="dialog"
-      aria-modal="true"
+      aria-modal={ariaModal}
       aria-labelledby={title ? titleId : undefined}
       aria-label={label || undefined}
       onMouseDown={(event) => event.stopPropagation()}

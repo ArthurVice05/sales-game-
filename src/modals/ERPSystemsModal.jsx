@@ -13,6 +13,7 @@ import { previewPurchaseImpact } from '../game/purchasePreview.js'
 import { DEFAULT_MAX_ROUNDS, normalizeMaxRounds } from '../game/roundConfig'
 import TileContextHint from './TileContextHint.jsx'
 import TileModalShell from './TileModalShell.jsx'
+import { useRegisterDecisionBuyer } from './decisionBuyerContext.jsx'
 import './training-erp-modals.css'
 
 const LEVEL_META = {
@@ -49,6 +50,7 @@ export default function ERPSystemsModal({
 }) {
   const closeRef = useRef(null)
   const { pushModal, awaitTop } = useModal()
+  useRegisterDecisionBuyer(currentPlayer)
   const [selectedLevel, setSelectedLevel] = useState(null)
 
   const normLevel = (v) => {

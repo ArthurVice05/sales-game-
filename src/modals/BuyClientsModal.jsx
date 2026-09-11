@@ -9,6 +9,7 @@ import { MANUAL_CONSTANTS } from '../game/manualConstants.js'
 import { getTileContext } from './tileContext.js'
 import CompanySnapshotSummary from './CompanySnapshotSummary.jsx'
 import TileModalShell from './TileModalShell.jsx'
+import { useRegisterDecisionBuyer } from './decisionBuyerContext.jsx'
 
 /**
  * Modal para compra de clientes.
@@ -40,6 +41,7 @@ export default function BuyClientsModal({
   const closeRef = useRef(null)
   const inputRef = useRef(null)
   const { pushModal, awaitTop } = useModal()
+  useRegisterDecisionBuyer(currentPlayer)
   const capacityDetailsId = useId()
 
   const [qty, setQty] = useState('')

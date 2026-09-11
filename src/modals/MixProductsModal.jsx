@@ -14,6 +14,7 @@ import { previewPurchaseImpact } from '../game/purchasePreview.js'
 import { DEFAULT_MAX_ROUNDS, normalizeMaxRounds } from '../game/roundConfig'
 import TileContextHint from './TileContextHint.jsx'
 import TileModalShell from './TileModalShell.jsx'
+import { useRegisterDecisionBuyer } from './decisionBuyerContext.jsx'
 
 const LEVEL_RANK = { A: 4, B: 3, C: 2, D: 1 }
 
@@ -41,6 +42,7 @@ export default function MixProductsModal({
 }) {
   const closeRef = useRef(null)
   const { pushModal, awaitTop } = useModal()
+  useRegisterDecisionBuyer(currentPlayer)
   const [selectedLevel, setSelectedLevel] = useState(null)
 
   // Mantém os mesmos valores do print/implementação anterior

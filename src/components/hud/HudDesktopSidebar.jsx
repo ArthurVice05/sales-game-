@@ -92,7 +92,7 @@ export default function HudDesktopSidebar({
 
   return (
     <div className={`hudDesktop hudDesktop--${variant}`}>
-      {variant === 'sheet' && (
+      {(variant === 'sheet') && (
         <div className="hudFinanceStrip">
           <HudMetricCard label="Caixa" value={formatHudCash(cash)} icon="💵" />
           <HudMetricCard
@@ -151,9 +151,9 @@ export default function HudDesktopSidebar({
           aria-labelledby={hudTabDomId(idPrefix, 'empresa')}
         >
           <section className="hudCard">
-            <h3 className="hudCardTitle">Última ação</h3>
-            <DiceResult lastRoll={lastRoll} isRolling={isRolling} />
-          </section>
+              <h3 className="hudCardTitle">Última ação</h3>
+              <DiceResult lastRoll={lastRoll} isRolling={isRolling} />
+            </section>
 
           <section className="hudCard">
             <h3 className="hudCardTitle">Capacidade &amp; Clientes</h3>

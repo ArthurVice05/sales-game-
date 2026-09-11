@@ -8,6 +8,7 @@ import { buildInsideSalesPurchaseDeltas } from '../game/insideSalesPurchase.js'
 import { previewPurchaseImpact } from '../game/purchasePreview.js'
 import TileContextHint from './TileContextHint.jsx'
 import TileModalShell from './TileModalShell.jsx'
+import { useRegisterDecisionBuyer } from './decisionBuyerContext.jsx'
 
 /**
  * onResolve(payload)
@@ -30,6 +31,7 @@ export default function InsideSalesModal({ onResolve, currentCash = 0, currentPl
   const closeRef = useRef(null)
   const [qty, setQty] = useState('')
   const { pushModal, awaitTop } = useModal()
+  useRegisterDecisionBuyer(currentPlayer)
 
   // Valores base (conforme regra centralizada; contratação é CAPEX e não faz parte do gameMath)
   const unitHire = VENDOR_RULES.inside.hire

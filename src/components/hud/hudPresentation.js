@@ -1,6 +1,66 @@
 import { formatGameMoney } from '../gameStats.js'
+import {
+  capacityAndAttendance,
+  computeDespesasFor,
+  computeFaturamentoFor,
+} from '../../game/gameMath.js'
 
 export { formatGameMoney }
+
+/**
+ * Totais de apresentação do HUD para um jogador (somente leitura).
+ * Mesma derivação usada no painel principal; sem I/O nem sync.
+ */
+export function buildPlayerHudTotals(player = null) {
+  if (!player || typeof player !== 'object') {
+    return {
+      faturamento: 0,
+      manutencao: 0,
+      emprestimos: 0,
+      vendedoresComuns: 0,
+      fieldSales: 0,
+      insideSales: 0,
+      mixProdutos: 'D',
+      bens: 0,
+      erpSistemas: 'D',
+      clientes: 0,
+      onboarding: false,
+      az: 0,
+      am: 0,
+      rox: 0,
+      gestores: 0,
+      gestoresComerciais: 0,
+      possibAt: 0,
+      clientsAt: 0,
+    }
+  }
+  const lp = player.loanPending || null
+  const loanId = String(lp?.loanId || '')
+  const lastChargedLoanId = String(player.lastChargedLoanId || '')
+  const loanVisible = !(loanId && lastChargedLoanId && loanId === lastChargedLoanId) ? lp : null
+  const { cap, inAtt } = capacityAndAttendance(player)
+  const managerQty = Number(player.gestores ?? player.gestoresComerciais ?? player.managers ?? 0)
+  return {
+    faturamento: computeFaturamentoFor(player),
+    manutencao: computeDespesasFor(player),
+    emprestimos: loanVisible ? Number(loanVisible.amount || 0) : 0,
+    vendedoresComuns: player.vendedoresComuns || 0,
+    fieldSales: player.fieldSales || 0,
+    insideSales: player.insideSales || 0,
+    mixProdutos: player.mixProdutos || 'D',
+    bens: player.bens ?? 0,
+    erpSistemas: String(player.erpLevel || player.erpSistemas || 'D').toUpperCase(),
+    clientes: player.clients || 0,
+    onboarding: !!player.onboarding,
+    az: player.az || 0,
+    am: player.am || 0,
+    rox: player.rox || 0,
+    gestores: managerQty,
+    gestoresComerciais: managerQty,
+    possibAt: cap,
+    clientsAt: inAtt,
+  }
+}
 
 /** Resultado mensal de apresentação: faturamento − manutenção já calculados. */
 export function deriveMonthlyResult(faturamento, manutencao) {

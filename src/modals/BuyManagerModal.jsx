@@ -9,6 +9,7 @@ import { buildManagerPurchaseDeltas } from '../game/managersPurchase.js'
 import { previewPurchaseImpact } from '../game/purchasePreview.js'
 import TileContextHint from './TileContextHint.jsx'
 import TileModalShell from './TileModalShell.jsx'
+import { useRegisterDecisionBuyer } from './decisionBuyerContext.jsx'
 
 /**
  * Modal para compra de Gestor Comercial.
@@ -39,6 +40,7 @@ export default function BuyManagerModal({
   const inputRef = useRef(null)
   // âœ… CORREÃ‡ÃƒO: Usa onResolve que Ã© injetado pelo ModalContext
   const { pushModal, awaitTop } = useModal()
+  useRegisterDecisionBuyer(currentPlayer)
 
   const [qty, setQty] = useState('')
 

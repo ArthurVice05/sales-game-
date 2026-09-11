@@ -1,10 +1,29 @@
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import React, { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createModalProtocol } from './modalProtocol.js'
+import { applyModalFocusRestore } from './modalFocusRestore.js'
+import './decision-hud-bridge.css'
 
 const ModalCtx = createContext(null)
 
+function captureReturnFocusTarget() {
+  if (typeof document === 'undefined') return null
+  const active = document.activeElement
+  if (!active || active === document.body || active === document.documentElement) return null
+  if (typeof active.focus !== 'function') return null
+  return active
+}
+
+function syncModalDepthAttr(depth) {
+  if (typeof document === 'undefined') return
+  const root = document.documentElement
+  if (depth > 0) root.dataset.sgModalDepth = String(depth)
+  else delete root.dataset.sgModalDepth
+}
+
 export function ModalProvider({ children }) {
-  const [stack, setStack] = useState([]) // [{id, el}]
+  const [stack, setStack] = useState([]) // [{id, el, returnFocusTo}]
+  const stackRef = useRef(stack)
+  stackRef.current = stack
 
   /**
    * Transporte das respostas. A Promise de cada abertura nasce ANTES de o
@@ -22,23 +41,57 @@ export function ModalProvider({ children }) {
     return protocolRef.current
   }, [])
 
+  /** Pedido de restauração de foco após fechar o topo (fora do updater). */
+  const focusRestoreJobRef = useRef(null)
+
   // Desmontagem: encerra pendências com null (nunca converte em APPLY_CARD)
   // e passa a recusar callbacks tardios daquele ciclo.
   useEffect(() => {
     protocol()
-    return () => { protocolRef.current?.dispose(null) }
+    return () => {
+      protocolRef.current?.dispose(null)
+      syncModalDepthAttr(0)
+    }
   }, [protocol])
+
+  useEffect(() => {
+    syncModalDepthAttr(stack.length)
+  }, [stack.length])
 
   const closeById = React.useCallback((id, payload) => {
     const key = String(id ?? '')
     if (!key) return
     // Efeito colateral FORA do updater: StrictMode pode reexecutar o updater.
     protocol().settle(key, payload)
-    setStack((prev) => prev.filter((m) => String(m.id) !== key))
+
+    const prev = stackRef.current
+    const idx = prev.findIndex((m) => String(m.id) === key)
+    if (idx < 0) return
+
+    const wasTop = idx === prev.length - 1
+    const closing = prev[idx]
+    // Só restaura foco ao fechar a camada do topo.
+    // Se ainda houver camada acima (fechamento de id inferior), não rouba o foco.
+    if (wasTop) {
+      focusRestoreJobRef.current = {
+        returnFocusTo: closing?.returnFocusTo ?? null,
+        upperLayerStillOpen: false,
+      }
+    } else if (prev.length > idx + 1) {
+      focusRestoreJobRef.current = {
+        returnFocusTo: null,
+        upperLayerStillOpen: true,
+      }
+    } else {
+      focusRestoreJobRef.current = null
+    }
+
+    setStack((s) => s.filter((m) => String(m.id) !== key))
   }, [protocol])
 
   const closeAll = React.useCallback((payload = { action: 'CLOSE_ALL' }) => {
     protocol().settleAll(payload)
+    focusRestoreJobRef.current = null
     setStack([])
   }, [protocol])
 
@@ -64,10 +117,11 @@ export function ModalProvider({ children }) {
   const openModal = React.useCallback((element) => {
     const { id, result } = protocol().open()
     if (!id) return { id: '', result }
+    const returnFocusTo = captureReturnFocusTarget()
     const elWithResolve = React.cloneElement(element, {
       onResolve: (payload) => closeById(id, payload),
     })
-    setStack((s) => [...s, { id, el: elWithResolve }])
+    setStack((s) => [...s, { id, el: elWithResolve, returnFocusTo }])
     return { id, result }
   }, [closeById, protocol])
 
@@ -83,6 +137,28 @@ export function ModalProvider({ children }) {
 
   // ⚠️ Sem listener de ESC: somente botões fecham a modal
 
+  useLayoutEffect(() => {
+    const job = focusRestoreJobRef.current
+    if (!job) return
+    focusRestoreJobRef.current = null
+
+    if (job.upperLayerStillOpen) {
+      applyModalFocusRestore({ upperLayerStillOpen: true })
+      return
+    }
+
+    const revealedLayerRoot = typeof document !== 'undefined'
+      ? document.querySelector('[data-modal-layer][data-modal-top="true"]')
+      : null
+
+    applyModalFocusRestore({
+      returnFocusTo: job.returnFocusTo,
+      revealedLayerRoot,
+      activeElement: typeof document !== 'undefined' ? document.activeElement : null,
+      upperLayerStillOpen: false,
+    })
+  }, [stack])
+
   const value = useMemo(
     () => ({ stack, openModal, openAndWait, pushModal, awaitTop, resolveTop, closeTop, closeModal, popModal, closeById, closeAll }),
     [stack, openModal, openAndWait, pushModal, awaitTop, resolveTop, closeTop, closeModal, popModal, closeById, closeAll]
@@ -94,6 +170,7 @@ export function ModalProvider({ children }) {
       {/* renderiza modais empilhadas com overlay visível (z-index alto) */}
       {stack.length > 0 && (
         <div
+          className="sgModalOverlay"
           style={{
             position: 'fixed',
             inset: 0,
@@ -104,7 +181,7 @@ export function ModalProvider({ children }) {
             justifyContent: 'center',
           }}
         >
-          {/* backdrop */}
+          {/* backdrop — cobre tabuleiro/ações; HUD informativo sobe via .hudConsultRegion */}
           <div
             aria-hidden="true"
             style={{
@@ -114,10 +191,26 @@ export function ModalProvider({ children }) {
             }}
           />
 
-          {/* renderiza só o topo (comportamento esperado pelo engine/awaitTop) */}
-          <div style={{ position: 'relative', zIndex: 1 }}>
-            {stack[stack.length - 1]?.el}
-          </div>
+          {/* Mantém toda a pilha montada: só o topo é interativo (preserva qty/seleção). */}
+          {stack.map((m, index) => {
+            const isTop = index === stack.length - 1
+            return (
+              <div
+                key={m.id}
+                data-modal-layer={m.id}
+                data-modal-top={isTop ? 'true' : 'false'}
+                style={{
+                  position: 'relative',
+                  zIndex: 1,
+                  display: isTop ? undefined : 'none',
+                }}
+                aria-hidden={isTop ? undefined : true}
+                inert={!isTop ? true : undefined}
+              >
+                {m.el}
+              </div>
+            )
+          })}
         </div>
       )}
     </ModalCtx.Provider>

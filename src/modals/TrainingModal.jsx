@@ -6,6 +6,7 @@ import { MANUAL_CONSTANTS } from '../game/manualConstants.js'
 import { previewTrainingPurchaseImpact } from '../game/trainingPurchase.js'
 import TileContextHint from './TileContextHint.jsx'
 import TileModalShell from './TileModalShell.jsx'
+import { useRegisterDecisionBuyer } from './decisionBuyerContext.jsx'
 import './training-erp-modals.css'
 
 /**
@@ -115,6 +116,7 @@ export default function TrainingModal({
   }, [typeList, selectedVendorTypes.size])
 
   const closeRef = useRef(null)
+  useRegisterDecisionBuyer(currentPlayer)
 
   // Calcula totais: só itens ainda não possuídos por cada tipo selecionado
   const purchases = useMemo(() => {

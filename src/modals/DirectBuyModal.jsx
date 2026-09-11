@@ -4,6 +4,7 @@ import { ERP_RULES, VENDOR_RULES } from '../game/gameRules.js'
 import { MIX_PURCHASE_PRICES, MANUAL_CONSTANTS } from '../game/manualConstants.js'
 import TileContextHint from './TileContextHint.jsx'
 import TileModalShell from './TileModalShell.jsx'
+import { useRegisterDecisionBuyer } from './decisionBuyerContext.jsx'
 
 /**
  * Modal “roteador de compras”.
@@ -19,9 +20,12 @@ import TileModalShell from './TileModalShell.jsx'
  * currentCash
  *   - saldo atual do jogador (somente para exibição/validações se quiser,
  *     o App.jsx é quem repassa para as modais apropriadas)
+ * currentPlayer
+ *   - opcional; registra o comprador no HUD lateral. Sem ele, o App usa o jogador da vez.
  */
-export default function DirectBuyModal({ onResolve, currentCash = 0 }) {
+export default function DirectBuyModal({ onResolve, currentCash = 0, currentPlayer = null }) {
   const closeRef = useRef(null)
+  useRegisterDecisionBuyer(currentPlayer)
 
   const handleClose = (e) => {
     e?.preventDefault?.()

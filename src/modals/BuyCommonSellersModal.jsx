@@ -9,6 +9,7 @@ import { buildCommonSellersPurchaseDeltas } from '../game/commonSellersPurchase.
 import { previewPurchaseImpact } from '../game/purchasePreview.js'
 import TileContextHint from './TileContextHint.jsx'
 import TileModalShell from './TileModalShell.jsx'
+import { useRegisterDecisionBuyer } from './decisionBuyerContext.jsx'
 
 /**
  * Modal de compra de Vendedores Comuns (faz tudo)
@@ -48,6 +49,7 @@ export default function BuyCommonSellersModal({
 
   // âœ… CORREÃ‡ÃƒO: Usa onResolve que Ã© injetado pelo ModalContext
   const { pushModal, awaitTop } = useModal()
+  useRegisterDecisionBuyer(currentPlayer)
 
   const priceHire = Number(unitHire || 0)
   const monthly   = Number(unitExpense || 0)

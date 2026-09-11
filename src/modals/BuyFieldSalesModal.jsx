@@ -8,6 +8,7 @@ import { buildFieldSalesPurchaseDeltas } from '../game/fieldSalesPurchase.js'
 import { previewPurchaseImpact } from '../game/purchasePreview.js'
 import TileContextHint from './TileContextHint.jsx'
 import TileModalShell from './TileModalShell.jsx'
+import { useRegisterDecisionBuyer } from './decisionBuyerContext.jsx'
 
 /**
  * Modal de compra de Field Sales (Representantes Comerciais)
@@ -35,6 +36,7 @@ export default function BuyFieldSalesModal({
   const closeRef = useRef(null)
   const inputRef = useRef(null)
   const { pushModal, awaitTop } = useModal()
+  useRegisterDecisionBuyer(currentPlayer)
 
   const [qty, setQty] = useState('')
 
