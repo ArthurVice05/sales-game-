@@ -193,7 +193,7 @@ export default function InsideSalesModal({ onResolve, currentCash = 0, currentPl
 
       <div className="tileQtyCost">
         <div className="tileStatBlock">
-          <div className="tileStatLabel">Quantidade de representantes</div>
+          <div className="tileStatLabel">Quantidade de SDR/<wbr />BDR/<wbr />CLOSER</div>
           <div className="tileStepper">
             <button
               type="button"
@@ -211,7 +211,7 @@ export default function InsideSalesModal({ onResolve, currentCash = 0, currentPl
               placeholder="0"
               value={qty}
               onChange={(e) => setQty(e.target.value)}
-              aria-label="Quantidade de Inside Sales"
+              aria-label="Quantidade de SDR/BDR/CLOSER"
             />
             <button
               type="button"

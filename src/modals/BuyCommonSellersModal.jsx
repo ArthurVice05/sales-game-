@@ -257,7 +257,7 @@ export default function BuyCommonSellersModal({
 
       <div className="tileQtyCost">
         <div className="tileStatBlock">
-          <div className="tileStatLabel">Quantidade de representantes</div>
+          <div className="tileStatLabel">Quantidade de vendedores</div>
           <div className="tileStepper">
             <button
               type="button"
@@ -276,7 +276,7 @@ export default function BuyCommonSellersModal({
               placeholder="0"
               value={qty}
               onChange={(e) => setBoundedQty(e.target.value)}
-              aria-label="Quantidade de Vendedores Comuns"
+              aria-label="Quantidade de vendedores"
             />
             <button
               type="button"
