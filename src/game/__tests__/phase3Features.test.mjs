@@ -22,7 +22,7 @@ test('ENGINE_V2 flag default off (sem localStorage/env)', () => {
   assert.equal(shouldRunEngineV2Shadow(), false)
 })
 
-test('progressive tips: consome 1× por kind na sessão', () => {
+test('progressive tips: consome 1× por kind na sessão com texto curto', () => {
   const store = new Map()
   globalThis.sessionStorage = {
     getItem: (k) => (store.has(k) ? store.get(k) : null),
@@ -35,12 +35,23 @@ test('progressive tips: consome 1× por kind na sessão', () => {
   assert.ok(first)
   assert.equal(first.kind, 'ERP')
   assert.ok(String(first.text).length > 10)
+  assert.ok(String(first.text).length <= 110)
+  assert.ok(String(first.detail).length >= String(first.text).length)
   assert.equal(hasSeenTileTip('ERP'), true)
   assert.equal(consumeTileTip('ERP'), null)
   assert.ok(sessionStorage.getItem(`${TIP_SESSION_PREFIX}ERP`) === '1')
 
   markTileTipSeen('CLIENTS')
   assert.equal(consumeTileTip('CLIENTS'), null)
+
+  const luckStore = new Map()
+  globalThis.sessionStorage = {
+    getItem: (k) => (luckStore.has(k) ? luckStore.get(k) : null),
+    setItem: (k, v) => { luckStore.set(k, String(v)) },
+    removeItem: (k) => { luckStore.delete(k) },
+  }
+  const luck = consumeTileTip('LUCK')
+  assert.equal(luck.text, 'Sorte & Revés: confirme a carta para aplicar o efeito.')
 })
 
 test('ERP return inclui guidance e horizonNet', () => {

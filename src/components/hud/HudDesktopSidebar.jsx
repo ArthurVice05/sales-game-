@@ -145,28 +145,30 @@ export default function HudDesktopSidebar({
 
       {activeHudTab === 'empresa' && (
         <div
-          className="hudDesktopPanel"
+          className="hudDesktopPanel hudDesktopPanel--empresa"
           role="tabpanel"
           id={hudPanelDomId(idPrefix, 'empresa')}
           aria-labelledby={hudTabDomId(idPrefix, 'empresa')}
         >
-          <section className="hudCard">
-              <h3 className="hudCardTitle">Última ação</h3>
-              <DiceResult lastRoll={lastRoll} isRolling={isRolling} />
-            </section>
+          <section className="hudCard hudCard--lastAction">
+            <h3 className="hudCardTitle">Última ação</h3>
+            <DiceResult lastRoll={lastRoll} isRolling={isRolling} compact />
+          </section>
 
-          <section className="hudCard">
+          <section className="hudCard hudCard--capacity">
             <h3 className="hudCardTitle">Capacidade &amp; Clientes</h3>
-            <div className="hudGaugeRow">
+            <div className="hudGaugeRow hudGaugeRow--compact">
               {gauges.map((gauge) => (
                 <HudGauge key={gauge.key} {...gauge} />
               ))}
             </div>
           </section>
 
-          <section className="hudCard">
+          <section className="hudCard hudCard--roster">
             <h3 className="hudCardTitle">Jogadores</h3>
-            <ul className="hudRoster">
+            <ul
+              className={`hudRoster${(players || []).length >= 3 && (players || []).length <= 4 ? ' hudRoster--grid' : ''}`}
+            >
               {(players || []).map((player, index) => {
                 const isHost = hostId != null && String(player?.id) === String(hostId)
                 const isMe = meId != null && String(player?.id) === String(meId)

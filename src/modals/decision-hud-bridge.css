@@ -34,6 +34,43 @@ html[data-sg-modal-depth="4"] .hudConsultRegion {
     align-items: center;
   }
 
+  /* Camada do modal usa só a largura útil à esquerda do HUD (sem 96vw). */
+  html[data-sg-modal-depth="1"] .sgModalOverlay > [data-modal-top="true"],
+  html[data-sg-modal-depth="2"] .sgModalOverlay > [data-modal-top="true"],
+  html[data-sg-modal-depth="3"] .sgModalOverlay > [data-modal-top="true"] {
+    max-width: 100%;
+    min-width: 0;
+    width: min(920px, 100%);
+    box-sizing: border-box;
+  }
+
+  /*
+   * Recuperação: backdrop próprio não pode ser fixed full-bleed.
+   * Reserva lateral já está no .sgModalOverlay — sem segunda padding-right.
+   */
+  html[data-sg-modal-depth="1"] .recovery-backdrop,
+  html[data-sg-modal-depth="2"] .recovery-backdrop {
+    position: relative;
+    inset: auto;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    height: auto;
+    max-height: min(90dvh, 100%);
+    background: transparent;
+    padding-right: 0;
+    padding-left: 0;
+    box-sizing: border-box;
+  }
+
+  html[data-sg-modal-depth="1"] .recovery-card,
+  html[data-sg-modal-depth="2"] .recovery-card {
+    width: min(920px, 100%);
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
   html[data-sg-modal-depth="1"] .page[data-game-shell] .content > .side {
     z-index: 10050;
     pointer-events: none;

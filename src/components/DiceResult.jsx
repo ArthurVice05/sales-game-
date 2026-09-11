@@ -24,7 +24,7 @@ function DieFace({ steps, rolling }) {
   )
 }
 
-export default function DiceResult({ lastRoll, isRolling }) {
+export default function DiceResult({ lastRoll, isRolling, compact = false }) {
   const hasResult = !!(lastRoll && lastRoll.steps)
 
   let statusText = 'Aguardando o primeiro lançamento'
@@ -34,10 +34,16 @@ export default function DiceResult({ lastRoll, isRolling }) {
   }
 
   return (
-    <section className="diceResult" role="status" aria-live="polite">
-      <div className="diceResultHeader">
-        <span className="diceResultLabel">Última rolagem</span>
-      </div>
+    <section
+      className={`diceResult${compact ? ' diceResult--compact' : ''}`}
+      role="status"
+      aria-live="polite"
+    >
+      {!compact && (
+        <div className="diceResultHeader">
+          <span className="diceResultLabel">Última rolagem</span>
+        </div>
+      )}
       <div className="diceResultContent">
         <DieFace
           steps={hasResult ? lastRoll.steps : null}
@@ -45,10 +51,10 @@ export default function DiceResult({ lastRoll, isRolling }) {
         />
         <div className="diceResultText">
           <p className="diceResultPlayer">{statusText}</p>
-          {hasResult && !isRolling && (
+          {!compact && hasResult && !isRolling && (
             <p className="diceResultHelp">Último resultado da partida</p>
           )}
-          {!hasResult && !isRolling && (
+          {!compact && !hasResult && !isRolling && (
             <p className="diceResultHelp">O resultado aparecerá aqui para todos</p>
           )}
         </div>

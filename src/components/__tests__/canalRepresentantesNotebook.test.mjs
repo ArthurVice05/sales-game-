@@ -44,12 +44,29 @@ test('sidebar notebook: stack rolável + btn.go reservado', () => {
   const css = read('src/components/hud/desktop-hud.css')
   assert.match(css, /turnPrimaryActionsStack/)
   assert.match(css, /max-height:\s*820px/)
-  assert.match(css, /flex:\s*1\s+1\s+0%/)
-  assert.match(css, /max-height:\s*clamp\(/)
-  assert.match(css, /\.turnPrimaryActionsStack[\s\S]*overflow-y:\s*auto/)
+  assert.match(
+    css,
+    /\.content\s*>\s*\.side\s*>\s*\.hudConsultRegion[\s\S]{0,120}flex:\s*1\s+1\s+0%/,
+  )
   assert.match(css, /\.turnPrimaryActions\s*>\s*\.controls[\s\S]*flex:\s*0\s+0\s+auto/)
+  assert.match(css, /hudRoster--grid/)
+  assert.match(css, /progressiveTipMore/)
+  const lowIdx = css.indexOf('@media (min-width: 1024px) and (max-height: 820px)')
+  assert.ok(lowIdx >= 0)
+  const low = css.slice(lowIdx, lowIdx + 3200)
+  assert.match(low, /\.turnPrimaryActions[\s\S]{0,220}overflow:\s*visible/)
+  assert.match(low, /flex-grow:\s*0/)
+  assert.match(low, /\.btn\.go[\s\S]{0,160}max-height:\s*none/)
+  assert.doesNotMatch(low, /\.turnPrimaryActions\s*\{[^}]*overflow:\s*hidden/)
 
   const app = read('src/App.jsx')
   assert.match(app, /turnPrimaryActionsStack/)
   assert.match(app, /section="primary"/)
+  assert.match(app, /Saiba mais/)
+  assert.match(app, /progressiveTipMore/)
+
+  const tips = read('src/game/progressiveTips.js')
+  assert.match(tips, /TILE_TIP_SHORT/)
+  assert.match(tips, /Sorte & Revés: confirme a carta/)
+  assert.match(tips, /detail/)
 })

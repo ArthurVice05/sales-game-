@@ -533,6 +533,31 @@
     box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
     z-index: 3;
     box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+    gap: 8px;
+  }
+
+  /*
+   * Filho flex real do aside é .hudConsultRegion (não .hudDesktop).
+   * Sem isso o HUD não encolhe e tip+hint+ações empurram .btn.go para fora
+   * do .side { overflow:hidden }.
+   */
+  .page[data-game-shell] .content > .side > .hudConsultRegion {
+    flex: 1 1 0%;
+    min-height: 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .page[data-game-shell] .content > .side > .hudConsultRegion > .hudDesktop {
+    flex: 1 1 auto;
+    min-height: 0;
+    min-width: 0;
   }
 
   .page[data-game-shell] .content .side > .hud.hud--inline {
@@ -596,10 +621,11 @@
 
 /*
  * Notebook / viewport baixa (~1366×768 e alturas úteis 700/650/600):
- * Causa: .side { overflow:hidden } + bloco de ações (dica+hint+quick+rolar)
- * maior que a altura restante → .btn.go era clipado abaixo de side.bottom.
- * Correção: HUD com flex-basis 0 (encolhe/rola); stack secundária com teto
- * e scroll; .controls/.btn.go reservados no fundo do aside.
+ * Causa histórica: .side { overflow:hidden } + tip+hint+quick+rolar maiores
+ * que a altura restante → .btn.go clipado.
+ * Correção: .hudConsultRegion (filho flex real) encolhe; stack secundária
+ * tem teto + scroll; .controls/.btn.go fora do scroller e sem overflow
+ * no pai que recorte o botão.
  */
 @media (min-width: 1024px) and (max-height: 820px) {
   .page[data-game-shell] .content > .side {
@@ -611,17 +637,35 @@
     overflow: hidden;
   }
 
-  .page[data-game-shell] .hudDesktop {
+  .page[data-game-shell] .content > .side > .hudConsultRegion {
     flex: 1 1 0%;
+    min-height: 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .page[data-game-shell] .content > .side > .hudConsultRegion > .hudDesktop {
+    flex: 1 1 auto;
     min-height: 0;
     overflow-x: hidden;
     overflow-y: auto;
   }
 
-  .page[data-game-shell] .turnPrimaryActions {
+  /*
+   * styles.css (notebook ≤700) força turnPrimaryActions { flex:1 } +
+   * .btn.go { height:100%; max-height:80px }, o que engorda o Rolar e
+   * esmaga a Empresa. No chrome desktop o bloco de ações é intrínseco.
+   */
+  .page[data-game-shell] .content > .side > .turnPrimaryActions,
+  .page[data-game-shell] .content > .side .turnPrimaryActions {
     flex: 0 0 auto;
+    flex-grow: 0;
+    flex-shrink: 0;
     min-height: 0;
-    overflow: hidden;
+    max-height: none;
+    overflow: visible;
     gap: 6px;
     padding-top: 6px;
     display: flex;
@@ -631,19 +675,38 @@
   .page[data-game-shell] .turnPrimaryActionsStack {
     flex: 0 1 auto;
     min-height: 0;
-    max-height: clamp(64px, 26vh, 180px);
+    /* Sem teto artificial baixo: tip curta + ações compactas cabem;
+       overflow só quando o aside realmente apertar o bloco. */
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
   }
 
+  .page[data-game-shell] .content > .side .turnPrimaryActions > .controls {
+    flex: 0 0 auto;
+    display: block;
+    height: auto;
+    min-height: 0;
+  }
+
+  .page[data-game-shell] .content > .side .turnPrimaryActions .turnBox {
+    display: block;
+    height: auto;
+    min-height: 0;
+    grid-template-rows: none;
+    padding: 0;
+  }
+
   .page[data-game-shell] .turnPrimaryActions > .controls {
     flex: 0 0 auto;
   }
 
+  .page[data-game-shell] .content > .side .turnPrimaryActions .btn.go,
   .page[data-game-shell] .turnPrimaryActions .btn.go {
+    height: auto;
     min-height: 48px;
+    max-height: none;
   }
 
   .page[data-game-shell] .turnPrimaryActions .nextStepHint {
@@ -666,11 +729,335 @@
   }
 
   .page[data-game-shell] .hudDesktop {
+    gap: 4px;
+  }
+
+  .page[data-game-shell] .sideQuickActions .btn {
+    min-height: 32px;
+    font-size: 12px;
+  }
+}
+
+/*
+ * Grade 2×2 e Empresa compacta em desktop — independe da altura.
+ * (Antes só existia no media notebook ≤820px/≤1599px; em 1600×900 o roster
+ * voltava a ser lista alta e forçava scroll.)
+ */
+@media (min-width: 1024px) {
+  .page[data-game-shell] .hudCard--lastAction {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
     gap: 8px;
   }
 
-  .page[data-game-shell] .turnPrimaryActionsStack {
-    max-height: clamp(56px, 22vh, 140px);
+  .page[data-game-shell] .hudCard--lastAction .hudCardTitle {
+    margin: 0;
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .page[data-game-shell] .hudCard--lastAction .diceResult,
+  .page[data-game-shell] .hudCard--lastAction .diceResult--compact {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .page[data-game-shell] .hudGaugeRow--compact {
+    gap: 6px;
+  }
+
+  .page[data-game-shell] .hudGaugeRow--compact .hudGauge {
+    gap: 4px;
+    flex-direction: row;
+    align-items: center;
+    text-align: left;
+  }
+
+  .page[data-game-shell] .hudRoster--grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px;
+  }
+
+  .page[data-game-shell] .hudRoster--grid .hudRosterFlags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+  }
+}
+
+/*
+ * Notebook típico (1366×768 / 650 / 1600×900): densidade + dica curta.
+ */
+@media (min-width: 1200px) and (max-height: 900px) {
+  .page[data-game-shell] .hudDesktop {
+    gap: 4px;
+    overflow-y: auto;
+  }
+
+  .page[data-game-shell] .hudDesktopPanel,
+  .page[data-game-shell] .hudDesktopPanel--empresa {
+    gap: 4px;
+  }
+
+  .page[data-game-shell] .hudDesktopTabs {
+    gap: 2px;
+    padding: 2px;
+    flex: 0 0 auto;
+  }
+
+  .page[data-game-shell] .hudDesktopTab {
+    min-height: 26px;
+    font-size: 11px;
+    padding: 0 6px;
+  }
+
+  .page[data-game-shell] .hudCard {
+    padding: 5px 7px;
+  }
+
+  .page[data-game-shell] .hudCardTitle {
+    margin: 0 0 2px;
+    font-size: 12px;
+  }
+
+  .page[data-game-shell] .hudCard--lastAction .hudCardTitle {
+    margin: 0;
+    font-size: 11px;
+  }
+
+  .page[data-game-shell] .hudDesktop .diceResult--compact,
+  .page[data-game-shell] .hudDesktop .diceResult {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .page[data-game-shell] .hudDesktop .diceResultContent {
+    gap: 6px;
+    align-items: center;
+  }
+
+  .page[data-game-shell] .hudDesktop .diceResultDie {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+  }
+
+  .page[data-game-shell] .hudDesktop .diceResultPip {
+    width: 5px;
+    height: 5px;
+  }
+
+  .page[data-game-shell] .hudDesktop .diceResultPlayer {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .page[data-game-shell] .hudGaugeRow,
+  .page[data-game-shell] .hudGaugeRow--compact {
+    gap: 6px;
+  }
+
+  .page[data-game-shell] .hudGauge {
+    gap: 2px;
+    flex-direction: row;
+    align-items: center;
+    text-align: left;
+  }
+
+  .page[data-game-shell] .hudGaugeRing {
+    width: 34px;
+    height: 34px;
+    flex: 0 0 auto;
+  }
+
+  .page[data-game-shell] .hudGaugeHole {
+    width: 22px;
+    height: 22px;
+  }
+
+  .page[data-game-shell] .hudGaugeMeta {
+    min-width: 0;
+  }
+
+  .page[data-game-shell] .hudGaugeLabel {
+    font-size: 10px;
+  }
+
+  .page[data-game-shell] .hudGaugeValue {
+    font-size: 12px;
+  }
+
+  .page[data-game-shell] .hudGaugeDetail {
+    font-size: 10px;
+  }
+
+  .page[data-game-shell] .hudRoster {
+    gap: 3px;
+  }
+
+  .page[data-game-shell] .hudRosterRow,
+  .page[data-game-shell] .hudRankingRow {
+    gap: 6px;
+    padding: 3px 5px;
+    min-width: 0;
+  }
+
+  .page[data-game-shell] .hudRosterName {
+    font-size: 11px;
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .page[data-game-shell] .hudChip {
+    font-size: 9px;
+    padding: 1px 5px;
+  }
+
+  .page[data-game-shell] .hudRankingLink {
+    margin-top: 2px;
+    font-size: 11px;
+  }
+
+  .page[data-game-shell] .progressiveTip {
+    margin: 0;
+    padding: 4px 8px;
+    gap: 6px;
+    align-items: flex-start;
+    font-size: 11.5px;
+    line-height: 1.25;
+  }
+
+  .page[data-game-shell] .progressiveTipBody {
+    min-width: 0;
+  }
+
+  .page[data-game-shell] .progressiveTipLabel {
+    display: inline;
+    margin: 0 4px 0 0;
+    font-size: 10px;
+  }
+
+  .page[data-game-shell] .progressiveTipText {
+    display: inline;
+  }
+
+  .page[data-game-shell] .progressiveTipMore {
+    display: inline;
+    margin: 0 0 0 6px;
+  }
+
+  .page[data-game-shell] .progressiveTipMore summary {
+    cursor: pointer;
+    display: inline;
+    font-size: 11px;
+    font-weight: 700;
+    color: #93c5fd;
+  }
+
+  .page[data-game-shell] .progressiveTipDetail {
+    display: block;
+    margin: 4px 0 0;
+    font-size: 11px;
+    line-height: 1.3;
+    color: #dbeafe;
+  }
+
+  .page[data-game-shell] .progressiveTipDismiss {
+    width: 24px;
+    height: 24px;
+    font-size: 14px;
+  }
+
+  .page[data-game-shell] .turnPrimaryActions .nextStepHint {
+    margin: 0;
+    padding: 5px 8px;
+    font-size: 11.5px;
+    line-height: 1.25;
+  }
+
+  .page[data-game-shell] .sideQuickActions {
+    gap: 4px;
+  }
+
+  .page[data-game-shell] .sideQuickActions .btn {
+    min-height: 32px;
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+}
+
+@media (min-width: 1200px) and (max-height: 700px) {
+  .page[data-game-shell] .content > .side {
+    padding: 8px;
+    gap: 4px;
+  }
+
+  .page[data-game-shell] .hudDesktop {
+    gap: 3px;
+  }
+
+  .page[data-game-shell] .hudDesktopPanel--empresa {
+    gap: 3px;
+  }
+
+  .page[data-game-shell] .hudDesktopTab {
+    min-height: 24px;
+  }
+
+  .page[data-game-shell] .hudCard {
+    padding: 4px 6px;
+  }
+
+  .page[data-game-shell] .hudGaugeRing {
+    width: 28px;
+    height: 28px;
+  }
+
+  .page[data-game-shell] .hudGaugeHole {
+    width: 18px;
+    height: 18px;
+  }
+
+  .page[data-game-shell] .hudRosterRow {
+    padding: 2px 4px;
+  }
+
+  .page[data-game-shell] .progressiveTip {
+    padding: 3px 6px;
+    font-size: 11px;
+  }
+
+  .page[data-game-shell] .turnPrimaryActions {
+    gap: 4px;
+    padding-top: 4px;
+  }
+
+  .page[data-game-shell] .turnPrimaryActions .nextStepHint {
+    padding: 4px 6px;
+    font-size: 11px;
+  }
+
+  .page[data-game-shell] .sideQuickActions .btn {
+    min-height: 28px;
+    padding: 4px 6px;
+    font-size: 11px;
+  }
+
+  .page[data-game-shell] .turnPrimaryActions .btn.go {
+    height: auto;
+    min-height: 40px;
+    max-height: none;
   }
 }
 

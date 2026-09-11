@@ -1,14 +1,17 @@
 // estilos compartilhados pelas telas da recuperação
+// Backdrop preenche a camada do ModalContext (já com reserva do HUD),
+// não um fixed full-viewport que ignora o padding do .sgModalOverlay.
 const S = {
   backdrop: {
-    position:'fixed', inset:0, background:'rgba(0,0,0,.6)',
-    display:'grid', placeItems:'center', zIndex:9999,
+    position:'relative', inset:'auto', background:'transparent',
+    display:'grid', placeItems:'center', zIndex:'auto',
     boxSizing:'border-box', overflow:'hidden',
-    width:'100%', height:'100%', maxHeight:'100dvh',
+    width:'100%', maxWidth:'100%', minWidth:0,
+    height:'auto', maxHeight:'min(90dvh, 100%)',
     padding:'max(8px, env(safe-area-inset-top, 0px)) max(8px, env(safe-area-inset-right, 0px)) max(8px, env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px))',
   },
   card: {
-    width:'min(920px, 96vw)', maxWidth:'100%',
+    width:'min(920px, 100%)', maxWidth:'100%', minWidth:0,
     maxHeight:'min(90dvh, 90vh)',
     display:'flex', flexDirection:'column', minHeight:0,
     overflow:'hidden', boxSizing:'border-box',

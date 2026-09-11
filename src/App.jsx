@@ -4047,7 +4047,13 @@ export default function App() {
               <div className="progressiveTip" role="status" aria-live="polite">
                 <div className="progressiveTipBody">
                   <strong className="progressiveTipLabel">Dica</strong>
-                  <span>{progressiveTip.text}</span>
+                  <span className="progressiveTipText">{progressiveTip.text}</span>
+                  {progressiveTip.detail && progressiveTip.detail !== progressiveTip.text ? (
+                    <details className="progressiveTipMore">
+                      <summary>Saiba mais</summary>
+                      <p className="progressiveTipDetail">{progressiveTip.detail}</p>
+                    </details>
+                  ) : null}
                 </div>
                 <button
                   type="button"
