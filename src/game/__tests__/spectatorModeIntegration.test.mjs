@@ -321,7 +321,10 @@ test('LobbyList oferece assistir sem passar por joinLobby (§6/§27)', async () 
   const source = await readSource(lobbyListPath)
   assert.match(source, /import \{ isSpectatableRoomStatus, resolveLobbyEntryAction \} from '\.\.\/game\/spectatorMode\.js'/)
   assert.match(source, /onSpectateRoom/)
-  assert.match(source, /function handleSpectate\(lobbyId\) \{\s*\n\s*onSpectateRoom\?\.\(lobbyId\)\s*\n\s*\}/)
+  assert.match(
+    source,
+    /function handleSpectate\(lobbyId\) \{\s*\n\s*(?:if \(!aliveRef\.current\) return\s*\n\s*)?onSpectateRoom\?\.\(lobbyId\)\s*\n\s*\}/,
+  )
 
   const start = source.search(/function handleSpectate/)
   const block = source.slice(start, start + 220)

@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useLayoutEffect, useMemo, 
 import { createModalProtocol } from './modalProtocol.js'
 import { applyModalFocusRestore } from './modalFocusRestore.js'
 import './decision-hud-bridge.css'
+import './modal-notebook-scrollbar.css'
 
 const ModalCtx = createContext(null)
 

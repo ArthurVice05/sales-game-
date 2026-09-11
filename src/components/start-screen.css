@@ -1,0 +1,292 @@
+/* StartScreen — apresentação (escopo: .start*). Não altera body/.btn genéricos. */
+
+.start {
+  --start-fallback: #06101f;
+  --start-navy: rgba(8, 22, 48, 0.82);
+  --start-navy-solid: #0a1a33;
+  --start-border: rgba(125, 211, 252, 0.22);
+  --start-safe-top: env(safe-area-inset-top, 0px);
+  --start-safe-right: env(safe-area-inset-right, 0px);
+  --start-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --start-safe-left: env(safe-area-inset-left, 0px);
+
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--start-fallback);
+  color: #fff;
+  min-height: 100vh;
+  min-height: 100dvh;
+  box-sizing: border-box;
+  padding:
+    var(--start-safe-top)
+    var(--start-safe-right)
+    var(--start-safe-bottom)
+    var(--start-safe-left);
+}
+
+.start .startBg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 42% 48%;
+  filter: none;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.start .startShade {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  /* Leitura no centro sem esconder peões/cidade */
+  background:
+    radial-gradient(58% 52% at 50% 40%, rgba(4, 12, 28, 0.12) 0%, rgba(4, 12, 28, 0.28) 52%, rgba(3, 8, 20, 0.48) 100%),
+    linear-gradient(180deg, rgba(3, 10, 24, 0.28) 0%, rgba(3, 10, 24, 0.08) 30%, rgba(3, 10, 24, 0.14) 70%, rgba(3, 10, 24, 0.36) 100%);
+}
+
+.start .startMain {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding: clamp(12px, 2.5vh, 28px) clamp(12px, 3vw, 24px);
+  box-sizing: border-box;
+}
+
+.start .startStack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* Separação logo ↔ painel: fundo visível entre os dois */
+  gap: clamp(40px, 7vh, 80px);
+  width: min(540px, 100%);
+  margin: min(4vh, 36px) auto auto;
+  flex: 0 0 auto;
+}
+
+.start .startHeader {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+  flex: 0 0 auto;
+  width: 100%;
+  line-height: 0;
+}
+
+.start .startLogo {
+  width: min(420px, 72vw);
+  max-height: clamp(64px, 14vh, 128px);
+  height: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 10px 22px rgba(0, 0, 0, 0.5));
+}
+
+.start .startCenter {
+  position: relative;
+  z-index: 1;
+  min-height: 0;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+  overflow: visible;
+  width: 100%;
+}
+
+.start .startCard {
+  width: 100%;
+  margin: 0;
+  background: var(--start-navy);
+  background-color: var(--start-navy-solid);
+  border: 1px solid var(--start-border);
+  border-radius: 16px;
+  padding: clamp(14px, 2.2vh, 22px);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(4px);
+  flex: 0 0 auto;
+}
+
+@supports ((-webkit-backdrop-filter: blur(4px)) or (backdrop-filter: blur(4px))) {
+  .start .startCard {
+    background: var(--start-navy);
+  }
+}
+
+.start .startInput {
+  font-size: 16px;
+}
+
+.start .startBtn {
+  background: #5b21b6;
+  box-shadow: 0 10px 28px rgba(91, 33, 182, 0.42);
+}
+
+.start .startBtn--local {
+  color: #07172f;
+  background: #a78bfa;
+  box-shadow: 0 10px 28px rgba(167, 139, 250, 0.35);
+}
+
+.start .startInput:focus-visible,
+.start .startBtn:focus-visible,
+.start .startBtnSecondary:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 2px;
+}
+
+/* ---- Desktop / notebook com altura reduzida ---- */
+@media (min-width: 761px) and (max-height: 860px) {
+  .start .startMain { padding: 10px 16px; }
+  .start .startStack {
+    gap: clamp(36px, 5.5vh, 64px);
+    width: min(500px, 100%);
+    margin: 10px auto auto;
+  }
+  .start .startLogo {
+    width: min(300px, 40vw);
+    max-height: clamp(52px, 10vh, 84px);
+  }
+  .start .startCard { padding: 14px; }
+}
+
+@media (min-width: 761px) and (max-height: 720px) {
+  .start .startMain { padding: 8px 12px; }
+  .start .startStack {
+    gap: clamp(28px, 4.5vh, 48px);
+    margin: 6px auto auto;
+  }
+  .start .startLogo {
+    width: min(240px, 32vw);
+    max-height: clamp(40px, 7.5vh, 58px);
+  }
+  .start .startCard { padding: 12px; border-radius: 14px; }
+  .start .startSummaryNote { display: none; }
+  .start .startInput { height: 38px; font-size: 16px; }
+}
+
+@media (min-width: 761px) and (max-height: 680px) {
+  .start .startStack { gap: clamp(32px, 5.5vh, 48px); }
+  .start .startLogo {
+    width: min(200px, 28vw);
+    max-height: 40px;
+  }
+  .start .startHint { display: none; }
+  .start .startCard { padding: 10px 12px; }
+  .start .startInput { height: 36px; font-size: 16px; }
+}
+
+/* ---- Mobile landscape curto: duas colunas se houver largura ---- */
+@media (orientation: landscape) and (max-height: 480px) and (min-width: 640px) {
+  .start .startMain {
+    align-items: center;
+    padding: 8px 12px;
+  }
+  .start .startStack {
+    flex-direction: row;
+    align-items: center;
+    gap: clamp(24px, 4vw, 40px);
+    width: min(920px, 100%);
+    margin: 0;
+  }
+  .start .startHeader {
+    flex: 0 0 auto;
+    width: auto;
+    max-width: 34%;
+  }
+  .start .startLogo {
+    width: min(220px, 28vw);
+    max-height: min(72px, 28vh);
+  }
+  .start .startCenter {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .start .startCard {
+    padding: 10px 12px;
+    max-height: calc(100dvh - 20px);
+    overflow-y: auto;
+  }
+  .start .startHint { display: none; }
+  .start .startSummaryNote { display: none; }
+  .start .startSummary { margin: 0 0 6px; padding: 6px 8px; gap: 2px; }
+  .start .startSummary p { font-size: 12px; line-height: 1.25; }
+  .start .startInput { height: 36px; font-size: 16px; }
+  .start .startBtn { height: 38px; margin-top: 6px; }
+  .start .startBtnSecondary { height: 34px; margin-top: 4px; }
+}
+
+/* Paisagem estreita: coluna + scroll (não forçar duas colunas) */
+@media (orientation: landscape) and (max-height: 480px) and (max-width: 639px) {
+  .start .startMain { padding: 6px 10px; }
+  .start .startStack { gap: clamp(12px, 3.5vh, 24px); margin: 0; }
+  .start .startLogo {
+    width: min(180px, 46vw);
+    max-height: 36px;
+  }
+  .start .startHint { display: none; }
+  .start .startSummaryNote { display: none; }
+  .start .startCard { padding: 10px; }
+  .start .startInput { font-size: 16px; }
+}
+
+/* Retrato mobile: coluna utilizável */
+@media (max-width: 760px) and (orientation: portrait) {
+  .start .startMain { padding: 12px 14px 16px; }
+  .start .startStack { gap: clamp(24px, 4vh, 48px); margin: 0 auto; }
+  .start .startLogo {
+    width: min(280px, 78vw);
+    max-height: clamp(56px, 12vh, 96px);
+  }
+}
+
+/* Focal do fundo por breakpoint — peões / percurso reconhecíveis */
+@media (min-width: 1200px) {
+  .start .startBg { object-position: 48% 45%; }
+}
+
+@media (max-width: 960px) and (orientation: landscape) {
+  .start .startBg { object-position: 38% 55%; }
+}
+
+@media (max-width: 760px) and (orientation: portrait) {
+  .start .startBg { object-position: 50% 42%; }
+}
+
+/* Notebook landscape existente em styles.css — reforço do cluster */
+@media (min-width: 900px) and (max-width: 1199px) and (orientation: landscape) and (max-height: 700px) {
+  .start {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .start .startMain { padding: 6px 12px; }
+  .start .startStack {
+    gap: clamp(28px, 4.5vh, 48px);
+    width: min(490px, 100%);
+  }
+  .start .startLogo {
+    width: min(240px, 34vw);
+    max-height: clamp(40px, 9vh, 64px);
+  }
+  .start .startCard { padding: 12px; }
+  .start .startInput { font-size: 16px; }
+}

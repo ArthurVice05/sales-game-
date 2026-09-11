@@ -3,14 +3,15 @@ import {
   setTabPlayerName,      // grava o nome nesta ABA
 } from '../auth'
 import TutorialModal from './TutorialModal.jsx'
+import './start-screen.css'
 
-// ajuste os paths dos assets conforme você salvou
-import bgImg from '/dynamic-data-visualization-3d.jpg'
+import bgImg from '/images/start/salesgame-background.jpg'
 import logoGame from '/SalesGame_Logo-removebg-preview.png'
 
-export default function StartScreen({ onEnter, onLocal, onlineDisabledReason = '' }) {
-  // ✅ OBJ 2: input SEMPRE inicia vazio (não auto-preenche via sessionStorage)
-  const [name, setName] = useState("")
+export default function StartScreen({ onEnter, onLocal, onlineDisabledReason = '', currentName = '' }) {
+  // ✅ OBJ 2: não auto-preenche via sessionStorage; currentName só reflete o nome
+  // já confirmado nesta sessão (ex.: ao voltar da lista de salas).
+  const [name, setName] = useState(() => String(currentName || '').trim())
   // Tour também pode abrir na abertura; no tabuleiro segue 1× por partida
   const [tutorialOpen, setTutorialOpen] = useState(true)
   const inputRef = useRef(null)
@@ -42,57 +43,59 @@ export default function StartScreen({ onEnter, onLocal, onlineDisabledReason = '
   return (
     <div className="start">
       <img className="startBg" src={bgImg} alt="" />
-      <div className="startShade" />
+      <div className="startShade" aria-hidden="true" />
 
-      {/* topo com logo do jogo */}
-      <div className="startHeader">
-        <img className="startLogo" src={logoGame} alt="Sales GAME" />
-      </div>
-
-      {/* card central com input e botão */}
-      <div className="startCenter">
-        <div className="startCard">
-          <p className="startHint">
-            Jogue online com outras pessoas ou compartilhe este dispositivo em uma partida local.
-          </p>
-
-          <div className="startSummary">
-            <p><strong>Duração:</strong> escolhida pelo host entre 1 e 5 rodadas (padrão: 5). A partida termina após esse número.</p>
-            <p><strong>Objetivo:</strong> administrar a empresa e tomar decisões comerciais</p>
-            <p><strong>Vitória:</strong> vence quem terminar com o maior patrimônio</p>
-            <p className="startSummaryNote">
-              Patrimônio = Caixa + Bens. Em empate, maior caixa desempata.
-            </p>
+      <div className="startMain">
+        <div className="startStack">
+          <div className="startHeader">
+            <img className="startLogo" src={logoGame} alt="Sales GAME" />
           </div>
 
-          <label className="startLabel" htmlFor="playerName">Seu nome para jogar online</label>
-          <input
-            id="playerName"
-            ref={inputRef}
-            className="startInput"
-            placeholder="Digite seu nome"
-            value={name}
-            onChange={e => setName(e.target.value)}
-            onKeyDown={onKey}
-            maxLength={30}
-          />
-          <button className="startBtn" onClick={handleEnter} disabled={!canEnter} aria-disabled={!canEnter}>
-            Jogar online
-          </button>
-          {onlineDisabledReason && (
-            <p className="startOnlineDisabled" role="status">{onlineDisabledReason}</p>
-          )}
-          <div className="startModeDivider" aria-hidden="true"><span>ou</span></div>
-          <button type="button" className="startBtn startBtn--local" onClick={() => onLocal?.()}>
-            Jogar neste dispositivo
-          </button>
-          <button
-            type="button"
-            className="startBtnSecondary"
-            onClick={() => setTutorialOpen(true)}
-          >
-            Como jogar
-          </button>
+          <div className="startCenter">
+            <div className="startCard">
+              <p className="startHint">
+                Jogue online com outras pessoas ou compartilhe este dispositivo em uma partida local.
+              </p>
+
+              <div className="startSummary">
+                <p><strong>Duração:</strong> escolhida pelo host entre 1 e 5 rodadas (padrão: 5). A partida termina após esse número.</p>
+                <p><strong>Objetivo:</strong> administrar a empresa e tomar decisões comerciais</p>
+                <p><strong>Vitória:</strong> vence quem terminar com o maior patrimônio</p>
+                <p className="startSummaryNote">
+                  Patrimônio = Caixa + Bens. Em empate, maior caixa desempata.
+                </p>
+              </div>
+
+              <label className="startLabel" htmlFor="playerName">Seu nome para jogar online</label>
+              <input
+                id="playerName"
+                ref={inputRef}
+                className="startInput"
+                placeholder="Digite seu nome"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                onKeyDown={onKey}
+                maxLength={30}
+              />
+              <button className="startBtn" onClick={handleEnter} disabled={!canEnter} aria-disabled={!canEnter}>
+                Jogar online
+              </button>
+              {onlineDisabledReason && (
+                <p className="startOnlineDisabled" role="status">{onlineDisabledReason}</p>
+              )}
+              <div className="startModeDivider" aria-hidden="true"><span>ou</span></div>
+              <button type="button" className="startBtn startBtn--local" onClick={() => onLocal?.()}>
+                Jogar neste dispositivo
+              </button>
+              <button
+                type="button"
+                className="startBtnSecondary"
+                onClick={() => setTutorialOpen(true)}
+              >
+                Como jogar
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 

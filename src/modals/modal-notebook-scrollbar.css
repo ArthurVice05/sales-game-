@@ -1,0 +1,50 @@
+/**
+ * Notebook/desktop: oculta a barra visual dos contêineres roláveis de modal.
+ * Mantém overflow-y: auto — rolagem por roda/trackpad/toque/teclado intacta.
+ * Não aplica a body, HUD nem ao painel “Minha empresa” (mobile).
+ *
+ * Breakpoint: ≥900px e altura ≥600px → cobre 1366×650/768 e desktops;
+ * exclui mobile landscape curto (844×390, 1024×480).
+ */
+
+@media (min-width: 900px) and (min-height: 600px) {
+  .tileModalBody,
+  .sg-modal-card,
+  .rr-scroll,
+  .sr3d-wrap,
+  .sr3d-card,
+  .sr3d-readingBody,
+  .directBuyWrap,
+  .directBuyCard,
+  .recovery-body,
+  .tutorialModal,
+  .tutorialBody {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* legado Edge */
+  }
+
+  .tileModalBody::-webkit-scrollbar,
+  .sg-modal-card::-webkit-scrollbar,
+  .rr-scroll::-webkit-scrollbar,
+  .sr3d-wrap::-webkit-scrollbar,
+  .sr3d-card::-webkit-scrollbar,
+  .sr3d-readingBody::-webkit-scrollbar,
+  .directBuyWrap::-webkit-scrollbar,
+  .directBuyCard::-webkit-scrollbar,
+  .recovery-body::-webkit-scrollbar,
+  .tutorialModal::-webkit-scrollbar,
+  .tutorialBody::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none; /* Chromium / Safari */
+  }
+
+  /* Reforço: não remover a capacidade de rolar */
+  .tileModalBody,
+  .sg-modal-card,
+  .rr-scroll,
+  .sr3d-readingBody,
+  .tutorialBody {
+    overflow-y: auto;
+  }
+}

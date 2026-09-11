@@ -3556,6 +3556,9 @@ export default function App() {
         <LobbyList
           playerName={myName}
           spectateNotice={spectatorEntryError}
+          onBack={() => {
+            setPhase('start')
+          }}
           onSpectateRoom={(id) => {
             setSpectatorEntryError('')
             enterSpectatorMode(id)

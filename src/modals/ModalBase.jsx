@@ -1,4 +1,5 @@
 import React from "react";
+import './modal-notebook-scrollbar.css'
 
 /**
  * Componente base de modal. NÃO usa o contexto.

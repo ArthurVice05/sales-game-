@@ -99,6 +99,15 @@ function IconClose(props) {
   )
 }
 
+function IconBack(props) {
+  return (
+    <svg {...svgProps} {...props}>
+      <path d="M19 12H5" />
+      <path d="M12 19l-7-7 7-7" />
+    </svg>
+  )
+}
+
 /* Card fantasma exibido apenas durante o primeiro carregamento (visual puro) */
 function LobbySkeletonCard() {
   return (
@@ -117,7 +126,7 @@ function LobbySkeletonCard() {
   )
 }
 
-export default function LobbyList({ onEnterRoom, onSpectateRoom, playerName, spectateNotice = '' }) {
+export default function LobbyList({ onEnterRoom, onSpectateRoom, onBack, playerName, spectateNotice = '' }) {
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(false)
   /** lobbyIds que passaram canResumeLockedMatch (identidade + snapshot). */
@@ -132,6 +141,8 @@ export default function LobbyList({ onEnterRoom, onSpectateRoom, playerName, spe
   const [creating, setCreating] = useState(false)
   const creatingRef = useRef(false) // proteção síncrona contra envio duplicado
   const createOpenerRef = useRef(null) // botão que abriu o modal (p/ devolver o foco)
+  // Evita create/join assíncrono navegar após Voltar (lista já desmontada).
+  const aliveRef = useRef(true)
   // iOS: autoFocus em input <16px / ao abrir modal causa zoom residual
   const allowCreateAutoFocus = useRef(
     typeof window === 'undefined'
@@ -141,6 +152,11 @@ export default function LobbyList({ onEnterRoom, onSpectateRoom, playerName, spe
           window.matchMedia('(max-width: 960px)').matches
         )
   ).current
+
+  useEffect(() => {
+    aliveRef.current = true
+    return () => { aliveRef.current = false }
+  }, [])
 
   useEffect(() => {
     const cfg = getLobbyConfig()
@@ -158,15 +174,18 @@ export default function LobbyList({ onEnterRoom, onSpectateRoom, playerName, spe
     setLoading(true)
     try {
       const data = await listLobbies()
+      if (!aliveRef.current) return
       setRows(data)
     } finally {
-      setLoading(false)
+      if (aliveRef.current) setLoading(false)
     }
   }
 
   useEffect(() => {
     refresh()
-    const off = onLobbiesRealtime(() => refresh())
+    const off = onLobbiesRealtime(() => {
+      if (aliveRef.current) refresh()
+    })
     return off
   }, [])
 
@@ -257,10 +276,12 @@ export default function LobbyList({ onEnterRoom, onSpectateRoom, playerName, spe
       })
 
       // fecha somente após o sucesso
+      if (!aliveRef.current) return
       setCreateModalOpen(false)
       createOpenerRef.current = null
       onEnterRoom?.(lobbyId)
     } catch (err) {
+      if (!aliveRef.current) return
       // modal continua aberto com o rascunho preservado
       setCreateSubmitError(
         err.message || 'Não foi possível criar a sala. Tente novamente.'
@@ -268,7 +289,7 @@ export default function LobbyList({ onEnterRoom, onSpectateRoom, playerName, spe
       await refresh()
     } finally {
       creatingRef.current = false
-      setCreating(false)
+      if (aliveRef.current) setCreating(false)
     }
   }
 
@@ -286,6 +307,7 @@ export default function LobbyList({ onEnterRoom, onSpectateRoom, playerName, spe
   // Entra em sala open (join) OU reentra em partida locked se identidade + rooms.state validarem.
   // Assistir NÃO cria assento: sem nome, sem joinLobby, sem matchIdentity.
   function handleSpectate(lobbyId) {
+    if (!aliveRef.current) return
     onSpectateRoom?.(lobbyId)
   }
 
@@ -333,14 +355,17 @@ export default function LobbyList({ onEnterRoom, onSpectateRoom, playerName, spe
           return
         }
         // Não joinLobby: recuperação de assento existente → PlayersLobby → resumeExistingMatch
+        if (!aliveRef.current) return
         onEnterRoom?.(lobbyId)
         return
       }
 
       const playerId = resolvePlayerIdForRoom(lobbyId, { playerName: pn })
       await joinLobby({ lobbyId, playerId, playerName: pn, ready: false })
+      if (!aliveRef.current) return
       onEnterRoom?.(lobbyId)
     } catch (e) {
+      if (!aliveRef.current) return
       alert(e.message || 'Não foi possível entrar no lobby.')
     }
   }
@@ -394,6 +419,10 @@ export default function LobbyList({ onEnterRoom, onSpectateRoom, playerName, spe
             </div>
           </div>
           <div className="lobbyActions">
+            <button type="button" className="lobbyBtn lobbyBtn--ghost" onClick={() => onBack?.()}>
+              <IconBack />
+              Voltar
+            </button>
             <button type="button" className="lobbyBtn lobbyBtn--ghost" onClick={refresh} disabled={loading}>
               <IconRefresh className={loading ? 'lobbyRefreshIcon--spinning' : undefined} />
               {loading ? 'Atualizando…' : 'Atualizar'}
