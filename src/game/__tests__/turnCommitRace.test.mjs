@@ -126,7 +126,7 @@ describe('auto-pass vs ação real', () => {
     const patch = autoPassPatch('b', 7)
     const v = validateTurnCommit(remote, patch, { now: NOW })
     assert.equal(v.ok, false)
-    assert.equal(v.reason, 'turn-locked')
+    assert.match(String(v.reason), /turn-locked/)
 
     const applied = applyGamePatchToState(remote, { statePatch: patch }, { now: NOW })
     assert.equal(applied.ok, false)

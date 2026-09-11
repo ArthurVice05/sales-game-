@@ -392,7 +392,7 @@ describe('MULTIPLAYER', () => {
       inFlight: false,
     })
     assert.equal(locked.ok, false)
-    assert.equal(locked.reason, 'turn-locked')
+    assert.match(String(locked.reason), /turn-locked/)
   })
 
   it('extra: inFlight compartilhado impede corrida', () => {

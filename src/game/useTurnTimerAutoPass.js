@@ -12,6 +12,10 @@ import {
 } from './turnTimerLogic.js'
 import { shouldProceedTimerAutoPassAfterAwait, shouldDisableTimerAutoPassForTurn, parseSkipAttemptResult } from './turnCommitValidation.js'
 import {
+  shouldAttemptLocalDecisionExpire,
+  shouldAllowRemoteAutoPassThroughLock,
+} from './decisionTimeoutPolicy.js'
+import {
   getLastSharedSkipKey,
   getSharedSkipInFlight,
   markPendingSharedSkipKey,
@@ -42,9 +46,14 @@ function devLog(...args) {
  * @param {number} opts.turnSeq
  * @param {number|null} opts.turnDeadlineAt
  * @param {boolean} opts.turnLock
+ * @param {boolean} [opts.diceBusy]
+ * @param {number} [opts.modalLocks]
+ * @param {string|number|null} [opts.lastRollTurnKey]
+ * @param {object|null} [opts.decisionHold]
  * @param {boolean} opts.gameOver
  * @param {number} opts.turnTimeSec
  * @param {(args: object) => boolean|void|Promise<boolean>} opts.attemptSkipTurn
+ * @param {(args: object) => {ok:boolean}|void|Promise<object>} [opts.expireOpenDecisions]
  */
 export function useTurnTimerAutoPass({
   enabled,
@@ -56,17 +65,27 @@ export function useTurnTimerAutoPass({
   turnSeq,
   turnDeadlineAt,
   turnLock,
+  diceBusy = false,
+  modalLocks = 0,
+  lastRollTurnKey = null,
+  decisionHold = null,
   gameOver,
   turnTimeSec,
   attemptSkipTurn,
+  expireOpenDecisions = null,
 } = {}) {
   const playersRef = useRef(players)
   const turnPlayerIdRef = useRef(turnPlayerId)
   const turnSeqRef = useRef(turnSeq)
   const deadlineRef = useRef(turnDeadlineAt)
   const turnLockRef = useRef(turnLock)
+  const diceBusyRef = useRef(diceBusy)
+  const modalLocksRef = useRef(modalLocks)
+  const lastRollTurnKeyRef = useRef(lastRollTurnKey)
+  const decisionHoldRef = useRef(decisionHold)
   const gameOverRef = useRef(gameOver)
   const attemptRef = useRef(attemptSkipTurn)
+  const expireRef = useRef(expireOpenDecisions)
   const turnTimeSecRef = useRef(turnTimeSec)
   const lobbyHostIdRef = useRef(lobbyHostId)
   const armedKeyRef = useRef('')
@@ -78,8 +97,13 @@ export function useTurnTimerAutoPass({
   useEffect(() => { turnSeqRef.current = turnSeq }, [turnSeq])
   useEffect(() => { deadlineRef.current = turnDeadlineAt }, [turnDeadlineAt])
   useEffect(() => { turnLockRef.current = turnLock }, [turnLock])
+  useEffect(() => { diceBusyRef.current = diceBusy }, [diceBusy])
+  useEffect(() => { modalLocksRef.current = modalLocks }, [modalLocks])
+  useEffect(() => { lastRollTurnKeyRef.current = lastRollTurnKey }, [lastRollTurnKey])
+  useEffect(() => { decisionHoldRef.current = decisionHold }, [decisionHold])
   useEffect(() => { gameOverRef.current = gameOver }, [gameOver])
   useEffect(() => { attemptRef.current = attemptSkipTurn }, [attemptSkipTurn])
+  useEffect(() => { expireRef.current = expireOpenDecisions }, [expireOpenDecisions])
   useEffect(() => { turnTimeSecRef.current = turnTimeSec }, [turnTimeSec])
   useEffect(() => { lobbyHostIdRef.current = lobbyHostId }, [lobbyHostId])
 
@@ -154,20 +178,68 @@ export function useTurnTimerAutoPass({
           amCoordinator = true
         }
 
+        const decisionHold = decisionHoldRef.current
+        const diceBusy = !!diceBusyRef.current
+        const locked = !!turnLockRef.current
+
+        // Decisão aberta neste cliente: resolve SKIP/OK e deixa o tick avançar.
+        // Não chama attemptSkipTurn (evita segundo avanço).
+        const localGate = shouldAttemptLocalDecisionExpire({
+          now,
+          turnDeadlineAt: deadlineRef.current,
+          turnLock: locked,
+          gameOver: !!gameOverRef.current,
+          diceBusy,
+          modalLocks: modalLocksRef.current,
+          lastRollTurnKey: lastRollTurnKeyRef.current,
+          turnSeq: curTurnSeq,
+          hasOpenModals: Number(modalLocksRef.current) > 0,
+        })
+        const amTurnPlayer = !lobbyId || String(myUid) === curTurnId
+        if (localGate.ok && amTurnPlayer && typeof expireRef.current === 'function') {
+          setSharedSkipInFlight(true)
+          try {
+            if (String(turnPlayerIdRef.current || '') !== curTurnId) return
+            if ((Number(turnSeqRef.current) || 0) !== curTurnSeq) return
+            if (gameOverRef.current) return
+            if (diceBusyRef.current) return
+
+            const raw = expireRef.current({
+              expectedTurnPlayerId: curTurnId,
+              expectedTurnSeq: curTurnSeq,
+              reason: 'AUTO_PASS_TIMER',
+            })
+            const exp = raw && typeof raw.then === 'function' ? await raw : raw
+            if (exp?.ok) {
+              markPendingSharedSkipKey(curTurnId, curTurnSeq)
+              if (!lobbyId) confirmSharedSkipKey(curTurnId, curTurnSeq)
+              devLog('[turn-timer] local decision expire ok category=' + (exp.category || ''))
+              return
+            }
+            if (exp?.reason === 'unsupported-category') {
+              devLog('[turn-timer] decision expire unsupported category=' + (exp.category || ''))
+              return
+            }
+          } finally {
+            setSharedSkipInFlight(false)
+          }
+        }
+
         const decision = shouldAttemptTimerAutoPass({
           now,
           turnDeadlineAt: deadlineRef.current,
-          turnLock: !!turnLockRef.current,
+          turnLock: locked,
           gameOver: !!gameOverRef.current,
           amCoordinator,
           turnPlayerId: curTurnId,
           turnSeq: curTurnSeq,
           lastAttemptKey: getLastSharedSkipKey(),
           inFlight: getSharedSkipInFlight(),
+          decisionHold,
         })
 
         if (!decision.ok) {
-          if (decision.reason === 'turn-locked' && DEV) {
+          if ((decision.reason === 'turn-locked' || decision.reason === 'turn-locked-no-hold') && DEV) {
             devLog('[turn-timer] waiting turnLock clear')
           }
           if (decision.reason === 'not-coordinator' && DEV) {
@@ -181,7 +253,16 @@ export function useTurnTimerAutoPass({
           if (String(turnPlayerIdRef.current || '') !== curTurnId) return
           if ((Number(turnSeqRef.current) || 0) !== curTurnSeq) return
           if (gameOverRef.current) return
-          if (turnLockRef.current) return
+          if (diceBusyRef.current) return
+          if (turnLockRef.current) {
+            const through = shouldAllowRemoteAutoPassThroughLock({
+              turnLock: true,
+              decisionHold: decisionHoldRef.current,
+              expectedTurnPlayerId: curTurnId,
+              expectedTurnSeq: curTurnSeq,
+            })
+            if (!through.ok) return
+          }
 
           if (lobbyId) {
             let presence2 = []
@@ -216,6 +297,7 @@ export function useTurnTimerAutoPass({
               lastAttemptKey: getLastSharedSkipKey(),
               inFlight: false,
               amCoordinator: true,
+              decisionHold: decisionHoldRef.current,
             })
             if (!proceed.ok) {
               if (DEV) devLog('[turn-timer] post-await blocked reason=' + proceed.reason)
@@ -224,6 +306,12 @@ export function useTurnTimerAutoPass({
           }
 
           if (wasAlreadySkipped(curTurnId, curTurnSeq)) return
+
+          // Pós-roll sem lock: o tick já cuida do handoff — não force AUTO_PASS.
+          const lrk = lastRollTurnKeyRef.current != null ? String(lastRollTurnKeyRef.current) : ''
+          if (!turnLockRef.current && lrk && lrk === String(curTurnSeq)) {
+            return
+          }
 
           devLog('[turn-timer] attempt turnSeq=' + curTurnSeq + ' via=' + authReason)
           const result = attemptRef.current?.({

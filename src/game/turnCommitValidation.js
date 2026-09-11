@@ -5,6 +5,7 @@
 
 import { isBotPlayer } from './bots/botTypes.js'
 import { botLeaseExpired, evaluateBotClaimCas } from './bots/botTurnClaim.js'
+import { shouldAllowRemoteAutoPassThroughLock } from './decisionTimeoutPolicy.js'
 
 export function inferCommitKind(statePatch = {}) {
   if (statePatch._commitKind) return statePatch._commitKind
@@ -116,11 +117,27 @@ export function validateTurnCommit(prevState = {}, statePatch = {}, { now = Date
       if (isBotPlayer(remoteTurnPlayer(prev))) {
         return { ok: false, reason: 'bot-timer-auto-pass' }
       }
-      if (prev.turnLock) return { ok: false, reason: 'turn-locked' }
+
       const lrk = prev.lastRollTurnKey
-      if (lrk != null && expectTurnSeq != null && String(lrk) === String(expectTurnSeq)) {
+      const alreadyRolled =
+        lrk != null && expectTurnSeq != null && String(lrk) === String(expectTurnSeq)
+
+      if (prev.turnLock) {
+        // Animação/pré-roll: nunca atravessar.
+        if (!alreadyRolled) return { ok: false, reason: 'turn-locked' }
+        // Pós-roll com compra opcional aberta: coordinator pode forçar handoff.
+        const through = shouldAllowRemoteAutoPassThroughLock({
+          turnLock: true,
+          decisionHold: prev.decisionHold || null,
+          expectedTurnPlayerId: expectTurnId,
+          expectedTurnSeq: expectTurnSeq,
+        })
+        if (!through.ok) return { ok: false, reason: through.reason || 'turn-locked' }
+      } else if (alreadyRolled) {
+        // Sem modal/lock: avanço pós-roll é pelo tick, não por AUTO_PASS.
         return { ok: false, reason: 'already-rolled' }
       }
+
       const deadlineRaw = prev.turnDeadlineAt
       if (deadlineRaw == null || !Number.isFinite(Number(deadlineRaw))) {
         return { ok: false, reason: 'no-deadline' }
@@ -130,7 +147,10 @@ export function validateTurnCommit(prevState = {}, statePatch = {}, { now = Date
       if (t < deadline) return { ok: false, reason: 'not-expired' }
       const seqCheck = validateNextSeq(statePatch, expectTurnSeq)
       if (!seqCheck.ok) return seqCheck
-      return { ok: true, reason: 'auto-pass-ok' }
+      return {
+        ok: true,
+        reason: prev.turnLock ? 'auto-pass-optional-expire' : 'auto-pass-ok',
+      }
     }
 
     case 'AUTO_SKIP_OFFLINE': {
@@ -248,6 +268,7 @@ export function shouldProceedTimerAutoPassAfterAwait({
   lastAttemptKey,
   inFlight = false,
   amCoordinator = true,
+  decisionHold = null,
 } = {}) {
   const curId = currentTurnPlayerId != null ? String(currentTurnPlayerId) : ''
   const capId = capturedTurnPlayerId != null ? String(capturedTurnPlayerId) : ''
@@ -256,7 +277,15 @@ export function shouldProceedTimerAutoPassAfterAwait({
     return { ok: false, reason: 'seq-changed' }
   }
   if (gameOver) return { ok: false, reason: 'game-over' }
-  if (turnLock) return { ok: false, reason: 'turn-locked' }
+  if (turnLock) {
+    const through = shouldAllowRemoteAutoPassThroughLock({
+      turnLock: true,
+      decisionHold,
+      expectedTurnPlayerId: capturedTurnPlayerId,
+      expectedTurnSeq: capturedTurnSeq,
+    })
+    if (!through.ok) return { ok: false, reason: through.reason || 'turn-locked' }
+  }
 
   const deadlineRaw = turnDeadlineAt
   if (deadlineRaw == null || !Number.isFinite(Number(deadlineRaw))) {

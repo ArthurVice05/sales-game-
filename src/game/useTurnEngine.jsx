@@ -57,6 +57,9 @@ import {
 } from './bots/botEconomicRuntime.js'
 import { shouldRejectEngineBotTimerAutoPass } from './turnCommitValidation.js'
 import {
+  buildDecisionHold,
+} from './decisionTimeoutPolicy.js'
+import {
   bumpModalLockCount,
   releaseModalLockCount,
   decideModalLockClearWait,
@@ -233,7 +236,14 @@ export function useTurnEngine({
   authoritativeMatchId = null,
   remoteBotClaimExecutor = null,
   remoteLockOwner = null,
+  decisionHold = null,
+  onDecisionHoldChange = null,
 }) {
+  const mountedRef = React.useRef(true)
+  React.useEffect(() => {
+    mountedRef.current = true
+    return () => { mountedRef.current = false }
+  }, [])
   const DEBUG_LOGS = isDebugLogsEnabled()
   const MAX_ROUNDS = normalizeMaxRounds(maxRoundsProp, DEFAULT_MAX_ROUNDS)
   const resolvedBoardVersion = resolveBoardVersion(boardVersion)
@@ -249,12 +259,32 @@ export function useTurnEngine({
   const openAndWait = modalApi?.openAndWait
   const closeTop = modalApi?.closeTop
   const popModal = modalApi?.popModal
+  const expireOpenDecisions = modalApi?.expireOpenDecisions
+  const peekOpenDecisionKinds = modalApi?.peekOpenDecisionKinds
+  const closeAll = modalApi?.closeAll
   const safeCloseTop = React.useCallback((payload) => {
     try {
       if (typeof closeTop === 'function') return closeTop(payload)
       if (typeof popModal === 'function') return popModal()
     } catch {}
   }, [closeTop, popModal])
+
+  const decisionHoldRef = React.useRef(decisionHold)
+  React.useEffect(() => { decisionHoldRef.current = decisionHold }, [decisionHold])
+  const onDecisionHoldChangeRef = React.useRef(onDecisionHoldChange)
+  React.useEffect(() => { onDecisionHoldChangeRef.current = onDecisionHoldChange }, [onDecisionHoldChange])
+
+  const publishDecisionHold = React.useCallback((kinds) => {
+    const hold = buildDecisionHold({
+      kinds,
+      turnPlayerId: turnPlayerIdRef.current,
+      turnSeq: turnSeqRef.current,
+      matchId: authoritativeMatchId,
+    })
+    decisionHoldRef.current = hold
+    try { onDecisionHoldChangeRef.current?.(hold) } catch {}
+    return hold
+  }, [authoritativeMatchId])
 
   // 🔒 contagem de modais abertas (para saber quando destravar turno)
   // modalLocksRef é autoritativo e síncrono; modalLocks (state) é espelho para UI/debug.
@@ -692,6 +722,13 @@ export function useTurnEngine({
         lockHeld = true
         lastModalClosedTimeRef.current = null
         setModalLocks(nextOpen)
+        try {
+          const kinds = typeof peekOpenDecisionKinds === 'function'
+            ? peekOpenDecisionKinds()
+            : []
+          const openedKind = inferBotDecisionKindFromElement(element)
+          publishDecisionHold([...(kinds || []), openedKind].filter(Boolean))
+        } catch {}
         console.log('[DEBUG] openModalAndWait - ABRINDO modal, modalLocks ->', nextOpen, 'openingModalRef:', openingModalRef.current)
 
         // Abertura atômica: a Promise já nasce ligada a ESTA modal, então uma
@@ -722,7 +759,15 @@ export function useTurnEngine({
           modalLocksRef.current = nextClose
           if (nextClose === 0) {
             lastModalClosedTimeRef.current = Date.now()
+            publishDecisionHold([])
             console.log('[DEBUG] openModalAndWait - ÚLTIMA MODAL FECHADA - timestamp:', lastModalClosedTimeRef.current)
+          } else {
+            try {
+              const kinds = typeof peekOpenDecisionKinds === 'function'
+                ? peekOpenDecisionKinds()
+                : []
+              publishDecisionHold(kinds)
+            } catch {}
           }
           setModalLocks(nextClose)
           console.log('[DEBUG] openModalAndWait - FECHANDO modal, modalLocks ->', nextClose)
@@ -734,7 +779,41 @@ export function useTurnEngine({
     const p = modalQueueRef.current.then(job, job)
     modalQueueRef.current = p.catch(() => {})
     return p
-  }, [pushModal, awaitTop, openAndWait, safeCloseTop])
+  }, [pushModal, awaitTop, openAndWait, safeCloseTop, peekOpenDecisionKinds, publishDecisionHold])
+
+  const expireOpenTurnDecisions = React.useCallback(({
+    expectedTurnPlayerId,
+    expectedTurnSeq,
+    reason = 'AUTO_PASS_TIMER',
+  } = {}) => {
+    const expectId = expectedTurnPlayerId != null
+      ? String(expectedTurnPlayerId)
+      : String(turnPlayerIdRef.current || '')
+    const expectSeq = Number.isFinite(Number(expectedTurnSeq))
+      ? Number(expectedTurnSeq)
+      : (Number(turnSeqRef.current) || 0)
+
+    if (!expectId) return { ok: false, reason: 'no-turn-player' }
+    if (String(turnPlayerIdRef.current || '') !== expectId) {
+      return { ok: false, reason: 'turn-changed' }
+    }
+    if ((Number(turnSeqRef.current) || 0) !== expectSeq) {
+      return { ok: false, reason: 'seq-changed' }
+    }
+    if (gameOverRef.current) return { ok: false, reason: 'game-over' }
+    if (!turnLockRef.current) return { ok: false, reason: 'not-locked' }
+    if (modalLocksRef.current <= 0) return { ok: false, reason: 'no-open-decision' }
+    const lrk = lastRollTurnKeyRef.current != null ? String(lastRollTurnKeyRef.current) : ''
+    if (!lrk || lrk !== String(expectSeq)) return { ok: false, reason: 'not-post-roll' }
+
+    if (typeof expireOpenDecisions !== 'function') {
+      return { ok: false, reason: 'no-expire-api' }
+    }
+    const result = expireOpenDecisions({ reason })
+    if (!result?.ok) return result
+    // Não chama skipAbsentTurn: o pipeline (tick) avança após SKIP/OK.
+    return { ok: true, via: 'local-modal-expire', category: result.category }
+  }, [expireOpenDecisions])
 
   const enqueueBotEconomicEffects = React.useCallback((opts = {}) => {
     const matchId = opts.matchId ?? authoritativeMatchId
@@ -3336,6 +3415,7 @@ export function useTurnEngine({
     const maxTickAttempts = 200 // ~20–30s só quando idle; pipeline ativa não consome o teto da mesma forma
     
     const tick = () => {
+      if (!mountedRef.current) return
       tickAttempts++
       
       const currentModalLocks = modalLocksRef.current
@@ -3638,6 +3718,7 @@ export function useTurnEngine({
                 lastRollTurnKey: null,
                 turnLock: false,
                 lockOwner: null,
+                decisionHold: null,
                 _expectTurnPlayerId: turnData.originTurnPlayerId,
                 _expectTurnSeq: turnData.originTurnSeq,
                 _commitKind: 'NORMAL_HANDOFF',
@@ -3890,6 +3971,8 @@ export function useTurnEngine({
       turnLock: !!turnLockRef.current,
       lastRollTurnKey: lastRollTurnKeyRef.current,
       expectedTurnSeq: expectSeq,
+      decisionHold: decisionHoldRef.current,
+      expectedTurnPlayerId: expectId,
     })
     if (skipGuard.reject) {
       console.log('[TURN] skip ausente recusado:', skipGuard.reason)
@@ -3916,6 +3999,8 @@ export function useTurnEngine({
       turnLock: !!turnLockRef.current,
       lastRollTurnKey: lastRollTurnKeyRef.current,
       expectedTurnSeq: expectSeq,
+      decisionHold: decisionHoldRef.current,
+      expectedTurnPlayerId: expectId,
     })
     if (skipGuard2.reject) return false
 
@@ -3927,6 +4012,7 @@ export function useTurnEngine({
       lastAction,
       turnLock: false,
       lockOwner: null,
+      decisionHold: null,
       _expectTurnPlayerId: expectId,
       _expectTurnSeq: expectSeq,
       _commitKind: lastAction === 'AUTO_PASS_TIMER' ? 'AUTO_PASS' : 'AUTO_SKIP_OFFLINE',
@@ -3954,6 +4040,12 @@ export function useTurnEngine({
       pendingTurnDataRef.current = null
       turnChangeInProgressRef.current = false
       openingModalRef.current = false
+      publishDecisionHold([])
+      try {
+        if (typeof closeAll === 'function') {
+          closeAll({ action: 'SKIP', reason: lastAction })
+        }
+      } catch {}
       try {
         if (lastAction === 'AUTO_PASS_TIMER') {
           appendLog?.('Turno avançado: tempo esgotado.')
@@ -4085,6 +4177,7 @@ export function useTurnEngine({
       lastRollTurnKey: null,
       turnLock: false,
       lockOwner: null,
+      decisionHold: null,
       _expectTurnPlayerId: turnData.originTurnPlayerId,
       _expectTurnSeq: turnData.originTurnSeq,
       _commitKind: 'NORMAL_HANDOFF',
@@ -5167,11 +5260,27 @@ export function useTurnEngine({
     }
   }, [])
 
+  // Se o turno mudou remotamente, abandona promises/modais locais deste turno.
+  React.useEffect(() => {
+    if (isMyTurn) return
+    if (modalLocksRef.current <= 0) return
+    try {
+      if (typeof closeAll === 'function') {
+        closeAll({ action: 'SKIP', reason: 'TURN_CHANGED' })
+      }
+    } catch {}
+    modalLocksRef.current = 0
+    setModalLocks(0)
+    openingModalRef.current = false
+    publishDecisionHold([])
+  }, [isMyTurn, turnSeq, turnPlayerId, closeAll, publishDecisionHold])
+
   return {
     advanceAndMaybeLap,
     onAction,
     nextTurn,
     skipAbsentTurn,
+    expireOpenTurnDecisions,
     forfeitMatch,
     modalLocks,
     lockOwner,

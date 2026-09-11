@@ -78,7 +78,7 @@ describe('D — zero durante ação ativa', () => {
       baseAutoPass({ now, turnDeadlineAt: now, turnLock: true }),
     )
     assert.equal(d.ok, false)
-    assert.equal(d.reason, 'turn-locked')
+    assert.match(String(d.reason), /turn-locked/)
   })
 })
 

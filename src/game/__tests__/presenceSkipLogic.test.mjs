@@ -70,7 +70,7 @@ describe('presence skip / dado', () => {
   it('skipAbsentTurn recusa lock e já-rolou', () => {
     assert.equal(
       shouldRejectAbsentTurnSkip({ turnLock: true, expectedTurnSeq: 4 }).reason,
-      'turn-locked',
+      'turn-locked-no-hold',
     )
     assert.equal(
       shouldRejectAbsentTurnSkip({
@@ -88,5 +88,23 @@ describe('presence skip / dado', () => {
       }).reject,
       false,
     )
+  })
+
+  it('skipAbsentTurn com decisionHold optional atravessa lock', () => {
+    const hold = {
+      category: 'optional',
+      kinds: ['CLIENTS'],
+      turnPlayerId: 'p2',
+      turnSeq: 4,
+      matchId: null,
+    }
+    const d = shouldRejectAbsentTurnSkip({
+      turnLock: true,
+      expectedTurnSeq: 4,
+      expectedTurnPlayerId: 'p2',
+      decisionHold: hold,
+    })
+    assert.equal(d.reject, false)
+    assert.equal(d.reason, 'optional-expire')
   })
 })

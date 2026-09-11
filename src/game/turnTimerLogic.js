@@ -9,6 +9,7 @@ import {
 } from './turnTimeConfig.js'
 import { normalizeMaxRounds, DEFAULT_MAX_ROUNDS } from './roundConfig.js'
 import { normalizeBotConfig } from './bots/botRoster.js'
+import { shouldAllowRemoteAutoPassThroughLock } from './decisionTimeoutPolicy.js'
 
 export function turnAttemptKey(turnPlayerId, turnSeq) {
   return `${String(turnPlayerId ?? '')}|${Number(turnSeq) || 0}`
@@ -163,6 +164,8 @@ export function mergeLobbyMatchSettings(prevState = {}, nextSettings = {}) {
 /**
  * Decide se o coordinator pode tentar auto-pass por timer.
  * Não avança sozinho — só autoriza a tentativa (CAS fica no skipAbsentTurn).
+ * Com turnLock: só atravessa se decisionHold optional estiver alinhado ao turno
+ * (compra aberta + vítima offline / coordenador remoto).
  */
 export function shouldAttemptTimerAutoPass({
   now,
@@ -174,15 +177,24 @@ export function shouldAttemptTimerAutoPass({
   turnSeq,
   lastAttemptKey,
   inFlight,
+  decisionHold = null,
 } = {}) {
   if (gameOver) return { ok: false, reason: 'game-over' }
   if (!amCoordinator) return { ok: false, reason: 'not-coordinator' }
   if (inFlight) return { ok: false, reason: 'in-flight' }
   if (!turnPlayerId) return { ok: false, reason: 'no-turn-player' }
 
-  // Modal/roll críticos: turnLock compartilhado. Timer visual pode zerar,
-  // mas auto-pass só com motor seguro (lock livre).
-  if (turnLock) return { ok: false, reason: 'turn-locked' }
+  if (turnLock) {
+    const through = shouldAllowRemoteAutoPassThroughLock({
+      turnLock: true,
+      decisionHold,
+      expectedTurnPlayerId: turnPlayerId,
+      expectedTurnSeq: turnSeq,
+    })
+    if (!through.ok) {
+      return { ok: false, reason: through.reason || 'turn-locked' }
+    }
+  }
 
   const deadline = Number(turnDeadlineAt)
   if (!Number.isFinite(deadline)) return { ok: false, reason: 'no-deadline' }
@@ -194,7 +206,11 @@ export function shouldAttemptTimerAutoPass({
     return { ok: false, reason: 'already-attempted' }
   }
 
-  return { ok: true, attemptKey: key, reason: 'expired' }
+  return {
+    ok: true,
+    attemptKey: key,
+    reason: turnLock ? 'expired-optional-hold' : 'expired',
+  }
 }
 
 /**

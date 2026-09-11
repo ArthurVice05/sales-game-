@@ -7,6 +7,7 @@
  * (`useTurnTimerAutoPass`).
  */
 import { turnAttemptKey } from './turnTimerLogic.js'
+import { shouldAllowRemoteAutoPassThroughLock } from './decisionTimeoutPolicy.js'
 
 /** @deprecated HUD only — não dispara skip. Mantido para testes/compat. */
 export const GAME_ABSENCE_SKIP_GRACE_MS = 15_000
@@ -15,8 +16,19 @@ export function shouldRejectAbsentTurnSkip({
   turnLock = false,
   lastRollTurnKey = null,
   expectedTurnSeq = 0,
+  decisionHold = null,
+  expectedTurnPlayerId = null,
 } = {}) {
-  if (turnLock) return { reject: true, reason: 'turn-locked' }
+  if (turnLock) {
+    const through = shouldAllowRemoteAutoPassThroughLock({
+      turnLock: true,
+      decisionHold,
+      expectedTurnPlayerId,
+      expectedTurnSeq,
+    })
+    if (!through.ok) return { reject: true, reason: through.reason || 'turn-locked' }
+    return { reject: false, reason: 'optional-expire' }
+  }
   if (
     lastRollTurnKey != null &&
     String(lastRollTurnKey) === String(expectedTurnSeq)

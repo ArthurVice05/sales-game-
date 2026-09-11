@@ -596,6 +596,10 @@ export default function App() {
   // ====== bloqueio de turno (cadeado entre abas)
   const [turnLock, setTurnLock] = useState(false)
   const [lockOwner, setLockOwner] = useState(null)
+  // Hold de decisão aberta (categoria/kinds + identidade de turno) — sync multiplayer
+  const [decisionHold, setDecisionHold] = useState(null)
+  const decisionHoldRef = useRef(decisionHold)
+  useEffect(() => { decisionHoldRef.current = decisionHold }, [decisionHold])
   const turnPlayerIdRef = React.useRef(turnPlayerId)
   const turnSeqRef = React.useRef(turnSeq)
   const lockOwnerRef = React.useRef(lockOwner)
@@ -1727,6 +1731,13 @@ export default function App() {
     // --- LOCKS (estado compartilhado) ---
     if (typeof incomingNetState.turnLock !== 'undefined') setTurnLock(!!incomingNetState.turnLock)
     if (typeof incomingNetState.lockOwner !== 'undefined') setLockOwner(incomingNetState.lockOwner ? String(incomingNetState.lockOwner) : null)
+    if (Object.prototype.hasOwnProperty.call(incomingNetState, 'decisionHold')) {
+      const hold = incomingNetState.decisionHold && typeof incomingNetState.decisionHold === 'object'
+        ? incomingNetState.decisionHold
+        : null
+      setDecisionHold(hold)
+      decisionHoldRef.current = hold
+    }
 
     // ✅ INVARIANTE CRÍTICA:
     // Se chegar turnLock=true SEM lockOwner => isso trava TODOS (porque controlsCanRoll exige !turnLock).
@@ -1753,6 +1764,8 @@ export default function App() {
       setWinner(null)
       setTurnLock(false)
       setLockOwner(null)
+      setDecisionHold(null)
+      decisionHoldRef.current = null
       setLastRollTurnKey(null)
       setTurnSeq(0)
       setLastRollUI(null)
@@ -2186,6 +2199,16 @@ export default function App() {
         setLockOwner(owner)
         lockOwnerRef.current = owner
       }
+      if (Object.prototype.hasOwnProperty.call(patch, 'decisionHold')) {
+        const hold = patch.decisionHold && typeof patch.decisionHold === 'object'
+          ? patch.decisionHold
+          : null
+        setDecisionHold(hold)
+        decisionHoldRef.current = hold
+      } else if (patchKind === 'TURN' || patch.turnSeq !== undefined) {
+        setDecisionHold(null)
+        decisionHoldRef.current = null
+      }
       if (derivedTurnIdxForLocal >= 0) setTurnIdx(derivedTurnIdxForLocal)
       if (patch.round !== undefined || safeRound !== round) {
         setRound(safeRound)
@@ -2367,6 +2390,11 @@ export default function App() {
       }
       if (patch && patch.lastRollTurnKey !== undefined) {
         statePatch.lastRollTurnKey = patch.lastRollTurnKey ? String(patch.lastRollTurnKey) : null
+      }
+      if (patch && Object.prototype.hasOwnProperty.call(patch, 'decisionHold')) {
+        statePatch.decisionHold = patch.decisionHold && typeof patch.decisionHold === 'object'
+          ? patch.decisionHold
+          : null
       }
       if (patch && patch.turnSeq !== undefined) {
         statePatch.turnSeq = Number(patch.turnSeq)
@@ -2790,6 +2818,7 @@ export default function App() {
     onAction,
     nextTurn,
     skipAbsentTurn,
+    expireOpenTurnDecisions,
     forfeitMatch,
     modalLocks,
   } = useTurnEngine({
@@ -2823,6 +2852,17 @@ export default function App() {
     authoritativeMatchId: netState?.matchId || expectedMatchIdRef.current,
     remoteBotClaimExecutor: netState?.botClaimExecutor ?? null,
     remoteLockOwner: lockOwner,
+    decisionHold,
+    onDecisionHoldChange: (hold) => {
+      setDecisionHold(hold)
+      decisionHoldRef.current = hold
+      // Propaga hold autoritativo para coordenador remoto (expiração com vítima offline).
+      if (gameMode === GAME_MODE.LOCAL || isSpectatorRef.current) return
+      if (!net?.enabled || !net?.ready) return
+      try {
+        commitRemoteState({ decisionHold: hold })
+      } catch {}
+    },
   })
 
   const localHandoffOpen = shouldOpenLocalHandoff({
@@ -3221,9 +3261,14 @@ export default function App() {
     turnSeq,
     turnDeadlineAt,
     turnLock: turnLock || !!diceFx || diceInFlightRef.current,
+    diceBusy: !!diceFx || !!diceInFlightRef.current,
+    modalLocks,
+    lastRollTurnKey,
+    decisionHold: decisionHold ?? netState?.decisionHold ?? null,
     gameOver,
     turnTimeSec,
     attemptSkipTurn: skipAbsentTurn,
+    expireOpenDecisions: expireOpenTurnDecisions,
   })
 
   useEffect(() => {

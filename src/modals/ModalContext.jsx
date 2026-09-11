@@ -1,6 +1,12 @@
 import React, { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createModalProtocol } from './modalProtocol.js'
 import { applyModalFocusRestore } from './modalFocusRestore.js'
+import {
+  aggregateDecisionHoldCategory,
+  DECISION_TIMEOUT_CATEGORY,
+  expirationPayloadForKind,
+} from '../game/decisionTimeoutPolicy.js'
+import { inferBotDecisionKindFromElement } from '../game/bots/botDecisionKind.js'
 import './decision-hud-bridge.css'
 import './modal-notebook-scrollbar.css'
 
@@ -96,6 +102,41 @@ export function ModalProvider({ children }) {
     setStack([])
   }, [protocol])
 
+  /**
+   * Expira a pilha aberta conforme política (SKIP/OK).
+   * Não usa closeAll genérico: cada camada recebe o payload da sua categoria.
+   * Recusa se houver mandatory/unknown sem política.
+   */
+  const expireOpenDecisions = React.useCallback((meta = {}) => {
+    const reason = meta.reason || 'AUTO_PASS_TIMER'
+    const layers = [...stackRef.current].reverse()
+    if (!layers.length) return { ok: false, reason: 'empty-stack' }
+
+    const kinds = layers.map((m) => inferBotDecisionKindFromElement(m.el))
+    const category = aggregateDecisionHoldCategory(kinds)
+    if (
+      category === DECISION_TIMEOUT_CATEGORY.MANDATORY ||
+      category === DECISION_TIMEOUT_CATEGORY.UNKNOWN
+    ) {
+      return { ok: false, reason: 'unsupported-category', category, kinds }
+    }
+
+    for (let i = 0; i < layers.length; i += 1) {
+      const layer = layers[i]
+      const kind = kinds[i]
+      const payload = expirationPayloadForKind(kind, { reason })
+      if (!payload) {
+        return { ok: false, reason: 'missing-payload', kind }
+      }
+      closeById(layer.id, payload)
+    }
+    return { ok: true, category, kinds }
+  }, [closeById])
+
+  const peekOpenDecisionKinds = React.useCallback(() => {
+    return stackRef.current.map((m) => inferBotDecisionKindFromElement(m.el))
+  }, [])
+
   // ✅ API exigida pelo engine: fecha a modal do topo e resolve (se houver)
   const closeTop = React.useCallback((payload) => {
     const topId = protocol().topId()
@@ -161,8 +202,36 @@ export function ModalProvider({ children }) {
   }, [stack])
 
   const value = useMemo(
-    () => ({ stack, openModal, openAndWait, pushModal, awaitTop, resolveTop, closeTop, closeModal, popModal, closeById, closeAll }),
-    [stack, openModal, openAndWait, pushModal, awaitTop, resolveTop, closeTop, closeModal, popModal, closeById, closeAll]
+    () => ({
+      stack,
+      openModal,
+      openAndWait,
+      pushModal,
+      awaitTop,
+      resolveTop,
+      closeTop,
+      closeModal,
+      popModal,
+      closeById,
+      closeAll,
+      expireOpenDecisions,
+      peekOpenDecisionKinds,
+    }),
+    [
+      stack,
+      openModal,
+      openAndWait,
+      pushModal,
+      awaitTop,
+      resolveTop,
+      closeTop,
+      closeModal,
+      popModal,
+      closeById,
+      closeAll,
+      expireOpenDecisions,
+      peekOpenDecisionKinds,
+    ]
   )
 
   return (
