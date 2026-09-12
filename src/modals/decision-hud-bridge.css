@@ -41,6 +41,56 @@ html[data-sg-modal-depth="4"] .hudConsultRegion {
     max-width: 100%;
     min-width: 0;
     width: min(920px, 100%);
+    max-height: min(90dvh, 100%);
+    box-sizing: border-box;
+  }
+
+  /*
+   * Cartão relativo à camada (já descontada do HUD) — evita width em 100vw
+   * que “subtrai” a sidebar outra vez e desloca o centro.
+   */
+  html[data-sg-modal-depth="1"] .sgModalOverlay .tileModal,
+  html[data-sg-modal-depth="2"] .sgModalOverlay .tileModal,
+  html[data-sg-modal-depth="3"] .sgModalOverlay .tileModal {
+    width: min(880px, 100%);
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  html[data-sg-modal-depth="1"] .sgModalOverlay .tileModal--sm,
+  html[data-sg-modal-depth="2"] .sgModalOverlay .tileModal--sm,
+  html[data-sg-modal-depth="3"] .sgModalOverlay .tileModal--sm {
+    width: min(480px, 100%);
+  }
+
+  html[data-sg-modal-depth="1"] .sgModalOverlay .tileModal--md,
+  html[data-sg-modal-depth="2"] .sgModalOverlay .tileModal--md,
+  html[data-sg-modal-depth="3"] .sgModalOverlay .tileModal--md {
+    width: min(640px, 100%);
+  }
+
+  html[data-sg-modal-depth="1"] .sgModalOverlay .tileModal--xl,
+  html[data-sg-modal-depth="2"] .sgModalOverlay .tileModal--xl,
+  html[data-sg-modal-depth="3"] .sgModalOverlay .tileModal--xl {
+    width: min(960px, 100%);
+  }
+
+  html[data-sg-modal-depth="1"] .sgModalOverlay .tileModal.tileModal--clients,
+  html[data-sg-modal-depth="2"] .sgModalOverlay .tileModal.tileModal--clients {
+    width: min(720px, 100%);
+  }
+
+  /* ModalBase tile: preenche a camada do overlay, sem fixed full-bleed. */
+  html[data-sg-modal-depth="1"] .sgModalOverlay .sg-modal-backdrop,
+  html[data-sg-modal-depth="2"] .sgModalOverlay .sg-modal-backdrop,
+  html[data-sg-modal-depth="3"] .sgModalOverlay .sg-modal-backdrop {
+    position: relative;
+    inset: auto;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    max-height: min(90dvh, 100%);
     box-sizing: border-box;
   }
 
@@ -108,7 +158,7 @@ html[data-sg-modal-depth="4"] .hudConsultRegion {
     /* Só a aba "Minha empresa" (~44px) — NÃO a largura do painel (causa do recorte). */
     padding-right: max(8px, env(safe-area-inset-right, 0px));
     justify-content: center;
-    align-items: stretch;
+    align-items: center;
   }
 
   /* Com consulta fechada, deixa um filete para o botão lateral sem cobrir o CTA. */

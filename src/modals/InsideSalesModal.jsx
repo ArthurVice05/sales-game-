@@ -230,7 +230,7 @@ export default function InsideSalesModal({ onResolve, currentCash = 0, currentPl
           <div className="tileStatHint">Máximo por saldo: <b>{maxBySaldo}</b></div>
         </div>
         <div className="tileStatBlock">
-          <div className="tileStatLabel">Custo por representante</div>
+          <div className="tileStatLabel">Custo por SDR/<wbr />BDR/<wbr />CLOSER</div>
           <div className="tileStatValue">{money(unitHire)}</div>
           <div className="tileStatHint">Pagamento único · saldo {money(currentCash)}</div>
           <div className="tileStatHint">Total contratar: <b>{money(totalCost)}</b></div>

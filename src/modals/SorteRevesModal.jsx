@@ -10,6 +10,11 @@ import {
   readRevealSoundPreference,
   writeRevealSoundPreference,
 } from './sorteRevesRevealSound.js'
+import {
+  readGameSoundEnabled,
+  setGameSoundEnabled,
+  subscribeGameSound,
+} from '../utils/gameSoundPreference.js'
 import './sorte-reves.css'
 
 /**
@@ -53,12 +58,15 @@ export default function SorteRevesModal({ onResolve, player = {} }) {
   const confirmGuard = useRef(null)
   if (!confirmGuard.current) confirmGuard.current = createOnceGuard()
 
-  // Som da revelação: estado puramente local, nunca condiciona a confirmação.
+  // Som da revelação: preferência da carta + mute geral da partida.
   const [soundOn, setSoundOn] = useState(readRevealSoundPreference)
   const soundOnRef = useRef(soundOn)
   soundOnRef.current = soundOn
+  const [masterSoundOn, setMasterSoundOn] = useState(readGameSoundEnabled)
+  useEffect(() => subscribeGameSound(setMasterSoundOn), [])
   const soundRef = useRef(null)
   const revealedRef = useRef(false)
+  const effectiveSoundOn = masterSoundOn && soundOn
 
   // O assentamento do Three.js ou fallback DOM libera o texto sobre a carta
   // e dispara o som. Só apresentação: não encosta no turno nem no efeito.
@@ -84,13 +92,18 @@ export default function SorteRevesModal({ onResolve, player = {} }) {
   }, [mediaVariant])
 
   const toggleSound = () => {
-    const next = !soundOn
-    setSoundOn(next)
-    soundOnRef.current = next
-    writeRevealSoundPreference(next)
-    // Ligar é um gesto explícito: libera o som que o navegador tenha bloqueado.
-    if (next) { if (revealedRef.current) soundRef.current?.play({ explicit: true }) }
-    else soundRef.current?.stop()
+    if (effectiveSoundOn) {
+      setSoundOn(false)
+      soundOnRef.current = false
+      writeRevealSoundPreference(false)
+      soundRef.current?.stop()
+      return
+    }
+    setSoundOn(true)
+    soundOnRef.current = true
+    writeRevealSoundPreference(true)
+    if (!masterSoundOn) setGameSoundEnabled(true)
+    if (revealedRef.current) soundRef.current?.play({ explicit: true })
   }
 
   const resolve = () => {
@@ -138,9 +151,9 @@ export default function SorteRevesModal({ onResolve, player = {} }) {
         <p className="sr3d-confirmHint">O efeito desta carta é aplicado imediatamente ao confirmar.</p>
         <div className="sr3d-actionsRow">
           <button ref={confirmRef} type="button" className="sr3d-ok" disabled={!revealed} onClick={resolve}>OK</button>
-          <button type="button" className="sr3d-sound" aria-pressed={soundOn} onClick={toggleSound}>
-            <span aria-hidden="true">{soundOn ? '🔊' : '🔇'}</span>
-            {soundOn ? 'Som ligado' : 'Som desligado'}
+          <button type="button" className="sr3d-sound" aria-pressed={effectiveSoundOn} onClick={toggleSound}>
+            <span aria-hidden="true">{effectiveSoundOn ? '🔊' : '🔇'}</span>
+            {effectiveSoundOn ? 'Som ligado' : 'Som desligado'}
           </button>
         </div>
       </SorteRevesCardContent>

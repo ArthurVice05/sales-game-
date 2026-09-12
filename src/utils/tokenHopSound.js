@@ -3,7 +3,18 @@
  * Falha silenciosa se AudioContext indisponível / autoplay bloqueado.
  */
 
+import { readGameSoundEnabled, registerGameSoundStopper } from './gameSoundPreference.js'
+
 let sharedContext = null
+let stoppersRegistered = false
+
+function ensureHopStopper() {
+  if (stoppersRegistered) return
+  stoppersRegistered = true
+  registerGameSoundStopper(() => {
+    try { sharedContext?.suspend?.() } catch { /* mute não pode travar */ }
+  })
+}
 
 function getAudioContext() {
   if (typeof window === 'undefined') return null
@@ -36,7 +47,9 @@ export async function unlockTokenHopAudio() {
  * @param {{ muted?: boolean }} [options]
  */
 export function playTokenHopSound(options = {}) {
+  ensureHopStopper()
   if (options.muted) return false
+  if (!readGameSoundEnabled()) return false
   if (typeof window === 'undefined') return false
 
   try {

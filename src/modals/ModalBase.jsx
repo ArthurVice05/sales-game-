@@ -28,22 +28,25 @@ export default function ModalBase({
 
   return (
     <div
-      className="sg-modal-backdrop"
+      className={`sg-modal-backdrop${isTile ? ' sg-modal-backdrop--tile' : ''}`}
       style={{
-        position: "fixed",
-        inset: 0,
+        position: isTile ? "relative" : "fixed",
+        inset: isTile ? "auto" : 0,
+        width: isTile ? "100%" : undefined,
+        maxWidth: isTile ? "100%" : undefined,
         background: isTile ? "transparent" : "rgba(8,10,16,.55)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        zIndex,
+        zIndex: isTile ? "auto" : zIndex,
         pointerEvents: isTile && typeof onClose !== 'function' ? 'none' : 'auto',
+        boxSizing: "border-box",
       }}
       onClick={typeof onClose === 'function' ? handleClose : undefined}
     >
       <div
         className={isTile ? `tileModal tileModal--${size}` : "sg-modal-card"}
-        style={isTile ? { pointerEvents: 'auto' } : {
+        style={isTile ? { pointerEvents: 'auto', maxWidth: '100%' } : {
           position: "relative",
           background: "#0f1420",
           border: "1px solid rgba(255,255,255,.1)",

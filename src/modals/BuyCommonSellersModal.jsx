@@ -302,7 +302,7 @@ export default function BuyCommonSellersModal({
           <div className="tileStatHint">Máximo por saldo: <b>{maxQtyByCash}</b></div>
         </div>
         <div className="tileStatBlock">
-          <div className="tileStatLabel">Custo por representante</div>
+          <div className="tileStatLabel">Custo por vendedor</div>
           <div className="tileStatValue">{money(unitHire)}</div>
           <div className="tileStatHint">Pagamento único · saldo {money(cashNow)}</div>
           <div className="tileStatHint">Despesa mensal: <b>{money(unitExpense)}</b></div>

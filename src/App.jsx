@@ -28,6 +28,7 @@ import TutorialModal, { shouldAutoOpenTutorial } from './components/TutorialModa
 import TurnTimer from './components/TurnTimer.jsx'
 import BankruptOverlay from './modals/BankruptOverlay.jsx'
 import DebugPanel from './components/DebugPanel.jsx'
+import GameSoundToggle from './components/GameSoundToggle.jsx'
 import { ModalProvider } from './modals/ModalContext'
 import { DecisionBuyerProvider } from './modals/decisionBuyerContext.jsx'
 import HudConsultBridge from './components/hud/HudConsultBridge.jsx'
@@ -3930,6 +3931,7 @@ export default function App() {
         timerPaused={!!turnLock || (gameMode === GAME_MODE.LOCAL && !localTurnReady)}
       >
         <DebugPanel players={players} turnIdx={turnIdx} round={round} gameOver={gameOver} winner={winner} />
+        <GameSoundToggle className="gameSoundToggle--header" />
       </GameDesktopHeader>
       ) : (
       <header className="topbar">
@@ -4004,6 +4006,9 @@ export default function App() {
             </span>
             <span className="moneyCompact">{formatCompactCash(myCash)}</span>
           </span>
+          {!compactLandscapeHud && (
+            <GameSoundToggle className="gameSoundToggle--topbar" compact />
+          )}
         </div>
       </header>
       )}
@@ -4274,6 +4279,7 @@ export default function App() {
                 </button>
               </>
             )}
+            <GameSoundToggle className="btn dark gameSoundToggle--more" />
             <button type="button" className="btn dark" onClick={openTutorialFromMore}>
               Como jogar
             </button>

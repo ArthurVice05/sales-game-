@@ -10,6 +10,8 @@
  * cortado e descartado por abertura sem tocar em recursos compartilhados.
  */
 
+import { readGameSoundEnabled, registerGameSoundStopper } from '../utils/gameSoundPreference.js'
+
 const SOUND_BASE = '/media/sorte-reves'
 
 export const REVEAL_SOUND_PREFERENCE_KEY = 'sg:sorteRevesSound'
@@ -81,7 +83,11 @@ function defaultAudioFactory(src) {
  */
 export function createRevealSound(variant, options = {}) {
   const createAudio = options.createAudio || defaultAudioFactory
-  const isEnabled = options.isEnabled || (() => true)
+  const isEnabled = () => {
+    if (!readGameSoundEnabled()) return false
+    if (typeof options.isEnabled === 'function') return !!options.isEnabled()
+    return true
+  }
   const src = revealSoundSourceFor(variant)
   const volume = revealSoundVolumeFor(variant)
 
@@ -172,6 +178,9 @@ export function createRevealSound(variant, options = {}) {
 export function openRevealSoundSession({ variant, createAudio, isEnabled, doc, revealed }) {
   const target = doc || (typeof document !== 'undefined' ? document : null)
   const sound = createRevealSound(variant, { createAudio, isEnabled })
+  const unregisterStop = registerGameSoundStopper(() => {
+    try { sound.stop() } catch { /* mute não pode travar */ }
+  })
 
   const onVisibilityChange = () => {
     if (target?.visibilityState === 'hidden') sound.stop()
@@ -183,6 +192,7 @@ export function openRevealSoundSession({ variant, createAudio, isEnabled, doc, r
   return {
     sound,
     cleanup() {
+      unregisterStop()
       target?.removeEventListener?.('visibilitychange', onVisibilityChange)
       sound.dispose()
     },

@@ -1,0 +1,35 @@
+.gameSoundToggle {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 8px 12px;
+  margin: 0;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: #1a2740;
+  color: #f4f6fb;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.gameSoundToggle:focus-visible {
+  outline: 2px solid #5147e9;
+  outline-offset: 2px;
+}
+
+.gameSoundToggle--topbar {
+  min-height: 28px;
+  height: 28px;
+  width: 28px;
+  padding: 0;
+  border-radius: 8px;
+}
+
+.gameSoundToggle--more {
+  width: 100%;
+}

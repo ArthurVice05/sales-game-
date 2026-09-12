@@ -4,7 +4,18 @@
  * Precisa de AudioContext running — unlockDiceAudio no gesto de Rolar.
  */
 
+import { readGameSoundEnabled, registerGameSoundStopper } from './gameSoundPreference.js'
+
 let sharedContext = null
+let stoppersRegistered = false
+
+function ensureDiceStopper() {
+  if (stoppersRegistered) return
+  stoppersRegistered = true
+  registerGameSoundStopper(() => {
+    try { sharedContext?.suspend?.() } catch { /* mute não pode travar */ }
+  })
+}
 
 function getAudioContext() {
   if (typeof window === 'undefined') return null
@@ -82,6 +93,8 @@ function playNoiseBurst(ctx, time, duration = 0.04, intensity = 1) {
 
 /** Cascata de cliques enquanto o dado gira (timbre original). */
 export async function playDiceTumbleSound(durationMs = 1600) {
+  ensureDiceStopper()
+  if (!readGameSoundEnabled()) return false
   const ctx = getAudioContext()
   if (!ctx) return false
   try {
@@ -90,6 +103,7 @@ export async function playDiceTumbleSound(durationMs = 1600) {
     return false
   }
   if (ctx.state !== 'running') return false
+  if (!readGameSoundEnabled()) return false
 
   const now = ctx.currentTime + 0.02
   const duration = Math.max(0.4, durationMs / 1000)
@@ -106,6 +120,8 @@ export async function playDiceTumbleSound(durationMs = 1600) {
 
 /** Impacto seco quando o dado para (timbre original). */
 export async function playDiceLandSound() {
+  ensureDiceStopper()
+  if (!readGameSoundEnabled()) return false
   const ctx = getAudioContext()
   if (!ctx) return false
   try {
@@ -114,6 +130,7 @@ export async function playDiceLandSound() {
     return false
   }
   if (ctx.state !== 'running') return false
+  if (!readGameSoundEnabled()) return false
 
   const now = ctx.currentTime
   playNoiseBurst(ctx, now, 0.08, 1.35)
