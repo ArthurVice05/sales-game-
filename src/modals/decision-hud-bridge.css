@@ -40,6 +40,7 @@ html[data-sg-modal-depth="4"] .hudConsultRegion {
   html[data-sg-modal-depth="3"] .sgModalOverlay > [data-modal-top="true"] {
     max-width: 100%;
     min-width: 0;
+    min-height: 0;
     width: min(920px, 100%);
     max-height: min(90dvh, 100%);
     box-sizing: border-box;
@@ -105,6 +106,7 @@ html[data-sg-modal-depth="4"] .hudConsultRegion {
     width: 100%;
     max-width: 100%;
     min-width: 0;
+    min-height: 0;
     height: auto;
     max-height: min(90dvh, 100%);
     background: transparent;
@@ -118,6 +120,7 @@ html[data-sg-modal-depth="4"] .hudConsultRegion {
     width: min(920px, 100%);
     max-width: 100%;
     min-width: 0;
+    min-height: 0;
     box-sizing: border-box;
   }
 
@@ -159,6 +162,15 @@ html[data-sg-modal-depth="4"] .hudConsultRegion {
     padding-right: max(8px, env(safe-area-inset-right, 0px));
     justify-content: center;
     align-items: center;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  /* Recuperação: estica a camada para altura definida (iOS só rola com height definido). */
+  html[data-sg-modal-depth="1"] .sgModalOverlay:has(.recovery-backdrop),
+  html[data-sg-modal-depth="2"] .sgModalOverlay:has(.recovery-backdrop),
+  html[data-sg-modal-depth="3"] .sgModalOverlay:has(.recovery-backdrop) {
+    align-items: stretch;
   }
 
   /* Com consulta fechada, deixa um filete para o botão lateral sem cobrir o CTA. */
@@ -167,13 +179,28 @@ html[data-sg-modal-depth="4"] .hudConsultRegion {
   }
 
   html[data-sg-modal-depth="1"] .sgModalOverlay > [data-modal-top="true"],
-  html[data-sg-modal-depth="2"] .sgModalOverlay > [data-modal-top="true"] {
+  html[data-sg-modal-depth="2"] .sgModalOverlay > [data-modal-top="true"],
+  html[data-sg-modal-depth="3"] .sgModalOverlay > [data-modal-top="true"] {
     align-self: center;
     width: min(100%, 100%);
     max-width: 100%;
     max-height: calc(100dvh - 16px);
     min-width: 0;
+    min-height: 0;
     box-sizing: border-box;
+  }
+
+  html[data-sg-modal-depth="1"] .sgModalOverlay:has(.recovery-backdrop) > [data-modal-top="true"],
+  html[data-sg-modal-depth="2"] .sgModalOverlay:has(.recovery-backdrop) > [data-modal-top="true"],
+  html[data-sg-modal-depth="3"] .sgModalOverlay:has(.recovery-backdrop) > [data-modal-top="true"] {
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: auto;
+    max-height: 100%;
+    min-height: 0;
+    overflow: hidden;
   }
 
   html[data-sg-modal-depth="1"] .sgModalOverlay > [data-modal-top="true"] .tileModal {
@@ -181,6 +208,26 @@ html[data-sg-modal-depth="4"] .hudConsultRegion {
     max-width: 100%;
     min-width: 0;
     box-sizing: border-box;
+  }
+
+  html[data-sg-modal-depth="1"] .recovery-backdrop,
+  html[data-sg-modal-depth="2"] .recovery-backdrop,
+  html[data-sg-modal-depth="3"] .recovery-backdrop {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100%;
+    max-height: 100%;
+    width: 100%;
+    overflow: hidden;
+  }
+
+  html[data-sg-modal-depth="1"] .recovery-card,
+  html[data-sg-modal-depth="2"] .recovery-card,
+  html[data-sg-modal-depth="3"] .recovery-card {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: 100%;
+    width: 100%;
   }
 }
 
@@ -211,6 +258,10 @@ html[data-sg-modal-depth="4"] .hudConsultRegion {
 .hudConsultToggle:focus-visible {
   outline: 2px solid #5147e9;
   outline-offset: 2px;
+}
+
+html[data-hud-consult-open="1"] .sgModalOverlay > [data-modal-top="true"] {
+  pointer-events: none;
 }
 
 html[data-sg-modal-depth="2"] .hudConsultToggle,

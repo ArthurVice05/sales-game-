@@ -68,65 +68,67 @@ export default function RecoveryLoan({
   }
 
   return (
-    <div className="recovery-body" style={S.body}>
-      <div style={S.subHeader}>
-        <b style={{ fontSize: 20 }}>EMPRÉSTIMO</b>
-      </div>
-
-      <p>
-        Único empréstimo da partida. O banco libera até <b>50% do valor de compra dos seus bens</b> como
-        garantia. Na casa <b>Despesas Operacionais da próxima rodada</b> você devolve o valor
-        <b> + {interestPct}% de juros</b>.
-      </p>
-      <p>
-        Se não houver caixa para quitar, use o patrimônio: cada item vale
-        <b> 50% do valor pago na compra</b>. Se ainda assim não der para pagar e continuar, é falência.
-      </p>
-
-      <div style={S.infoRow}>
-        <span>Valor disponível:</span> <b>${Number(loanAvailable || 0)}</b>
-      </div>
-      <div style={S.infoRow}>
-        <span>Valor garantia:</span> <b>${Number(loanAvailable || 0)}</b>
-      </div>
-
-      {alreadyHasLoan && (
-        <div
-          style={{
-            ...S.infoRow,
-            color: '#fca5a5',
-            border: '1px solid rgba(255,0,0,.25)',
-            padding: '8px 10px',
-            borderRadius: 8,
-            background: 'rgba(255,0,0,.06)'
-          }}
-        >
-          Você já utilizou o empréstimo desta partida. Não é possível pegar outro.
+    <>
+      <div className="recovery-body" style={S.body}>
+        <div style={S.subHeader}>
+          <b style={{ fontSize: 20 }}>EMPRÉSTIMO</b>
         </div>
-      )}
 
-      <input
-        style={S.input}
-        type="number"
-        min={0}
-        max={Math.max(0, Number(loanAvailable || 0))}
-        placeholder="Digite o valor que quer emprestar"
-        value={loanInput}
-        onChange={(e) => setLoanInput(e.target.value)}
-        disabled={alreadyHasLoan}
-      />
+        <p>
+          Único empréstimo da partida. O banco libera até <b>50% do valor de compra dos seus bens</b> como
+          garantia. Na casa <b>Despesas Operacionais da próxima rodada</b> você devolve o valor
+          <b> + {interestPct}% de juros</b>.
+        </p>
+        <p>
+          Se não houver caixa para quitar, use o patrimônio: cada item vale
+          <b> 50% do valor pago na compra</b>. Se ainda assim não der para pagar e continuar, é falência.
+        </p>
 
-      <div style={{ fontSize: 12, opacity: 0.8, marginTop: 6 }}>
-        Máx: ${Number(loanAvailable || 0)} — entra no caixa agora. Na próxima rodada
-        cobra o valor + {interestPct}% de juros.
-      </div>
-      {repayAmount > 0 && (
-        <div style={{ ...S.infoRow, marginTop: 8 }}>
-          <span>A pagar na próxima rodada:</span> <b>${repayAmount}</b>
+        <div style={S.infoRow}>
+          <span>Valor disponível:</span> <b>${Number(loanAvailable || 0)}</b>
         </div>
-      )}
+        <div style={S.infoRow}>
+          <span>Valor garantia:</span> <b>${Number(loanAvailable || 0)}</b>
+        </div>
 
-      <div style={S.rowBtns}>
+        {alreadyHasLoan && (
+          <div
+            style={{
+              ...S.infoRow,
+              color: '#fca5a5',
+              border: '1px solid rgba(255,0,0,.25)',
+              padding: '8px 10px',
+              borderRadius: 8,
+              background: 'rgba(255,0,0,.06)'
+            }}
+          >
+            Você já utilizou o empréstimo desta partida. Não é possível pegar outro.
+          </div>
+        )}
+
+        <input
+          style={S.input}
+          type="number"
+          min={0}
+          max={Math.max(0, Number(loanAvailable || 0))}
+          placeholder="Digite o valor que quer emprestar"
+          value={loanInput}
+          onChange={(e) => setLoanInput(e.target.value)}
+          disabled={alreadyHasLoan}
+        />
+
+        <div style={{ fontSize: 12, opacity: 0.8, marginTop: 6 }}>
+          Máx: ${Number(loanAvailable || 0)} — entra no caixa agora. Na próxima rodada
+          cobra o valor + {interestPct}% de juros.
+        </div>
+        {repayAmount > 0 && (
+          <div style={{ ...S.infoRow, marginTop: 8 }}>
+            <span>A pagar na próxima rodada:</span> <b>${repayAmount}</b>
+          </div>
+        )}
+      </div>
+
+      <div className="recovery-footer recovery-row-btns" style={{ ...S.rowBtns, marginTop: 0 }}>
         <button style={S.back} onClick={onBack}>
           ← Voltar
         </button>
@@ -143,6 +145,6 @@ export default function RecoveryLoan({
           Pegar Empréstimo
         </button>
       </div>
-    </div>
+    </>
   )
 }

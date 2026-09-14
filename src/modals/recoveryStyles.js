@@ -4,9 +4,10 @@
 const S = {
   backdrop: {
     position:'relative', inset:'auto', background:'transparent',
-    display:'grid', placeItems:'center', zIndex:'auto',
+    display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
+    zIndex:'auto',
     boxSizing:'border-box', overflow:'hidden',
-    width:'100%', maxWidth:'100%', minWidth:0,
+    width:'100%', maxWidth:'100%', minWidth:0, minHeight:0,
     height:'auto', maxHeight:'min(90dvh, 100%)',
     padding:'max(8px, env(safe-area-inset-top, 0px)) max(8px, env(safe-area-inset-right, 0px)) max(8px, env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px))',
   },
@@ -35,6 +36,8 @@ const S = {
     overflowX:'hidden',
     overflowY:'auto',
     WebkitOverflowScrolling:'touch',
+    touchAction:'pan-y',
+    overscrollBehavior:'contain',
   },
   lead:{ opacity:.95, lineHeight:1.5 },
   bullets:{ margin:'8px 0 16px 18px' },

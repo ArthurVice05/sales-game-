@@ -76,84 +76,87 @@ export default function RecoveryFire({ roles = [], onBack, onConfirm }) {
   }
 
   return (
-    <div className="recovery-body" style={S.body}>
-      <div style={S.subHeader}><b style={{fontSize:20}}>DEMITIR FUNCIONÁRIOS</b></div>
-      <p style={{ opacity: 0.9, marginBottom: 12, lineHeight: 1.45 }}>
-        Reduz a equipe e devolve 50% do valor ao caixa. Use para recuperar saldo e evitar falência.
-      </p>
+    <>
+      <div className="recovery-body" style={S.body}>
+        <div style={S.subHeader}><b style={{fontSize:20}}>DEMITIR FUNCIONÁRIOS</b></div>
+        <p style={{ opacity: 0.9, marginBottom: 12, lineHeight: 1.45 }}>
+          Reduz a equipe e devolve 50% do valor ao caixa. Use para recuperar saldo e evitar falência.
+        </p>
 
-      {/* Cabeçalho */}
-      <div style={{display:'grid', gridTemplateColumns:'1.2fr 1fr 1.2fr 1fr', gap:8, opacity:.9, fontWeight:700, marginBottom:6}}>
-        <div>Cargo</div>
-        <div>Valor Unitário</div>
-        <div>Qtd demitir</div>
-        <div>Crédito</div>
-      </div>
+        {/* Cabeçalho */}
+        <div style={{display:'grid', gridTemplateColumns:'1.2fr 1fr 1.2fr 1fr', gap:8, opacity:.9, fontWeight:700, marginBottom:6}}>
+          <div>Cargo</div>
+          <div>Valor Unitário</div>
+          <div>Qtd demitir</div>
+          <div>Crédito</div>
+        </div>
 
-      <div style={{display:'grid', gap:12}}>
-        {normalized.map(r => {
-          const q = Number(qty[r.key] || 0)
-          const unit = Number(r.unit || 0)
-          const owned = Number(r.owned || 0)
-          const cu = creditUnit(unit)
-          const credit = cu * q
-          const minusDisabled = q <= 0
-          const plusDisabled = q >= owned || owned <= 0
+        <div style={{display:'grid', gap:12}}>
+          {normalized.map(r => {
+            const q = Number(qty[r.key] || 0)
+            const unit = Number(r.unit || 0)
+            const owned = Number(r.owned || 0)
+            const cu = creditUnit(unit)
+            const credit = cu * q
+            const minusDisabled = q <= 0
+            const plusDisabled = q >= owned || owned <= 0
 
-          return (
-            <div
-              key={r.key}
-              style={{
-                display:'grid',
-                gridTemplateColumns:'1.2fr 1fr 1.2fr 1fr',
-                alignItems:'center',
-                gap:8
-              }}
-            >
-              <div>
-                <div style={{fontWeight:800}}>{r.label}</div>
-                <div style={{opacity:.75, fontSize:12}}>Possui: <b>{owned}</b></div>
+            return (
+              <div
+                key={r.key}
+                style={{
+                  display:'grid',
+                  gridTemplateColumns:'1.2fr 1fr 1.2fr 1fr',
+                  alignItems:'center',
+                  gap:8
+                }}
+              >
+                <div>
+                  <div style={{fontWeight:800}}>{r.label}</div>
+                  <div style={{opacity:.75, fontSize:12}}>Possui: <b>{owned}</b></div>
+                </div>
+
+                <div>
+                  <div><b>{fmt(unit)}</b></div>
+                  <div style={{opacity:.75, fontSize:12}}>Crédito por un.: <b>{fmt(cu)}</b></div>
+                </div>
+
+                <div style={{display:'flex', gap:6, alignItems:'center'}}>
+                  <button
+                    style={{ ...S.spin, opacity: minusDisabled ? .5 : 1, cursor: minusDisabled ? 'not-allowed' : 'pointer' }}
+                    disabled={minusDisabled}
+                    onClick={() => add(r.key, -1)}
+                  >-</button>
+                  <div style={{minWidth:28, textAlign:'center', fontWeight:800}}>{q}</div>
+                  <button
+                    style={{ ...S.spin, opacity: plusDisabled ? .5 : 1, cursor: plusDisabled ? 'not-allowed' : 'pointer' }}
+                    disabled={plusDisabled}
+                    onClick={() => add(r.key, +1)}
+                  >+</button>
+                </div>
+
+                <div><b>{fmt(credit)}</b></div>
               </div>
-
-              <div>
-                <div><b>{fmt(unit)}</b></div>
-                <div style={{opacity:.75, fontSize:12}}>Crédito por un.: <b>{fmt(cu)}</b></div>
-              </div>
-
-              <div style={{display:'flex', gap:6, alignItems:'center'}}>
-                <button
-                  style={{ ...S.spin, opacity: minusDisabled ? .5 : 1, cursor: minusDisabled ? 'not-allowed' : 'pointer' }}
-                  disabled={minusDisabled}
-                  onClick={() => add(r.key, -1)}
-                >-</button>
-                <div style={{minWidth:28, textAlign:'center', fontWeight:800}}>{q}</div>
-                <button
-                  style={{ ...S.spin, opacity: plusDisabled ? .5 : 1, cursor: plusDisabled ? 'not-allowed' : 'pointer' }}
-                  disabled={plusDisabled}
-                  onClick={() => add(r.key, +1)}
-                >+</button>
-              </div>
-
-              <div><b>{fmt(credit)}</b></div>
-            </div>
-          )
-        })}
+            )
+          })}
+        </div>
       </div>
 
-      <div style={{marginTop:12, textAlign:'right', fontWeight:900}}>
-        Total a resgatar: <b>{fmt(totalCredit)}</b>
+      <div className="recovery-footer" style={{ flex: '0 0 auto' }}>
+        <div style={{marginBottom:12, textAlign:'right', fontWeight:900}}>
+          Total a resgatar: <b>{fmt(totalCredit)}</b>
+        </div>
+        <div className="recovery-row-btns" style={{ ...S.rowBtns, marginTop: 0 }}>
+          <button style={S.back} onClick={onBack}>← Voltar</button>
+          <button
+            style={{...S.cta, background:'#ef4444', opacity: totalCredit>0 ? 1 : .6}}
+            onClick={confirm}
+            disabled={totalCredit <= 0}
+          >
+            DEMITIR
+          </button>
+        </div>
       </div>
-
-      <div style={S.rowBtns}>
-        <button style={S.back} onClick={onBack}>← Voltar</button>
-        <button
-          style={{...S.cta, background:'#ef4444', opacity: totalCredit>0 ? 1 : .6}}
-          onClick={confirm}
-          disabled={totalCredit <= 0}
-        >
-          DEMITIR
-        </button>
-      </div>
-    </div>
+    </>
   )
 }

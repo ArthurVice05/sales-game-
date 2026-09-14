@@ -13,31 +13,33 @@ export default function RecoveryMenu({
   onDeclareBankruptcy
 }) {
   return (
-    <div className="recovery-body" style={S.body}>
-      <p style={S.lead}>
-        Recuperação financeira: use para recuperar caixa e evitar falência.
-        Você está sem dinheiro, {playerName}. Escolha uma das opções:
-      </p>
+    <>
+      <div className="recovery-body" style={S.body}>
+        <p style={S.lead}>
+          Recuperação financeira: use para recuperar caixa e evitar falência.
+          Você está sem dinheiro, {playerName}. Escolha uma das opções:
+        </p>
 
-      {loanBlockedInMatch && (
-        <div style={{...S.lead, color: '#ef4444', fontWeight: 'bold', marginBottom: '16px'}} className="recovery-alert">
-          Cada jogador só pode pegar empréstimo uma única vez por partida.
-        </div>
-      )}
+        {loanBlockedInMatch && (
+          <div style={{...S.lead, color: '#ef4444', fontWeight: 'bold', marginBottom: '16px'}} className="recovery-alert">
+            Cada jogador só pode pegar empréstimo uma única vez por partida.
+          </div>
+        )}
 
-      <ul style={S.bullets}>
-        <li>
-          <b>Empréstimo:</b> único na partida, até {`$ ${loanAvailable}`} (50% do valor de compra dos bens). Quita na casa Despesas Operacionais da próxima rodada com 50% de juros. Sem caixa, liquide itens a 50% do valor pago; se não bastar, falência.
-        </li>
-        <li>
-          <b>Reduzir:</b> baixa níveis de MIX ou ERP e recebe 50% do valor pago de volta ao caixa.
-        </li>
-        <li>
-          <b>Demitir:</b> remove colaboradores e recebe 50% do valor — reduz equipe e custos futuros.
-        </li>
-      </ul>
+        <ul style={S.bullets}>
+          <li>
+            <b>Empréstimo:</b> único na partida, até {`$ ${loanAvailable}`} (50% do valor de compra dos bens). Quita na casa Despesas Operacionais da próxima rodada com 50% de juros. Sem caixa, liquide itens a 50% do valor pago; se não bastar, falência.
+          </li>
+          <li>
+            <b>Reduzir:</b> baixa níveis de MIX ou ERP e recebe 50% do valor pago de volta ao caixa.
+          </li>
+          <li>
+            <b>Demitir:</b> remove colaboradores e recebe 50% do valor — reduz equipe e custos futuros.
+          </li>
+        </ul>
+      </div>
 
-      <div className="recovery-row-btns" style={S.rowBtns}>
+      <div className="recovery-footer recovery-row-btns" style={{ ...S.rowBtns, marginTop: 0 }}>
         <button style={{...S.cta, background:'#ef4444'}} onClick={onGoFire}>DEMITIR</button>
         <button style={{...S.cta, background:'#a16207'}} onClick={onGoReduce}>REDUZIR</button>
         <button 
@@ -62,6 +64,6 @@ export default function RecoveryMenu({
           DECLARAR FALÊNCIA
         </button>
       </div>
-    </div>
+    </>
   )
 }

@@ -95,3 +95,22 @@ test('bridge mobile reage ao viewport real e porta o HUD fora do modal', () => {
   assert.doesNotMatch(bridge, /from ['"]\.\.\/\.\.\/modals\/ModalContext\.jsx['"]/)
   assert.match(bridge, /data-sg-modal-depth|readModalDepthFromDom|sgModalDepth/)
 })
+
+test('consulta mobile cobre só a camada marcada e não deixa inert residual no topo', () => {
+  const bridge = read('src/components/hud/HudConsultBridge.jsx')
+  const css = read('src/modals/decision-hud-bridge.css')
+  assert.match(bridge, /hudConsultCoveredRef|coveredLayerRef/)
+  assert.match(bridge, /dataset\.hudConsultCovered/)
+  assert.match(bridge, /data-modal-top/)
+  // Cleanup usa o nó marcado, não o topo atual (que pode já ser outro diálogo).
+  assert.doesNotMatch(
+    bridge,
+    /return \(\) => \{[\s\S]{0,120}querySelector\('\[data-modal-top="true"]'\)/,
+  )
+  assert.doesNotMatch(bridge, /querySelectorAll\('\[inert]'\)/)
+  assert.doesNotMatch(bridge, /document\.body\.querySelectorAll/)
+  assert.match(
+    css,
+    /data-hud-consult-open="1"[\s\S]{0,180}\[data-modal-top="true"\][\s\S]{0,80}pointer-events:\s*none/,
+  )
+})

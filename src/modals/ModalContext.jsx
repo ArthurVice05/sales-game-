@@ -273,6 +273,8 @@ export function ModalProvider({ children }) {
                   position: 'relative',
                   zIndex: 1,
                   display: isTop ? undefined : 'none',
+                  minHeight: 0,
+                  maxHeight: '100%',
                 }}
                 aria-hidden={isTop ? undefined : true}
                 inert={!isTop ? true : undefined}

@@ -644,6 +644,10 @@
     padding: 8px 10px !important;
   }
 
+  .recovery-card.tileModal .recovery-footer {
+    padding: 8px 10px 10px;
+  }
+
   .recovery-card.tileModal .recovery-row-btns {
     margin-top: 8px !important;
     gap: 8px !important;
@@ -684,6 +688,24 @@
 
 .recovery-card.tileModal .recovery-header {
   flex: 0 0 auto;
+}
+
+.recovery-card.tileModal .recovery-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  overscroll-behavior-y: contain;
+}
+
+.recovery-card.tileModal .recovery-footer {
+  flex: 0 0 auto;
+  min-width: 0;
+  padding: 10px 16px 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  box-sizing: border-box;
 }
 
 .recovery-card.tileModal button {

@@ -29,6 +29,8 @@ describe('Recuperação — um único scroller vertical', () => {
     assert.match(String(S.card.maxHeight), /dvh/)
     assert.doesNotMatch(String(S.card.maxHeight), /^90vh$/)
     assert.equal(S.header.flex, '0 0 auto')
+    assert.equal(S.backdrop.minHeight, 0)
+    assert.equal(S.body.touchAction, 'pan-y')
     assert.match(String(S.backdrop.padding), /safe-area-inset-top/)
     assert.match(String(S.backdrop.padding), /safe-area-inset-right/)
     assert.match(String(S.backdrop.padding), /safe-area-inset-bottom/)
@@ -71,6 +73,20 @@ describe('Recuperação — um único scroller vertical', () => {
     const between = reduceSrc.slice(scrollIdx, footerIdx)
     assert.doesNotMatch(between, /rr-footer/)
     assert.match(modalSrc, /className="recovery-header"/)
+  })
+
+  it('menu, demissão e empréstimo mantêm ações fora do corpo rolável', () => {
+    const menu = readFileSync(join(here, '..', 'RecoveryMenu.jsx'), 'utf8')
+    const fire = readFileSync(join(here, '..', 'RecoveryFire.jsx'), 'utf8')
+    const loan = readFileSync(join(here, '..', 'RecoveryLoan.jsx'), 'utf8')
+    for (const [name, src] of [['menu', menu], ['fire', fire], ['loan', loan]]) {
+      const bodyIdx = src.indexOf('className="recovery-body"')
+      const footerIdx = src.indexOf('recovery-footer')
+      assert.ok(bodyIdx >= 0, `${name} tem recovery-body`)
+      assert.ok(footerIdx > bodyIdx, `${name} coloca recovery-footer depois do body`)
+      const bodyChunk = src.slice(bodyIdx, footerIdx)
+      assert.doesNotMatch(bodyChunk, /recovery-row-btns/, `${name}: CTAs não ficam dentro do scroller`)
+    }
   })
 
   it('existe compactação landscape de baixa altura', () => {

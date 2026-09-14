@@ -53,6 +53,7 @@ export default function HudConsultBridge({
   const toggleRef = useRef(null)
   const closeConsultRef = useRef(null)
   const openToggleRef = useRef(null)
+  const coveredLayerRef = useRef(null)
 
   const activeBuyer = buyer || (depth > 0 ? fallbackPlayer : null)
   const consultTotals = useMemo(
@@ -158,26 +159,39 @@ export default function HudConsultBridge({
   }, [depth])
 
   // Com consulta mobile aberta: formulário permanece montado, sem interação.
+  // Marca o nó concreto — cleanup não consulta o topo atual (pode já ser outro diálogo).
   useEffect(() => {
     if (typeof document === 'undefined') return undefined
-    const layer = document.querySelector('[data-modal-top="true"]')
-    if (mobilePanelOpen && layer) {
-      layer.setAttribute('inert', '')
-      layer.setAttribute('aria-hidden', 'true')
-      layer.dataset.hudConsultCovered = '1'
-    } else if (layer?.dataset.hudConsultCovered === '1') {
-      layer.removeAttribute('inert')
-      layer.removeAttribute('aria-hidden')
-      delete layer.dataset.hudConsultCovered
+
+    const uncoverConsultLayer = (el) => {
+      if (!el) return
+      delete el.dataset.hudConsultCovered
+      const stillTop = el.getAttribute('data-modal-top') === 'true'
+      if (!stillTop) return
+      el.removeAttribute('inert')
+      el.removeAttribute('aria-hidden')
     }
-    return () => {
-      const el = document.querySelector('[data-modal-top="true"]')
-      if (el?.dataset.hudConsultCovered === '1') {
-        el.removeAttribute('inert')
-        el.removeAttribute('aria-hidden')
-        delete el.dataset.hudConsultCovered
+
+    if (mobilePanelOpen) {
+      const layer = document.querySelector('[data-modal-top="true"]')
+      if (coveredLayerRef.current && coveredLayerRef.current !== layer) {
+        uncoverConsultLayer(coveredLayerRef.current)
+      }
+      if (layer) {
+        layer.setAttribute('inert', '')
+        layer.setAttribute('aria-hidden', 'true')
+        layer.dataset.hudConsultCovered = '1'
+        coveredLayerRef.current = layer
+      }
+      return () => {
+        uncoverConsultLayer(coveredLayerRef.current)
+        coveredLayerRef.current = null
       }
     }
+
+    uncoverConsultLayer(coveredLayerRef.current)
+    coveredLayerRef.current = null
+    return undefined
   }, [mobilePanelOpen])
 
   useEffect(() => {

@@ -55,6 +55,36 @@ describe('Recovery × HUD — regiões distintas', () => {
   })
 })
 
+describe('Recuperação — cadeia de altura mobile (scroll por toque)', () => {
+  it('backdrop e card encolhem: flex + min-height 0, sem grid que impede o shrink', () => {
+    assert.equal(S.backdrop.display, 'flex')
+    assert.equal(S.backdrop.flexDirection, 'column')
+    assert.equal(S.backdrop.minHeight, 0)
+    assert.equal(S.card.minHeight, 0)
+    assert.equal(S.body.minHeight, 0)
+    assert.equal(S.body.overflowY, 'auto')
+    assert.equal(S.body.touchAction, 'pan-y')
+  })
+
+  it('mobile limita a camada da recuperação à área útil e deixa um único scroller', () => {
+    const css = read('modals/decision-hud-bridge.css')
+    const mobile = mediaBlock(css, '@media (max-width: 1199px)')
+    assert.ok(mobile.length > 80, 'bloco mobile da ponte deve existir')
+    assert.match(mobile, /:has\(\.recovery-backdrop\)/)
+    assert.match(mobile, /align-items:\s*stretch/)
+    assert.match(mobile, /min-height:\s*0/)
+    const recoveryBackdrop = mobile.match(/\.recovery-backdrop\s*\{[^}]+\}/)
+    assert.ok(recoveryBackdrop, 'mobile deve limitar .recovery-backdrop')
+    assert.match(recoveryBackdrop[0], /min-height:\s*0/)
+    assert.match(recoveryBackdrop[0], /max-height:\s*100%/)
+    const recoveryCard = mobile.match(/\.recovery-card\s*\{[^}]+\}/)
+    assert.ok(recoveryCard, 'mobile deve limitar .recovery-card')
+    assert.match(recoveryCard[0], /min-height:\s*0/)
+    assert.match(recoveryCard[0], /max-height:\s*100%/)
+    assert.doesNotMatch(mobile, /transform:\s*scale/)
+  })
+})
+
 describe('Aba Empresa — notebook 1366×768', () => {
   it('existe compactação de densidade para viewport notebook sem scale', () => {
     const css = read('components/hud/desktop-hud.css')
