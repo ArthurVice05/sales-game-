@@ -158,8 +158,8 @@ export default function HudDesktopSidebar({
           <section className="hudCard hudCard--capacity">
             <h3 className="hudCardTitle">Capacidade &amp; Clientes</h3>
             <div className="hudGaugeRow hudGaugeRow--compact">
-              {gauges.map((gauge) => (
-                <HudGauge key={gauge.key} {...gauge} />
+              {gauges.map(({ key, ...gaugeProps }) => (
+                <HudGauge key={key} {...gaugeProps} />
               ))}
             </div>
           </section>
