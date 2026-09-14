@@ -1086,21 +1086,40 @@
 }
 .sg40GameBoard__spectatorsCount{ font-variant-numeric: tabular-nums; }
 
-/* Telas pequenas: o baralho tem tamanho fixo (88x132px) e, num tabuleiro
-   proporcionalmente menor, cobre todo o canto superior esquerdo do miolo
-   (medido em 858x394: baralho de 3,1% a 39,2% da largura). Não sobra vão de
-   32px ali, então o contador vai para a faixa livre logo à direita dele,
-   ainda na parte de cima e sem encostar em casas, tokens ou logo. */
+/* Telas pequenas: mantém o contador compacto dentro do miolo do tabuleiro,
+   no canto superior direito e afastado das casas do percurso. */
 @media (max-width: 960px) and (orientation: landscape) {
   .sg40GameBoard__spectators{
-    top: 9%;
-    left: 42%;
+    top: 13%;
+    right: 9%;
+    left: auto;
+    min-width: 24px;
+    min-height: 24px;
+    gap: 3px;
+    padding: 3px 6px;
+    font-size: 10px;
+  }
+
+  .sg40GameBoard__spectators svg{
+    width: 11px;
+    height: 11px;
   }
 }
 
 @media (orientation: portrait) and (max-width: 599px) {
   .sg40GameBoard__spectators{
-    top: 9%;
-    left: 42%;
+    top: 13%;
+    right: 9%;
+    left: auto;
+    min-width: 24px;
+    min-height: 24px;
+    gap: 3px;
+    padding: 3px 6px;
+    font-size: 10px;
+  }
+
+  .sg40GameBoard__spectators svg{
+    width: 11px;
+    height: 11px;
   }
 }
