@@ -713,6 +713,36 @@
   font-family: inherit;
 }
 
+/* Menu / Demitir / Empréstimo: wrapper flex (desktop = body rola; mobile baixo = flow rola). */
+.recovery-card.tileModal:not(.recovery-card--reduce) .recovery-flow {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+@media (max-width: 1199px) and (max-height: 700px) {
+  .recovery-card.tileModal:not(.recovery-card--reduce) .recovery-flow {
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    overscroll-behavior-y: contain;
+  }
+
+  .recovery-card.tileModal:not(.recovery-card--reduce) .recovery-body {
+    flex: 0 0 auto !important;
+    min-height: auto !important;
+    height: auto;
+    overflow: visible !important;
+  }
+
+  .recovery-card.tileModal:not(.recovery-card--reduce) .recovery-footer {
+    flex: 0 0 auto;
+    position: static;
+  }
+}
+
 @media (orientation: landscape) and (max-height: 430px) {
   .recovery-card.tileModal {
     max-height: min(100dvh, calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)));

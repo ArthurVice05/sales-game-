@@ -13,7 +13,7 @@ export default function RecoveryMenu({
   onDeclareBankruptcy
 }) {
   return (
-    <>
+    <div className="recovery-flow">
       <div className="recovery-body" style={S.body}>
         <p style={S.lead}>
           Recuperação financeira: use para recuperar caixa e evitar falência.
@@ -64,6 +64,6 @@ export default function RecoveryMenu({
           DECLARAR FALÊNCIA
         </button>
       </div>
-    </>
+    </div>
   )
 }

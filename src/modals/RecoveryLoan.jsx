@@ -68,7 +68,7 @@ export default function RecoveryLoan({
   }
 
   return (
-    <>
+    <div className="recovery-flow">
       <div className="recovery-body" style={S.body}>
         <div style={S.subHeader}>
           <b style={{ fontSize: 20 }}>EMPRÉSTIMO</b>
@@ -145,6 +145,6 @@ export default function RecoveryLoan({
           Pegar Empréstimo
         </button>
       </div>
-    </>
+    </div>
   )
 }

@@ -11,8 +11,12 @@ import S from '../recoveryStyles.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const css = readFileSync(join(here, '..', 'recoveryReduce.css'), 'utf8')
+const tileCss = readFileSync(join(here, '..', 'tile-modal.css'), 'utf8')
 const reduceSrc = readFileSync(join(here, '..', 'RecoveryReduce.jsx'), 'utf8')
 const modalSrc = readFileSync(join(here, '..', 'RecoveryModal.jsx'), 'utf8')
+const menuSrc = readFileSync(join(here, '..', 'RecoveryMenu.jsx'), 'utf8')
+const fireSrc = readFileSync(join(here, '..', 'RecoveryFire.jsx'), 'utf8')
+const loanSrc = readFileSync(join(here, '..', 'RecoveryLoan.jsx'), 'utf8')
 
 function ruleBlock(source, selector) {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -77,16 +81,13 @@ describe('Recuperação — um único scroller vertical', () => {
   })
 
   it('menu, demissão e empréstimo mantêm ações fora do corpo rolável', () => {
-    const menu = readFileSync(join(here, '..', 'RecoveryMenu.jsx'), 'utf8')
-    const fire = readFileSync(join(here, '..', 'RecoveryFire.jsx'), 'utf8')
-    const loan = readFileSync(join(here, '..', 'RecoveryLoan.jsx'), 'utf8')
-    for (const [name, src] of [['menu', menu], ['fire', fire], ['loan', loan]]) {
+    for (const [name, src] of [['menu', menuSrc], ['fire', fireSrc], ['loan', loanSrc]]) {
       const bodyIdx = src.indexOf('className="recovery-body"')
       const footerIdx = src.indexOf('recovery-footer')
       assert.ok(bodyIdx >= 0, `${name} tem recovery-body`)
       assert.ok(footerIdx > bodyIdx, `${name} coloca recovery-footer depois do body`)
       const bodyChunk = src.slice(bodyIdx, footerIdx)
-      assert.doesNotMatch(bodyChunk, /recovery-row-btns/, `${name}: CTAs não ficam dentro do scroller`)
+      assert.doesNotMatch(bodyChunk, /recovery-row-btns/, `${name}: CTAs não ficam dentro de recovery-body`)
     }
   })
 
@@ -256,6 +257,59 @@ describe('Recuperação reduzir — um scroller em viewport baixa', () => {
     assert.match(scroll, /overflow-y:\s*auto/)
     const footer = ruleBlock(css, '.rr-footer')
     assert.match(footer, /flex:\s*0\s+0\s+auto/)
+  })
+})
+
+describe('Recuperação menu/demitir/empréstimo — um scroller em viewport baixa', () => {
+  const query = '@media (max-width: 1199px) and (max-height: 700px)'
+
+  it('menu, demissão e empréstimo envolvem conteúdo e ações no mesmo recovery-flow', () => {
+    for (const [name, src] of [['menu', menuSrc], ['fire', fireSrc], ['loan', loanSrc]]) {
+      const flowIdx = src.indexOf('className="recovery-flow"')
+      const bodyIdx = src.indexOf('className="recovery-body"')
+      const footerIdx = src.indexOf('recovery-footer')
+      assert.ok(flowIdx >= 0, `${name} tem recovery-flow`)
+      assert.ok(bodyIdx > flowIdx && footerIdx > bodyIdx, `${name}: body e footer dentro do flow`)
+    }
+    assert.doesNotMatch(reduceSrc, /recovery-flow/)
+    assert.doesNotMatch(css, /recovery-flow/)
+  })
+
+  it('mobile baixo: recovery-flow rola; body deixa de ser scroller interno', () => {
+    const block = mediaBlock(tileCss, query)
+    assert.ok(block.length > 80, 'tile-modal deve repetir o breakpoint do Reduzir')
+    assert.match(block, /:not\(\.recovery-card--reduce\)/)
+
+    const flow = block.match(/\.recovery-flow\s*\{[^}]+\}/)
+    assert.ok(flow, '.recovery-flow deve rolar neste modo')
+    assert.match(flow[0], /overflow-y:\s*auto/)
+    assert.match(flow[0], /overflow-x:\s*hidden/)
+    assert.match(flow[0], /-webkit-overflow-scrolling:\s*touch/)
+    assert.match(flow[0], /touch-action:\s*pan-y/)
+    assert.match(flow[0], /overscroll-behavior-y:\s*contain/)
+
+    const body = block.match(/\.recovery-body\s*\{[^}]+\}/)
+    assert.ok(body)
+    assert.match(body[0], /overflow:\s*visible/)
+    assert.match(body[0], /flex:\s*0\s+0\s+auto/)
+
+    const footer = block.match(/\.recovery-footer\s*\{[^}]+\}/)
+    assert.ok(footer)
+    assert.match(footer[0], /flex:\s*0\s+0\s+auto/)
+    assert.doesNotMatch(footer[0], /position:\s*sticky/)
+    assert.doesNotMatch(footer[0], /position:\s*fixed/)
+
+    assert.doesNotMatch(block, /transform:\s*scale/)
+    assert.doesNotMatch(block, /font-size:\s*1[0-2]px/)
+    assert.doesNotMatch(block, /\.recovery-header\s*\{/)
+  })
+
+  it('desktop preserva body como scroller e não compacta o cabeçalho destas telas', () => {
+    const baseFlow = tileCss.match(/\.recovery-card\.tileModal:not\(\.recovery-card--reduce\) \.recovery-flow\s*\{[^}]+\}/)
+    assert.ok(baseFlow)
+    assert.doesNotMatch(baseFlow[0], /overflow-y:\s*auto/)
+    assert.match(S.body.overflowY, /auto/)
+    assert.equal(S.header.flex, '0 0 auto')
   })
 })
 

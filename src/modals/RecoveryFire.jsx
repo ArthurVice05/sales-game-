@@ -76,7 +76,7 @@ export default function RecoveryFire({ roles = [], onBack, onConfirm }) {
   }
 
   return (
-    <>
+    <div className="recovery-flow">
       <div className="recovery-body" style={S.body}>
         <div style={S.subHeader}><b style={{fontSize:20}}>DEMITIR FUNCIONÁRIOS</b></div>
         <p style={{ opacity: 0.9, marginBottom: 12, lineHeight: 1.45 }}>
@@ -157,6 +157,6 @@ export default function RecoveryFire({ roles = [], onBack, onConfirm }) {
           </button>
         </div>
       </div>
-    </>
+    </div>
   )
 }
