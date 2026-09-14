@@ -15,6 +15,8 @@ import { isDevVerbose } from '../game/debugFlags.js'
 
 const DEV_NET_LOGS = isDevVerbose()
 const LOOKUP_BACKOFF_MS = [250, 500, 1000]
+export const GAME_STATE_POLL_INTERVAL_MS = 10_000
+export const REALTIME_SILENCE_BEFORE_POLL_MS = 5_000
 
 function netLog(tag, payload) {
   if (!DEV_NET_LOGS) return
@@ -376,7 +378,7 @@ function GameNetProvider({ roomCode, hostId, readOnly = false, children }) {
     if (!enabled) return
     const pollCode = code
     const id = setInterval(async () => {
-      if (Date.now() - (lastEvtRef.current || 0) < 2000) return
+      if (Date.now() - (lastEvtRef.current || 0) < REALTIME_SILENCE_BEFORE_POLL_MS) return
       if (activeCodeRef.current !== pollCode) return
 
       const lookup = await getLatestRoomByCode(pollCode)
@@ -416,7 +418,7 @@ function GameNetProvider({ roomCode, hostId, readOnly = false, children }) {
           },
         )
       }
-    }, 700)
+    }, GAME_STATE_POLL_INTERVAL_MS)
     return () => clearInterval(id)
   }, [enabled, code])
 

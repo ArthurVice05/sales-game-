@@ -816,3 +816,39 @@
     padding-right: max(10px, env(safe-area-inset-right, 0px));
   }
 }
+.tileRevenueRecipient {
+  margin: 10px 0 0;
+  color: #e8eefc;
+}
+
+.tileRevenueBalance {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 14px 0 0;
+}
+
+.tileRevenueBalance > div {
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.5);
+}
+
+.tileRevenueBalance dt {
+  color: #aeb9cc;
+  font-size: 0.85rem;
+}
+
+.tileRevenueBalance dd {
+  margin: 3px 0 0;
+  color: #f8fafc;
+  font-weight: 800;
+}
+
+@media (max-width: 520px) {
+  .tileRevenueBalance {
+    grid-template-columns: 1fr;
+  }
+}

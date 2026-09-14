@@ -6,7 +6,6 @@ import {
   onLobbyRealtime,
   leaveLobby,
   setReady,
-  setLobbyStatus,
   startMatch,
   joinLobby,
   setPlayerName,
@@ -521,8 +520,6 @@ export default function PlayersLobby({ lobbyId, playerName, onBack, onStartGame 
 
   async function handleStart() {
     if (!canStart) return
-    const prev = lobby?.status
-    await setLobbyStatus(lobbyId, 'locked')   // trava a sala
     try {
       // ✅ CORREÇÃO: Busca lista "fresh" do banco no momento do clique
       // WHY: O estado local "players" pode estar desatualizado (ex: 2 jogadores em vez de 3)
@@ -532,7 +529,6 @@ export default function PlayersLobby({ lobbyId, playerName, onBack, onStartGame 
       const allReady = currentPlayers.every(p => p.ready)
       if (!allReady || currentPlayers.length === 0) {
         console.warn('[handleStart] Nem todos prontos ou lista vazia:', currentPlayers)
-        await setLobbyStatus(lobbyId, prev || 'open') // rollback
         return
       }
       
@@ -543,7 +539,7 @@ export default function PlayersLobby({ lobbyId, playerName, onBack, onStartGame 
         botsEnabled,
       })
       const botConfig = normalizeBotConfig({ count: freshBotCount })
-      const match = await startMatch({ lobbyId })
+      const match = await startMatch({ lobbyId, hostPlayerId: meId })
       navigatedOnce.current = true
       const normalized = currentPlayers.map((p, i) => ({ id: p.player_id, name: p.player_name, index: i }))
       const startResult = await Promise.resolve(onStartGame?.({
@@ -559,11 +555,9 @@ export default function PlayersLobby({ lobbyId, playerName, onBack, onStartGame 
       }))
       if (startResult && startResult.ok === false) {
         navigatedOnce.current = false
-        await setLobbyStatus(lobbyId, prev || 'open')
       }
     } catch (e) {
       console.error('startMatch failed', e)
-      await setLobbyStatus(lobbyId, prev || 'open') // rollback
     }
   }
 

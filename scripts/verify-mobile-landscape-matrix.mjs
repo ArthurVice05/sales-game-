@@ -10,7 +10,6 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import { createConnection } from 'node:net'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { BOARD_ASPECT } from '../src/components/hud/fitBoardInSlot.js'
 import { stressLandscapeViewports } from '../src/components/hud/mobileLandscapeViewports.js'
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -23,6 +22,7 @@ const CHROME_CANDIDATES = [
   'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
   'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
   'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+  'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
 ].filter(Boolean)
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -188,9 +188,6 @@ async function startLocalMatch(ws, sessionId) {
     true
   `)
   await waitFor(ws, sessionId, `!!document.querySelector('.sg40GameBoard')`, 20000)
-  await waitFor(ws, sessionId, `!!document.querySelector('.localHandoffButton:not(:disabled)')`, 20000)
-  await evaluate(ws, sessionId, `document.querySelector('.localHandoffButton:not(:disabled)')?.click(); true`)
-  await waitFor(ws, sessionId, `!document.querySelector('.localHandoff')`, 8000)
   await evaluate(ws, sessionId, `
     (() => {
       const tutorial = document.querySelector('.tutorialBtnGhost, .tutorialCloseX')
@@ -250,9 +247,9 @@ const MEASURE = `
 `
 
 function rowOk(row) {
-  const aspectOk = row.width >= 1200
-    ? true
-    : Math.abs(row.aspect - BOARD_ASPECT) < 0.08
+  // No chrome móvel o tabuleiro preenche o slot responsivo; a proporção varia
+  // com a tela. O contrato visual é permanecer paisagem, inteiro e clicável.
+  const aspectOk = Number.isFinite(row.aspect) && row.aspect > 1
   const chromeOk = row.width >= 1200
     ? row.desktopHeader === true && row.topbar === false
     : row.desktopHeader === false && row.topbar === true

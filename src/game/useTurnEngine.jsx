@@ -73,6 +73,7 @@ import {
 } from './turnLockSafety.js'
 import { isHandoffPendingObsolete, shouldDiscardSameSeatHandoffPending } from './turnStateMonotonic.js'
 import { decideMatchTransientEndgameReset } from './matchEntryReadiness.js'
+import { applyMonthlyRevenueCredit } from './revenueCredit.js'
 import {
   applyBankruptcyState,
   planMatchForfeit,
@@ -2812,8 +2813,16 @@ export function useTurnEngine({
           if (ev.type === 'REVENUE') {
             openingModalRef.current = true
             const fat = Math.max(0, Math.floor(computeFaturamentoFor(meNow)))
+            const cashBefore = Number(meNow.cash) || 0
             console.log('[LOAN DEBUG] revenue/arm', { ownerId, before: meNow.loanPending || null })
-            await openModalAndWait(<FaturamentoDoMesModal value={fat} />)
+            await openModalAndWait(
+              <FaturamentoDoMesModal
+                value={fat}
+                playerName={meNow.name || 'Jogador'}
+                cashBefore={cashBefore}
+                cashAfter={cashBefore + fat}
+              />
+            )
 
             localPlayers = mapById(localPlayers, ownerId, (p) => {
               const lp = p.loanPending || null
@@ -2824,8 +2833,7 @@ export function useTurnEngine({
                 lp.eligibleOnExpenses !== true
 
               return {
-                ...p,
-                cash: (Number(p.cash) || 0) + fat,
+                ...applyMonthlyRevenueCredit(p, fat),
                 ...(shouldArmLoan
                   ? { loanPending: armLoanAfterRevenue(lp) }
                   : {}),

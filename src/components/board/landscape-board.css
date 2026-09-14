@@ -551,7 +551,7 @@
   }
 }
 
-@media (orientation: portrait) and (max-width: 599px) {
+@media (orientation: portrait) and (max-width: 1199px) {
   .sg40GameBoard {
     --sg40-icon-slot: clamp(16px, 5.4vw, 22px);
     --sg40-well-molding: 5px;
@@ -976,7 +976,7 @@
   }
 }
 
-@media (orientation: portrait) and (max-width: 599px) {
+@media (orientation: portrait) and (max-width: 1199px) {
   .sg40GameBoard .sg40Preview__tile {
     container-type: size;
     padding-top: 2px;
@@ -1004,13 +1004,14 @@
     hyphens: none;
     font-stretch: condensed;
     font-size: clamp(
-      5.5px,
+      3.75px,
       min(
-        calc(100cqw / (var(--sg40-longest, 8) * 0.56)),
+        calc(100cqw / var(--sg40-longest, 8)),
         calc(100cqh / 5.5)
       ),
       9px
     );
+    line-height: 1;
   }
 }
 

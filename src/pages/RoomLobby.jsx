@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   getLobby, listLobbyPlayers, onLobbyPlayersRealtime, leaveLobby,
-  setPlayerReady, setLobbyStatus, startMatch
+  setPlayerReady, startMatch
 } from '../lib/lobbies'
 import { getOrCreateLocalPlayerId, getOrSetPlayerName } from '../auth'
 
@@ -56,10 +56,9 @@ export default function RoomLobby({ lobbyId, onLeave, onStartGame }) {
     setStarting(true)
     try {
       // marca a sala como "started" e cria o match básico
-      await startMatch({ lobbyId })
-      await setLobbyStatus(lobbyId, 'started')
+      const match = await startMatch({ lobbyId, hostPlayerId: meId })
       // devolve a lista dos jogadores para você inicializar o tabuleiro
-      onStartGame?.({ players })
+      onStartGame?.({ players, matchId: match?.id })
     } finally {
       setStarting(false)
     }

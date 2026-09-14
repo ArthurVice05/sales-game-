@@ -8,8 +8,18 @@ import "./tile-modal.css";
  * Fecha usando `onResolve`, que é injetado pelo ModalProvider
  * quando a modal é aberta via `pushModal(<FaturamentoMesModal ... />)`.
  */
-export default function FaturamentoMesModal({ value = 0, onResolve }) {
+const formatMoney = (value) => Number(value || 0).toLocaleString('pt-BR')
+
+export default function FaturamentoMesModal({
+  value = 0,
+  playerName = 'Jogador',
+  cashBefore = 0,
+  cashAfter,
+  onResolve,
+}) {
   const v = Number(value || 0);
+  const before = Number(cashBefore || 0)
+  const after = Number.isFinite(Number(cashAfter)) ? Number(cashAfter) : before + v
   const didResolveRef = useRef(false);
 
   const finish = (payload) => {
@@ -43,9 +53,14 @@ export default function FaturamentoMesModal({ value = 0, onResolve }) {
         <p className="purchasePreviewHint">
           Será creditado o valor do faturamento ao seu saldo
         </p>
+        <p className="tileRevenueRecipient"><strong>Empresa:</strong> {playerName}</p>
         <div className="tileValueHuge tileValueHuge--pos">
-          $ {v.toLocaleString()}
+          R$ {formatMoney(v)}
         </div>
+        <dl className="tileRevenueBalance" aria-label="Saldo antes e depois do faturamento">
+          <div><dt>Saldo anterior</dt><dd>R$ {formatMoney(before)}</dd></div>
+          <div><dt>Saldo após crédito</dt><dd>R$ {formatMoney(after)}</dd></div>
+        </dl>
       </div>
       <footer className="tileModalFooter">
         <button type="button" onClick={handleOk} className="tileModalBtn tileModalBtn--confirm">

@@ -44,7 +44,8 @@ export function onLobbiesRealtime(cb) {
   const ch = supabase
     .channel('lobbies-list')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'lobbies' }, () => cb?.())
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'lobby_players' }, () => cb?.())
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'lobby_players' }, () => cb?.())
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'lobby_players' }, () => cb?.())
     .subscribe()
   return () => supabase.removeChannel(ch)
 }
@@ -93,7 +94,13 @@ export async function deleteLobbyIfEmpty(lobbyId) {
 /* ==============================
    ENTRAR / SAIR / JOGADORES
    ============================== */
-export async function joinLobby({ lobbyId, playerId, playerName, ready = false }) {
+function isMissingRpc(error) {
+  return error?.code === 'PGRST202'
+    || error?.code === '42883'
+    || /function .* does not exist|schema cache/i.test(String(error?.message || ''))
+}
+
+async function joinLobbyLegacy({ lobbyId, playerId, playerName, ready }) {
   const { data: lobby, error: e1 } = await supabase
     .from('lobbies')
     .select('id, max_players, status, host_id')
@@ -132,6 +139,25 @@ export async function joinLobby({ lobbyId, playerId, playerName, ready = false }
   if (!lobby.host_id) {
     await supabase.from('lobbies').update({ host_id: playerId }).eq('id', lobbyId)
   }
+}
+
+export async function joinLobby({ lobbyId, playerId, playerName, ready = false }) {
+  // [SYNC FIX] expõe meu player_id do lobby para o app (mesma semântica do Firebase)
+  try { window.__MY_UID = playerId } catch {}
+
+  if (typeof supabase?.rpc === 'function') {
+    const { error } = await supabase.rpc('join_lobby_atomic', {
+      p_lobby_id: lobbyId,
+      p_player_id: playerId,
+      p_player_name: playerName,
+      p_ready: !!ready,
+    })
+    if (!error) return
+    if (!isMissingRpc(error)) throw error
+    console.warn('[lobby] RPC join_lobby_atomic indisponível; usando compatibilidade temporária.')
+  }
+
+  return joinLobbyLegacy({ lobbyId, playerId, playerName, ready })
 }
 
 export async function leaveLobby({ lobbyId, playerId }) {
@@ -259,7 +285,7 @@ export async function getLobby(lobbyId) {
 }
 
 /** Registro do início da partida (retorna o id do match) */
-export async function startMatch({ lobbyId }) {
+async function startMatchLegacy({ lobbyId, hostPlayerId }) {
   const { data: players } = await supabase
     .from('lobby_players')
     .select('player_id, player_name, ready')
@@ -269,14 +295,35 @@ export async function startMatch({ lobbyId }) {
     .from('matches')
     .insert({
       lobby_id: lobbyId,
-      host_id: players?.[0]?.player_id || null,
+      host_id: hostPlayerId || players?.[0]?.player_id || null,
       state: { players },
       created_at: new Date().toISOString(),
     })
     .select('id')
     .single()
   if (error) throw error
+
+  const { error: statusError } = await supabase
+    .from('lobbies')
+    .update({ status: 'locked' })
+    .eq('id', lobbyId)
+  if (statusError) throw statusError
+
   return data
+}
+
+export async function startMatch({ lobbyId, hostPlayerId }) {
+  if (typeof supabase?.rpc === 'function') {
+    const { data, error } = await supabase.rpc('start_match_atomic', {
+      p_lobby_id: lobbyId,
+      p_host_player_id: hostPlayerId,
+    })
+    if (!error) return data
+    if (!isMissingRpc(error)) throw error
+    console.warn('[lobby] RPC start_match_atomic indisponível; usando compatibilidade temporária.')
+  }
+
+  return startMatchLegacy({ lobbyId, hostPlayerId })
 }
 
 /** Obtém o match mais recente da sala (para sincronizar a navegação) */
