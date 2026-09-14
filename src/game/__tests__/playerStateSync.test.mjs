@@ -186,8 +186,15 @@ describe('BASELINE / STALE PATCH', () => {
     const next = [{ id: 'a', cash: 11000, pos: 2 }]
     const delta = buildPlayersDeltaById(playersBeforeRef, next, 'act-1')
     const applied = applyGamePatchToState(
-      { players: playersBeforeRef, turnSeq: 1 },
-      { playersDeltaById: delta, statePatch: { kind: 'PLAYER_DELTA' } }
+      { players: playersBeforeRef, turnSeq: 1, turnPlayerId: 'a' },
+      {
+        playersDeltaById: delta,
+        statePatch: {
+          kind: 'PLAYER_DELTA',
+          _expectTurnPlayerId: 'a',
+          _expectTurnSeq: 1,
+        },
+      }
     )
     assert.equal(applied.ok, true)
     playersBeforeRef = applied.state.players
@@ -223,8 +230,13 @@ describe('BASELINE / STALE PATCH', () => {
 
     const retry = applyGamePatchToState(remote, {
       playersDeltaById: { a: { pos: 4 } },
-      statePatch: { kind: 'PLAYER_DELTA' },
+      statePatch: {
+        kind: 'PLAYER_DELTA',
+        _expectTurnPlayerId: 'a',
+        _expectTurnSeq: 2,
+      },
     })
+    assert.equal(retry.ok, true)
     assert.equal(retry.state.players[0].cash, 12000)
   })
 
@@ -242,7 +254,11 @@ describe('BASELINE / STALE PATCH', () => {
       playersDeltaById: {
         a: { pos: 2 }, // sem cash
       },
-      statePatch: { kind: 'PLAYER_DELTA' },
+      statePatch: {
+        kind: 'PLAYER_DELTA',
+        _expectTurnPlayerId: 'a',
+        _expectTurnSeq: 4,
+      },
     })
     assert.equal(result.ok, true)
     assert.equal(result.state.players.find((p) => p.id === 'a').cash, 12000)

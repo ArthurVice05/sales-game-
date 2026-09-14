@@ -25,6 +25,7 @@ import {
   MIN_ROUNDS,
   normalizeMaxRounds,
 } from '../game/roundConfig'
+import { normalizeLobbyPlayersForStart } from '../game/lobbySeatOrder.js'
 import {
   DEFAULT_TURN_TIME_SEC,
   TURN_TIME_PRESETS,
@@ -254,11 +255,7 @@ export default function PlayersLobby({ lobbyId, playerName, onBack, onStartGame 
     if (!currentPlayers || currentPlayers.length === 0) {
       currentPlayers = await listLobbyPlayers(lobbyId)
     }
-    const normalized = (currentPlayers || []).map((p, i) => ({
-      id: p.player_id,
-      name: p.player_name,
-      index: i,
-    }))
+    const normalized = normalizeLobbyPlayersForStart(currentPlayers || [])
     onStartGame?.({
       lobbyId,
       matchId: match.id,
@@ -541,7 +538,7 @@ export default function PlayersLobby({ lobbyId, playerName, onBack, onStartGame 
       const botConfig = normalizeBotConfig({ count: freshBotCount })
       const match = await startMatch({ lobbyId, hostPlayerId: meId })
       navigatedOnce.current = true
-      const normalized = currentPlayers.map((p, i) => ({ id: p.player_id, name: p.player_name, index: i }))
+      const normalized = normalizeLobbyPlayersForStart(currentPlayers)
       const startResult = await Promise.resolve(onStartGame?.({
         lobbyId,
         matchId: match?.id,

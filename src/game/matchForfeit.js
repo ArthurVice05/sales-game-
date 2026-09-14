@@ -279,3 +279,32 @@ export function commitBankruptcyAftermath({
     },
   }
 }
+
+export function rebuildPendingAfterBankruptTurn({
+  players,
+  initialPlayerCount = 0,
+  bankruptPlayerId,
+  turnSeq = 0,
+  matchId = null,
+  round = 1,
+  roundFlags = null,
+} = {}) {
+  const aftermath = resolveAftermathAfterBankruptcy({
+    players,
+    initialPlayerCount,
+    bankruptPlayerId,
+  })
+  return {
+    nextPlayers: aftermath.nextPlayers,
+    nextTurnIdx: aftermath.nextTurnIdx,
+    nextTurnPlayerId: aftermath.nextTurnPlayerId,
+    originTurnPlayerId: bankruptPlayerId != null ? String(bankruptPlayerId) : null,
+    originTurnSeq: Number(turnSeq) || 0,
+    matchId: matchId != null ? String(matchId) : null,
+    nextRound: Number(round) || 1,
+    nextRoundFlags: roundFlags,
+    shouldIncrementRound: false,
+    endGame: aftermath.shouldEnd === true,
+    meta: { kind: 'BANKRUPT', source: 'bot-bankruptcy-recovery' },
+  }
+}

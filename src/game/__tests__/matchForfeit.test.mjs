@@ -13,6 +13,7 @@ import {
   decideEndgameAfterBankruptcy,
   resolveAftermathAfterBankruptcy,
   commitBankruptcyAftermath,
+  rebuildPendingAfterBankruptTurn,
 } from '../matchForfeit.js'
 
 const p = (id, over = {}) => ({
@@ -166,6 +167,53 @@ test('aftermath após falência já aplicada: 3 vivos → 2 restam, partida cont
   assert.equal(commit.emitHandoff, true)
   assert.equal(commit.clearPending, false)
   assert.equal(commit.rewritePending.nextTurnPlayerId, 'Carol')
+})
+
+test('refresh em turno de bot já falido reconstrói somente o handoff', () => {
+  const players = [p('Arthur'), p('bot:2'), applyBankruptcyState(p('bot:1'))]
+  const pending = rebuildPendingAfterBankruptTurn({
+    players,
+    initialPlayerCount: 3,
+    bankruptPlayerId: 'bot:1',
+    turnSeq: 12,
+    matchId: 'partida-1',
+    round: 2,
+    roundFlags: [false, true, false],
+  })
+
+  assert.equal(pending.originTurnPlayerId, 'bot:1')
+  assert.equal(pending.originTurnSeq, 12)
+  assert.equal(pending.nextTurnPlayerId, 'Arthur')
+  assert.equal(pending.nextTurnIdx, 0)
+  assert.equal(pending.endGame, false)
+  assert.deepEqual(pending.nextPlayers, players)
+  assert.deepEqual(pending.nextRoundFlags, [false, true, false])
+})
+
+test('1 humano contra 1, 2 ou 3 máquinas sempre remove a máquina falida da rotação', () => {
+  for (const botCount of [1, 2, 3]) {
+    const human = p('human')
+    const bots = Array.from({ length: botCount }, (_, index) => p(`bot:${index + 1}`))
+    for (const bankruptBot of bots) {
+      const bankruptId = bankruptBot.id
+      const players = [human, ...bots].map((player) => (
+        player.id === bankruptId ? applyBankruptcyState(player) : player
+      ))
+      const pending = rebuildPendingAfterBankruptTurn({
+        players,
+        initialPlayerCount: botCount + 1,
+        bankruptPlayerId: bankruptId,
+        turnSeq: 20 + botCount,
+        matchId: `match-${botCount}`,
+        round: 3,
+      })
+
+      assert.notEqual(pending.nextTurnPlayerId, bankruptId)
+      assert.equal(players.find((player) => player.id === pending.nextTurnPlayerId)?.bankrupt, false)
+      assert.equal(pending.endGame, botCount === 1)
+      if (botCount === 1) assert.equal(pending.nextTurnPlayerId, 'human')
+    }
+  }
 })
 
 test('App aplica forfeitMatch antes de leaveRoom no Sair para Lobbies', () => {

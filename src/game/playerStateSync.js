@@ -6,7 +6,16 @@
  */
 
 import { normalizePlayerAliases } from './playerShape.js'
-import { validateTurnCommit, stripCommitMeta } from './turnCommitValidation.js'
+import { inferCommitKind, stripCommitMeta, validateTurnCommit } from './turnCommitValidation.js'
+import {
+  applyDueHumanRevenuesToRoster,
+  isHumanRevenuePaid,
+  planHumanRevenuePersist,
+  stampAndTrimHumanRevenueLastActions,
+} from './humanRevenueCredit.js'
+import { applyDueHumanLuckToRoster, applyHumanLuckCasToState } from './humanLuckCredit.js'
+
+export { applyHumanLuckCasToState } from './humanLuckCredit.js'
 
 /** Cash válido para aplicar em patch: número finito (inclui 0). */
 export function isValidCashPatchValue(value) {
@@ -367,34 +376,116 @@ export function shouldApplyIncomingState({
 }
 
 /**
- * Simula commit patch sobre rooms.state (para testes / CAS retry mental model).
- * Reaplica updater semantics: merge deltas no prev remoto.
+ * Updater CAS de faturamento humano: credita sobre o saldo vigente,
+ * grava recibo (`lastActions`) e `done` na mesma operação.
+ * Ignora cash absoluto pré-calculado no delta (snapshot stale).
  */
+export function applyHumanRevenueCasToState(
+  prevState = {},
+  { playersDeltaById = {}, statePatch = {} } = {},
+  opts = {},
+) {
+  const prev = prevState && typeof prevState === 'object' ? prevState : {}
+  const now = opts.now ?? Date.now()
+  const validation = validateTurnCommit(prev, statePatch, { now })
+  if (!validation.ok) {
+    return { ok: false, state: prev, reason: validation.reason, casLost: true }
+  }
+
+  const actorId = String(statePatch._expectTurnPlayerId ?? '')
+  const incomingDelta = (playersDeltaById && actorId && playersDeltaById[actorId]) || {}
+  const actionId = incomingDelta._actionId || statePatch.actionId || null
+  const prevPlayers = Array.isArray(prev.players) ? prev.players : []
+  const existing = prevPlayers.find((player) => String(player?.id) === actorId) || null
+
+  if (!existing) {
+    return { ok: false, state: prev, reason: 'human-revenue-missing-player', casLost: true }
+  }
+
+  if (isHumanRevenuePaid({
+    player: existing,
+    actionId,
+    effects: existing.humanTurnEffects,
+  })) {
+    return { ok: true, state: prev, reason: 'already-applied', alreadyApplied: true }
+  }
+
+  const plan = planHumanRevenuePersist({
+    matchId: statePatch._expectMatchId ?? prev.matchId,
+    playerId: actorId,
+    turnSeq: statePatch._expectTurnSeq,
+    playerBefore: existing,
+    revenueValue: existing.humanTurnEffects?.revenueValue ?? incomingDelta.humanTurnEffects?.revenueValue,
+    effects: existing.humanTurnEffects || incomingDelta.humanTurnEffects,
+    roster: prevPlayers,
+  })
+
+  if (plan.skip) {
+    return { ok: true, state: prev, reason: 'already-applied', alreadyApplied: true }
+  }
+
+  const stamped = stampAndTrimHumanRevenueLastActions(plan.playerAfter, plan.actionId, now)
+  const nextPlayers = prevPlayers.map((player) =>
+    String(player?.id) === actorId ? stamped : player,
+  )
+  const next = {
+    ...prev,
+    ...stripCommitMeta(statePatch),
+    players: nextPlayers,
+  }
+  return { ok: true, state: next, reason: 'applied', alreadyApplied: false }
+}
+
 /**
  * Simula commit patch sobre rooms.state (para testes / CAS retry mental model).
- * Reaplica updater semantics: merge deltas no prev remoto.
+ * HUMAN_REVENUE/HUMAN_LUCK reaplicam crédito no saldo vigente; ENDGAME liquida faturamentos devidos.
  */
 export function applyGamePatchToState(prevState = {}, { playersDeltaById = {}, statePatch = {} } = {}, opts = {}) {
   const prev = prevState && typeof prevState === 'object' ? prevState : {}
+  const kind = inferCommitKind(statePatch)
 
-  const validation = validateTurnCommit(prev, statePatch, { now: opts.now ?? Date.now() })
+  if (kind === 'HUMAN_REVENUE') {
+    return applyHumanRevenueCasToState(prev, { playersDeltaById, statePatch }, opts)
+  }
+
+  if (kind === 'HUMAN_LUCK') {
+    return applyHumanLuckCasToState(prev, { playersDeltaById, statePatch }, opts)
+  }
+
+  let workingPrev = prev
+  let endgameLiquidated = false
+  if (kind === 'ENDGAME') {
+    const rev = applyDueHumanRevenuesToRoster(prev, { now: opts.now ?? Date.now() })
+    const luck = applyDueHumanLuckToRoster({
+      ...prev,
+      players: Array.isArray(rev.players) ? rev.players : prev.players,
+    }, { now: opts.now ?? Date.now() })
+    workingPrev = {
+      ...prev,
+      players: Array.isArray(luck.players) ? luck.players : (rev.players || prev.players),
+    }
+    endgameLiquidated = (Array.isArray(rev.applied) && rev.applied.length > 0)
+      || (Array.isArray(luck.applied) && luck.applied.length > 0)
+  }
+
+  const validation = validateTurnCommit(workingPrev, statePatch, { now: opts.now ?? Date.now() })
   if (!validation.ok) {
     return { ok: false, state: prev, reason: validation.reason }
   }
 
-  const prevPlayers = Array.isArray(prev.players) ? prev.players : []
+  const prevPlayers = Array.isArray(workingPrev.players) ? workingPrev.players : []
   const mergedPlayers = mergePlayersById(prevPlayers, playersDeltaById, {
     createMissing: false,
   })
 
   const publicPatch = stripCommitMeta(statePatch)
+  const shouldWritePlayers =
+    Object.keys(playersDeltaById || {}).length > 0 || endgameLiquidated
 
   const next = {
-    ...prev,
+    ...workingPrev,
     ...publicPatch,
-    ...(Object.keys(playersDeltaById || {}).length > 0
-      ? { players: mergedPlayers }
-      : {}),
+    ...(shouldWritePlayers ? { players: mergedPlayers } : {}),
   }
 
   return { ok: true, state: next, reason: 'applied' }

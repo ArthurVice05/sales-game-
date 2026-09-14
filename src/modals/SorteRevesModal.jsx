@@ -36,7 +36,7 @@ import './sorte-reves.css'
  * O áudio existente acompanha a revelação; adiantar nunca confirma a carta.
  */
 
-export default function SorteRevesModal({ onResolve, player = {} }) {
+export default function SorteRevesModal({ onResolve, player = {}, cardId = null }) {
   const confirmRef = useRef(null)
   const frameRef = useRef(null)
   const advanceRef = useRef(null)
@@ -44,8 +44,12 @@ export default function SorteRevesModal({ onResolve, player = {} }) {
 
   const CARDS = SORTE_REVES_CARDS
 
-  // Sorteia uma carta ao abrir
-  const [card] = useState(() => CARDS[Math.floor(Math.random() * CARDS.length)])
+  // Quando o movimento já congelou a carta, refresh/retry exibe a mesma.
+  // Jogos antigos continuam sorteando ao abrir.
+  const [card] = useState(() =>
+    CARDS.find((item) => String(item.id) === String(cardId || ''))
+    || CARDS[Math.floor(Math.random() * CARDS.length)],
+  )
 
   // Calcula efeito resolvido para EXIBIÇÃO e para o payload
   // Fonte única: sorteRevesDeck.js (mesma lógica, agora testável sem DOM).

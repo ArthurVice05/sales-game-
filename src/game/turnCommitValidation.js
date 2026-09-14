@@ -5,7 +5,10 @@
 
 import { isBotPlayer } from './bots/botTypes.js'
 import { botLeaseExpired, evaluateBotClaimCas } from './bots/botTurnClaim.js'
+import { validateHumanTransaction } from './humanTurnTransaction.js'
+import { hasUnsettledHumanRevenue, isHumanRevenueDue } from './humanRevenueCredit.js'
 import { shouldAllowRemoteAutoPassThroughLock } from './decisionTimeoutPolicy.js'
+import { SORTE_REVES_CARDS } from '../modals/sorteRevesDeck.js'
 
 export function inferCommitKind(statePatch = {}) {
   if (statePatch._commitKind) return statePatch._commitKind
@@ -13,16 +16,59 @@ export function inferCommitKind(statePatch = {}) {
   if (statePatch.kind === 'LOCK') {
     return statePatch.turnLock ? 'LOCK_ACQUIRE' : 'LOCK_RELEASE'
   }
+  // Movimento humano: kind PLAYER_DELTA sem _commitKind de bot.
+  if (statePatch.kind === 'PLAYER_DELTA') return 'PLAYER_DELTA'
   if (statePatch.kind === 'TURN') {
     if (statePatch.lastAction === 'AUTO_PASS_TIMER') return 'AUTO_PASS'
     if (statePatch._expectTurnPlayerId != null || statePatch._expectTurnSeq != null) {
       return 'NORMAL_HANDOFF'
     }
   }
+  if (statePatch.kind === 'ENDGAME') return 'ENDGAME'
   if (statePatch._expectTurnPlayerId != null || statePatch._expectTurnSeq != null) {
     return 'AUTO_PASS'
   }
   return null
+}
+
+/**
+ * Garante meta CAS em PLAYER_DELTA humano.
+ * Preferência: lastRoll (origem do ROLL) > refs atuais do turno.
+ * Não sobrescreve BOT_MOVE / BOT_EFFECT.
+ */
+export function ensurePlayerDeltaCommitMeta(statePatch = {}, ctx = {}) {
+  const next = statePatch && typeof statePatch === 'object' ? statePatch : {}
+  const commitKind = next._commitKind
+  if (commitKind === 'BOT_MOVE' || commitKind === 'BOT_EFFECT' || commitKind === 'BOT_CLAIM' || commitKind === 'HUMAN_REVENUE' || commitKind === 'HUMAN_LUCK') {
+    return next
+  }
+  if (next.kind !== 'PLAYER_DELTA' && commitKind !== 'PLAYER_DELTA') {
+    return next
+  }
+
+  next._commitKind = commitKind || 'PLAYER_DELTA'
+
+  if (next._expectTurnPlayerId == null) {
+    const fromRoll =
+      next.lastRoll?.playerId != null
+        ? next.lastRoll.playerId
+        : ctx.lastRollPlayerId
+    const id = fromRoll != null ? fromRoll : ctx.turnPlayerId
+    if (id != null && id !== '') next._expectTurnPlayerId = String(id)
+  }
+
+  if (next._expectTurnSeq == null) {
+    const key =
+      next.lastRollTurnKey != null && next.lastRollTurnKey !== ''
+        ? next.lastRollTurnKey
+        : next.lastRoll?.turnKey != null
+          ? next.lastRoll.turnKey
+          : ctx.lastRollTurnKey
+    const seqRaw = key != null && key !== '' ? Number(key) : Number(ctx.turnSeq)
+    if (Number.isFinite(seqRaw)) next._expectTurnSeq = seqRaw
+  }
+
+  return next
 }
 
 export function isSkipAttemptCommitKind(kind) {
@@ -55,6 +101,46 @@ function originTurnMatches(prevState, expectTurnId, expectTurnSeq, expectMatchId
 function remoteTurnPlayer(prevState) {
   const id = prevState?.turnPlayerId != null ? String(prevState.turnPlayerId) : ''
   return (prevState?.players || []).find((p) => String(p?.id) === id) || null
+}
+
+function remoteTurnHasPendingHumanRevenue(prevState) {
+  const current = remoteTurnPlayer(prevState)
+  if (!current) return false
+  return isHumanRevenueDue({
+    player: current,
+    matchId: prevState?.matchId,
+    turnPlayerId: prevState?.turnPlayerId,
+    turnSeq: prevState?.turnSeq,
+  })
+}
+
+function remoteTurnHasPendingHumanLuck(prevState) {
+  const current = remoteTurnPlayer(prevState)
+  const pending = current?.humanLuckPending
+  if (pending) {
+    if (pending.paid === true) return false
+    if (String(pending.turnPlayerId ?? '') !== String(prevState?.turnPlayerId ?? '')) return false
+    if (Number(pending.turnSeq) !== (Number(prevState?.turnSeq) || 0)) return false
+    if (
+      prevState?.matchId
+      && pending.matchId
+      && String(pending.matchId) !== String(prevState.matchId)
+    ) {
+      return false
+    }
+    return pending.payload?.action === 'APPLY_CARD'
+  }
+
+  const effects = current?.humanTurnEffects
+  if (!effects || String(effects.landTile || '').toUpperCase() !== 'LUCK') return false
+  if (effects.processLandTile === false || !effects.luckCardId) return false
+  const fixedCard = SORTE_REVES_CARDS.find((item) => String(item.id) === String(effects.luckCardId))
+  if (fixedCard?.kind !== 'SORTE') return false
+  if (String(effects.turnPlayerId ?? '') !== String(prevState?.turnPlayerId ?? '')) return false
+  if (Number(effects.turnSeq) !== (Number(prevState?.turnSeq) || 0)) return false
+  if (prevState?.matchId && effects.matchId && String(effects.matchId) !== String(prevState.matchId)) return false
+  const actionId = `hum-luck:${String(prevState?.matchId ?? '')}:${String(prevState?.turnPlayerId ?? '')}:${Number(prevState?.turnSeq) || 0}`
+  return !current?.lastActions?.[actionId]
 }
 
 /** Defesa no motor: timer nunca avança turno de máquina. */
@@ -110,10 +196,20 @@ export function validateTurnCommit(prevState = {}, statePatch = {}, { now = Date
 
   const origin = originTurnMatches(prev, expectTurnId, expectTurnSeq, expectMatchId)
   if (!origin.ok) return origin
+  const human = validateHumanTransaction(prev, statePatch, now)
+  if (human && !human.ok) return human
 
   switch (kind) {
+    case 'HUMAN_ROLL_CLAIM':
+      return human || { ok: false, reason: 'invalid-human-claim' }
     case 'AUTO_PASS': {
       if (prev.gameOver) return { ok: false, reason: 'game-over' }
+      if (remoteTurnHasPendingHumanRevenue(prev)) {
+        return { ok: false, reason: 'human-revenue-pending' }
+      }
+      if (remoteTurnHasPendingHumanLuck(prev)) {
+        return { ok: false, reason: 'human-luck-pending' }
+      }
       if (isBotPlayer(remoteTurnPlayer(prev))) {
         return { ok: false, reason: 'bot-timer-auto-pass' }
       }
@@ -155,6 +251,12 @@ export function validateTurnCommit(prevState = {}, statePatch = {}, { now = Date
 
     case 'AUTO_SKIP_OFFLINE': {
       if (prev.gameOver) return { ok: false, reason: 'game-over' }
+      if (remoteTurnHasPendingHumanRevenue(prev)) {
+        return { ok: false, reason: 'human-revenue-pending' }
+      }
+      if (remoteTurnHasPendingHumanLuck(prev)) {
+        return { ok: false, reason: 'human-luck-pending' }
+      }
       if (isBotPlayer(remoteTurnPlayer(prev))) {
         return { ok: false, reason: 'bot-presence-skip' }
       }
@@ -170,9 +272,23 @@ export function validateTurnCommit(prevState = {}, statePatch = {}, { now = Date
 
     case 'NORMAL_HANDOFF': {
       if (prev.gameOver) return { ok: false, reason: 'game-over' }
+      if (remoteTurnHasPendingHumanRevenue(prev)) {
+        return { ok: false, reason: 'human-revenue-pending' }
+      }
+      if (remoteTurnHasPendingHumanLuck(prev)) {
+        return { ok: false, reason: 'human-luck-pending' }
+      }
       const seqCheck = validateNextSeq(statePatch, expectTurnSeq)
       if (!seqCheck.ok) return seqCheck
       return { ok: true, reason: 'normal-handoff-ok' }
+    }
+
+    case 'ENDGAME': {
+      if (prev.gameOver) return { ok: false, reason: 'game-over' }
+      if (hasUnsettledHumanRevenue(prev)) {
+        return { ok: false, reason: 'human-revenue-pending' }
+      }
+      return { ok: true, reason: 'endgame-ok' }
     }
 
     case 'LOCK_RELEASE': {
@@ -250,6 +366,52 @@ export function validateTurnCommit(prevState = {}, statePatch = {}, { now = Date
       return { ok: true, reason: 'lock-acquire-ok' }
     }
 
+    case 'HUMAN_MOVE':
+    case 'HUMAN_REVENUE':
+    case 'HUMAN_LUCK':
+    case 'PLAYER_DELTA': {
+      if (prev.gameOver) return { ok: false, reason: 'game-over' }
+      if (expectTurnId == null || expectTurnSeq == null || !Number.isFinite(expectTurnSeq)) {
+        return { ok: false, reason: 'player-delta-missing-expect' }
+      }
+      if (kind === 'HUMAN_LUCK') {
+        const actor = remoteTurnPlayer(prev)
+        if (!actor || String(actor.id) !== String(expectTurnId)) {
+          return { ok: false, reason: 'human-luck-wrong-player' }
+        }
+        return { ok: true, reason: 'human-luck-ok' }
+      }
+      if (kind === 'HUMAN_REVENUE') {
+        const actor = remoteTurnPlayer(prev)
+        if (!actor || String(actor.id) !== String(expectTurnId)) {
+          return { ok: false, reason: 'human-revenue-wrong-player' }
+        }
+        const effects = actor.humanTurnEffects
+        if (
+          effects &&
+          typeof effects === 'object' &&
+          Number(effects.turnSeq) !== Number(expectTurnSeq)
+        ) {
+          // Plano já substituído por jogada posterior — nunca recredita identidade antiga.
+          return { ok: false, reason: 'human-revenue-stale-plan' }
+        }
+        const due = isHumanRevenueDue({
+          player: actor,
+          matchId: expectMatchId ?? prev.matchId,
+          turnPlayerId: expectTurnId,
+          turnSeq: expectTurnSeq,
+        })
+        if (!due) {
+          // Já pago (lastActions ou done) → idempotente; sem crossedStart → não devido.
+          if (effects?.crossedStart === true) {
+            return { ok: true, reason: 'human-revenue-already-paid' }
+          }
+          return { ok: false, reason: 'human-revenue-not-due' }
+        }
+      }
+      return { ok: true, reason: kind === 'HUMAN_REVENUE' ? 'human-revenue-ok' : kind === 'HUMAN_LUCK' ? 'human-luck-ok' : 'player-delta-ok' }
+    }
+
     default:
       return { ok: true, reason: 'unknown-kind' }
   }
@@ -314,6 +476,11 @@ export function stripCommitMeta(statePatch = {}) {
     _commitKind: _e4,
     _expectMatchId: _e5,
     _expectBotExecutor: _e6,
+    _expectHumanRollId: _e7,
+    _luckPayload: _e8,
+    _luckSkipNegativeCash: _e9,
+    _luckFrozenCashDelta: _e10,
+    _luckPendingOnly: _e11,
     ...publicPatch
   } = statePatch || {}
   return publicPatch
@@ -329,5 +496,10 @@ export function applyBroadcastCommitExpect(statePatch = {}, patch = {}) {
   if (src._expectMatchId !== undefined) next._expectMatchId = src._expectMatchId
   if (src._expectBotExecutor !== undefined) next._expectBotExecutor = src._expectBotExecutor
   if (src._commitKind !== undefined) next._commitKind = src._commitKind
+  if (src._expectHumanRollId !== undefined) next._expectHumanRollId = src._expectHumanRollId
+  if (src._luckPayload !== undefined) next._luckPayload = src._luckPayload
+  if (src._luckSkipNegativeCash !== undefined) next._luckSkipNegativeCash = src._luckSkipNegativeCash
+  if (src._luckFrozenCashDelta !== undefined) next._luckFrozenCashDelta = src._luckFrozenCashDelta
+  if (src._luckPendingOnly !== undefined) next._luckPendingOnly = src._luckPendingOnly
   return next
 }

@@ -1,3 +1,4 @@
+import { gameNow } from '../net/sharedClock.js'
 // src/lib/lobbies.js
 // ✅ CORREÇÃO: Usa o client Supabase unificado
 import { supabase } from './supabaseClient.js'
@@ -66,7 +67,7 @@ export async function createLobby({ name, hostId, max = 4 }) {
     host_id: hostId,
     max_players: Number(max) || 4,
     status: 'open',
-    created_at: new Date().toISOString(),
+    created_at: new Date(gameNow()).toISOString(),
   }
 
   const { data, error } = await supabase
@@ -124,8 +125,8 @@ async function joinLobbyLegacy({ lobbyId, playerId, playerName, ready }) {
     player_id: playerId,
     player_name: playerName,
     ready: !!ready,
-    joined_at: new Date().toISOString(),
-    last_seen: new Date().toISOString(), // ✅ NOVO
+    joined_at: new Date(gameNow()).toISOString(),
+    last_seen: new Date(gameNow()).toISOString(), // ✅ NOVO
   }
 
   const { error: e3 } = await supabase
@@ -297,7 +298,7 @@ async function startMatchLegacy({ lobbyId, hostPlayerId }) {
       lobby_id: lobbyId,
       host_id: hostPlayerId || players?.[0]?.player_id || null,
       state: { players },
-      created_at: new Date().toISOString(),
+      created_at: new Date(gameNow()).toISOString(),
     })
     .select('id')
     .single()
@@ -678,7 +679,7 @@ export async function touchLobbyPlayer({
   if (!supported) return { ok: false, skipped: true }
   if (cancelled()) return { ok: false, skipped: true, cancelled: true }
 
-  const nowIso = new Date().toISOString()
+  const nowIso = new Date(gameNow()).toISOString()
   const { data, error } = await supabase
     .from('lobby_players')
     .update({ last_seen: nowIso })
@@ -782,7 +783,7 @@ export async function listLobbyPresence(lobbyId) {
 
 export function isPresenceFresh(
   lastSeenMs,
-  now = Date.now(),
+  now = gameNow(),
   thresholdMs = GAME_OFFLINE_THRESHOLD_MS
 ) {
   if (lastSeenMs == null || !Number.isFinite(lastSeenMs)) return false
@@ -794,7 +795,7 @@ export function isPresenceFresh(
  * cujo last_seen ainda está fresco. Não usa host.
  * Também usado para escolher quem tenta (e assume) host transfer.
  */
-export function pickSkipCoordinator(rosterPlayers, presenceList, now = Date.now()) {
+export function pickSkipCoordinator(rosterPlayers, presenceList, now = gameNow()) {
   const byId = new Map(
     (presenceList || []).map((p) => [String(p.playerId), p.lastSeen])
   )
@@ -880,7 +881,7 @@ export async function attemptHostTransferFromPresence({
     return { ok: false, error: e }
   }
 
-  const now = Date.now()
+  const now = gameNow()
   const hostLastSeen = (presence || []).find(
     (p) => String(p.playerId) === currentHost
   )?.lastSeen
@@ -917,7 +918,7 @@ export async function attemptHostTransferFromPresence({
     return { ok: true, transferred: false, casLost: true }
   }
 
-  const now2 = Date.now()
+  const now2 = gameNow()
   const hostLastSeen2 = (presence2 || []).find(
     (p) => String(p.playerId) === currentHost
   )?.lastSeen
@@ -1027,7 +1028,7 @@ async function _fixHostsIfNeeded(lobbyIds) {
 
 export async function cleanupLobbiesOnce() {
   const cfg = getLobbyConfig()
-  const now = Date.now()
+  const now = gameNow()
 
   // 1) remover players inativos (precisa last_seen)
   const supported = await isLastSeenSupported()

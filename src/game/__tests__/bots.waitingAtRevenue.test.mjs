@@ -358,7 +358,11 @@ describe('5 — 1 humano + 2 máquinas, maxRounds=5', () => {
             waitingAtRevenue: arthurMoved.waitingAtRevenue,
           },
         },
-        statePatch: { kind: 'PLAYER_DELTA' },
+        statePatch: {
+          kind: 'PLAYER_DELTA',
+          _expectTurnPlayerId: HUMAN_ID,
+          _expectTurnSeq: 48,
+        },
       },
     )
     assert.equal(afterArthur.ok, true)
@@ -385,7 +389,14 @@ describe('5 — 1 humano + 2 máquinas, maxRounds=5', () => {
             _actionId: 'bot-move:wait:bot1:49:tab',
           },
         },
-        statePatch: { kind: 'PLAYER_DELTA' },
+        statePatch: {
+          kind: 'PLAYER_DELTA',
+          _commitKind: 'BOT_MOVE',
+          lastRollTurnKey: '49',
+          _expectTurnPlayerId: BOT1_ID,
+          _expectTurnSeq: 49,
+          _expectLockOwner: HUMAN_ID,
+        },
       },
     )
     assert.equal(afterBot1.ok, true)

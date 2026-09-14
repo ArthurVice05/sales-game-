@@ -320,7 +320,11 @@ describe('4 — Máquina termina primeiro; humano por último; ENDGAME', () => {
             lastRevenueRound: arthurAfterMove.lastRevenueRound,
           },
         },
-        statePatch: { kind: 'PLAYER_DELTA' },
+        statePatch: {
+          kind: 'PLAYER_DELTA',
+          _expectTurnPlayerId: HUMAN_ID,
+          _expectTurnSeq: 9,
+        },
       },
     )
     assert.equal(afterHumanMove.ok, true)

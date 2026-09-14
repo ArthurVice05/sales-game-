@@ -3,6 +3,8 @@ import React, { createContext, useContext, useEffect, useMemo, useRef, useState 
 // use sempre o único client central
 import { supabase } from '../lib/supabaseClient.js'
 import { shouldApplyRemoteRoomRow } from '../game/turnStateMonotonic.js'
+import { syncSharedClock, deadlineNow } from './sharedClock.js'
+import { computeTurnDeadlineAt } from '../game/turnTimerLogic.js'
 
 const Ctx = createContext(null)
 // ✅ CORREÇÃO: useGameNet retorna null de forma segura se não houver provider
@@ -93,6 +95,15 @@ function GameNetProvider({ roomCode, hostId, readOnly = false, children }) {
   const activeRoomIdRef = useRef(null)
   const latestKnownUpdatedAtRef = useRef(null)
   const activeCodeRef = useRef(code)
+  useEffect(() => {
+    if (!enabled) return
+    const sync = () => { syncSharedClock({ force: true }).catch(() => {}) }
+    sync()
+    const timer = setInterval(sync, 30_000)
+    window.addEventListener('focus', sync)
+    document.addEventListener('visibilitychange', sync)
+    return () => { clearInterval(timer); window.removeEventListener('focus', sync); document.removeEventListener('visibilitychange', sync) }
+  }, [enabled])
   useEffect(() => { stateRef.current = state }, [state])
   useEffect(() => { versionRef.current = version }, [version])
   useEffect(() => { stateIdRef.current = stateId }, [stateId])
@@ -428,6 +439,7 @@ function GameNetProvider({ roomCode, hostId, readOnly = false, children }) {
     if (!enabled || !ready) return { ok: false, skipped: true }
     // Sessão read-only (espectador): recebe estado, nunca escreve.
     if (readOnly) return { ok: false, skipped: true, reason: 'read-only-session' }
+    if (!await syncSharedClock()) return { ok: false, reason: 'clock-not-ready' }
 
     const MAX_ATTEMPTS = 3
     const nowISO = new Date().toISOString()
@@ -496,7 +508,18 @@ function GameNetProvider({ roomCode, hostId, readOnly = false, children }) {
       if (current.id) activeRoomIdRef.current = current.id
 
       let base = current.state || {}
-      let next = typeof updater === 'function' ? (updater(base) || {}) : (updater || {})
+      let next = typeof updater === 'function' ? updater(base) : updater
+
+      // Commit rejeitado pelo updater (ex.: validateTurnCommit) devolve a mesma
+      // referência de `base` — não bumpa version/stateId (evita ghost commits).
+      if (next == null || next === base) {
+        return { ok: false, skipped: true, reason: 'rejected-or-noop' }
+      }
+      // Start the next player's full duration when its CAS is actually sent,
+      // not when a previous modal/queued request produced the patch.
+      if (!next.gameOver && (next.turnSeq !== base.turnSeq || next.matchId !== base.matchId)) {
+        next = { ...next, turnDeadlineAt: computeTurnDeadlineAt(deadlineNow(), next.turnTimeSec) }
+      }
 
       // ✅ OBRIGATÓRIO: força um stateId novo a cada commit (evita clientes divergirem em "same version")
       const mkStateId = () => {
@@ -555,7 +578,7 @@ function GameNetProvider({ roomCode, hostId, readOnly = false, children }) {
         if (attempt > 1) {
           console.log(`[NET] commit succeeded on attempt ${attempt}/${MAX_ATTEMPTS}`)
         }
-        return { ok: true }
+        return { ok: true, state: updated.state }
       }
 
       // ✅ CORREÇÃO: Trata conflito de versão, "0 rows", ou "Cannot coerce" como conflito e re-tenta

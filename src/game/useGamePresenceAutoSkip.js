@@ -1,3 +1,4 @@
+import { gameNow } from '../net/sharedClock.js'
 // Presença durante a partida (heartbeat + HUD de ausência).
 // NÃO avança turno por last_seen — isso pulava celular em mesa de 4.
 // Reutiliza lobby_players.last_seen (não toca rooms.state no heartbeat).
@@ -228,7 +229,7 @@ export function useGamePresenceAutoSkip({
       }
       if (cancelled) return
 
-      const now = Date.now()
+      const now = gameNow()
       const turnPresent = isTurnPlayerPresent({
         turnPlayerId: curTurnId,
         presenceList: presence,
@@ -253,7 +254,7 @@ export function useGamePresenceAutoSkip({
         : isTurnPlayerPresent({
             turnPlayerId: curTurnId,
             presenceList: presence,
-            now: Date.now(),
+            now: gameNow(),
             thresholdMs: GAME_OFFLINE_THRESHOLD_MS,
           })
 
@@ -262,7 +263,7 @@ export function useGamePresenceAutoSkip({
       const auth = resolveTurnSkipAuthority({
         rosterPlayers: roster,
         presenceList: presence,
-        now: Date.now(),
+        now: gameNow(),
         myUid: presenceId,
         lobbyHostId: lobbyHostIdRef.current,
       })
@@ -305,7 +306,7 @@ export function useGamePresenceAutoSkip({
         turnPlayerId: curTurnId,
         turnSeq: curTurnSeq,
         waitingSinceMs: prevWaitMs,
-        now: Date.now(),
+        now: gameNow(),
         inFlight: getSharedSkipInFlight(),
       })
 

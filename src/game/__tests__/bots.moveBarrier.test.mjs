@@ -282,13 +282,25 @@ describe('H/16 — caminho humano original', () => {
       }),
       true,
     )
-    const humanPatch = { kind: 'PLAYER_DELTA', lastRollTurnKey: '4' }
+    const humanPatch = {
+      kind: 'PLAYER_DELTA',
+      lastRollTurnKey: '4',
+      _expectTurnPlayerId: HUMAN_ID,
+      _expectTurnSeq: 4,
+    }
     const v = validateTurnCommit(
       { turnPlayerId: HUMAN_ID, turnSeq: 4, players: [human], gameOver: false },
       humanPatch,
     )
     assert.equal(v.ok, true)
-    assert.equal(v.reason, 'no-guard')
+    assert.equal(v.reason, 'player-delta-ok')
+
+    const unguarded = validateTurnCommit(
+      { turnPlayerId: HUMAN_ID, turnSeq: 4, players: [human], gameOver: false },
+      { kind: 'PLAYER_DELTA', lastRollTurnKey: '4' },
+    )
+    assert.equal(unguarded.ok, false)
+    assert.equal(unguarded.reason, 'player-delta-missing-expect')
   })
 })
 

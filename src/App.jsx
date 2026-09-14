@@ -76,7 +76,12 @@ import {
   normalizeTurnTime,
 } from './game/turnTimeConfig.js'
 import { computeTurnDeadlineAt, sanitizeTurnDeadlineOnHandoff, resolveTurnDeadlineAfterHandoff } from './game/turnTimerLogic.js'
-import { validateTurnCommit, stripCommitMeta, inferCommitKind, resolveSkipGuardAction, applyBroadcastCommitExpect } from './game/turnCommitValidation.js'
+import { validateTurnCommit, stripCommitMeta, inferCommitKind, resolveSkipGuardAction, applyBroadcastCommitExpect, ensurePlayerDeltaCommitMeta } from './game/turnCommitValidation.js'
+import { applyDueHumanRevenuesToRoster, isHumanRevenuePaid } from './game/humanRevenueCredit.js'
+import { applyDueHumanLuckToRoster, isHumanLuckPaid } from './game/humanLuckCredit.js'
+import { sortLobbyPlayersForSeats } from './game/lobbySeatOrder.js'
+import { createHumanCommitQueue, humanClaimExpired } from './game/humanTurnTransaction.js'
+import { gameNow, deadlineNow, expirationNow, syncSharedClock } from './net/sharedClock.js'
 import {
   getLiveBotMoveBarrier,
   shouldApplyRemotePlayersDuringBotMove,
@@ -94,6 +99,8 @@ import {
   planRosterApply,
   shouldApplyIncomingState,
   isAuthoritativeStartState,
+  applyHumanRevenueCasToState,
+  applyHumanLuckCasToState,
 } from './game/playerStateSync.js'
 
 // Versão do tabuleiro (persistida no JSON da partida)
@@ -792,7 +799,7 @@ export default function App() {
           } else {
             setTurnTimeSec(DEFAULT_TURN_TIME_SEC)
           }
-          const startDeadline = computeTurnDeadlineAt(Date.now(), turnTimeSecRef.current)
+          const startDeadline = computeTurnDeadlineAt(deadlineNow(), turnTimeSecRef.current)
           setTurnDeadlineAt(startDeadline)
           setTurnSeq(0)
           setLastRollTurnKey(null)
@@ -804,6 +811,15 @@ export default function App() {
         }
 
         if (d.type === 'TURNLOCK') {
+          // Com Supabase ativo, LOCK remoto é a autoridade (igual SYNC).
+          // Evita aba stale do mesmo browser liberar/bloquear o turno atual.
+          if (net?.enabled) return
+          const msgSeq = Number(d.turnSeq)
+          const localSeq = Number(turnSeqRef.current ?? turnSeq ?? 0)
+          if (Number.isFinite(msgSeq) && msgSeq !== localSeq) return
+          const msgPid = d.turnPlayerId != null ? String(d.turnPlayerId) : ''
+          const localPid = String(turnPlayerIdRef.current ?? turnPlayerId ?? '')
+          if (msgPid && localPid && msgPid !== localPid) return
           setTurnLock(!!d.value)
           // ✅ Invariante: turnLock=true deve ter owner
           if (d.value) {
@@ -1093,6 +1109,11 @@ export default function App() {
     // Contrato desta função é void — mantém void.
     if (isSpectatorRef.current) return
     const v = !!value
+    const lockTurnId = String(turnPlayerIdRef.current ?? turnPlayerId ?? '')
+    const lockTurnSeq = Number(turnSeqRef.current ?? turnSeq ?? 0)
+    const claim = humanRollRef.current
+    const humanLockMeta = claim && claim.playerId === lockTurnId && claim.turnSeq === lockTurnSeq
+      ? { _expectHumanRollId: claim.id, _expectMatchId: claim.matchId } : {}
     const nextOwner =
       v
         ? String(owner ?? gameplayActorId ?? turnPlayerId ?? '')
@@ -1106,10 +1127,18 @@ export default function App() {
       setLockOwner(null)
     }
 
-    // ✅ Propaga para abas (mesma máquina)
+    // ✅ Propaga para abas (mesma máquina) — com identidade de turno (aba stale ignora)
     defer(() => {
       try {
-        bcRef.current?.postMessage?.({ type: 'TURNLOCK', value: v, owner: nextOwner, ts: Date.now(), source: meId })
+        bcRef.current?.postMessage?.({
+          type: 'TURNLOCK',
+          value: v,
+          owner: nextOwner,
+          turnPlayerId: String(turnPlayerIdRef.current ?? turnPlayerId ?? ''),
+          turnSeq: Number(turnSeqRef.current ?? turnSeq ?? 0),
+          ts: Date.now(),
+          source: meId,
+        })
       } catch {}
     })
 
@@ -1117,8 +1146,8 @@ export default function App() {
     defer(() => {
       try {
         if (gameMode !== GAME_MODE.LOCAL && net?.enabled && net?.ready && typeof netCommit === 'function') {
-          const expectTurnId = String(turnPlayerIdRef.current ?? turnPlayerId ?? '')
-          const expectTurnSeq = Number(turnSeqRef.current ?? turnSeq ?? 0)
+          const expectTurnId = lockTurnId
+          const expectTurnSeq = lockTurnSeq
           commitGamePatch({
             playersDeltaById: {},
             statePatch: {
@@ -1130,6 +1159,7 @@ export default function App() {
               _expectTurnSeq: expectTurnSeq,
               _expectLockOwner: v ? nextOwner : (lockOwnerRef.current ?? lockOwner ?? null),
               _commitKind: v ? 'LOCK_ACQUIRE' : 'LOCK_RELEASE',
+              ...humanLockMeta,
             }
           })
         }
@@ -1144,6 +1174,29 @@ export default function App() {
   const netVersion = net?.version
   const netState = net?.state
   const netStateId = net?.stateId
+  const humanRollRef = useRef(null)
+  const [humanClaimRecovery, setHumanClaimRecovery] = useState(false)
+  useEffect(() => {
+    const update = () => {
+      const expired = humanClaimExpired(netState, expirationNow())
+      setHumanClaimRecovery(expired)
+      if (expired && String(netState?.turnPlayerId) === String(myUid)) {
+        setTurnLock(false)
+        turnLockRef.current = false
+      }
+    }
+    update()
+    const timer = setInterval(update, 1000)
+    return () => clearInterval(timer)
+  }, [netState, myUid])
+  const humanCommitQueueRef = useRef(null)
+  if (!humanCommitQueueRef.current) humanCommitQueueRef.current = createHumanCommitQueue()
+  useEffect(() => {
+    const queue = createHumanCommitQueue()
+    humanCommitQueueRef.current = queue
+    humanRollRef.current = null
+    return () => { queue.stop(); humanRollRef.current = null }
+  }, [currentLobbyId, gameMode])
   // Qual snapshot o Provider está entregando AGORA (para identificar, na troca
   // de sala, o que ainda pertence à sala anterior).
   const netStateRef = useRef(netState)
@@ -1168,7 +1221,7 @@ export default function App() {
       prevTurnSeq: prev.seq,
       nextTurnSeq: nextSeq,
       currentDeadlineAt: turnDeadlineAtRef.current,
-      now: Date.now(),
+      now: gameNow(),
       turnTimeSec: turnTimeSecRef.current,
     })
     if (Number.isFinite(Number(sanitized)) && Number(sanitized) !== Number(turnDeadlineAtRef.current)) {
@@ -1223,7 +1276,7 @@ export default function App() {
   
   // ✅ CORREÇÃO MULTIPLAYER: Helper para commitar patch/delta (não snapshot completo)
   // Permite fazer merge por ID sem sobrescrever estado completo
-  const commitGamePatch = React.useCallback(({ playersDeltaById = {}, statePatch = {} }) => {
+  const commitGamePatchOnce = React.useCallback(({ playersDeltaById = {}, statePatch = {} }) => {
     // READ-ONLY: espectador nunca chega ao netCommit.
     // Contrato desta função é Promise<result> — mantém Promise<result>.
     if (isSpectatorRef.current) return Promise.resolve(SPECTATOR_READ_ONLY)
@@ -1270,9 +1323,14 @@ export default function App() {
           }
 
         // Guard de commit: revalida snapshot remoto (auto-pass / handoff / LOCK).
-        const commitValidation = validateTurnCommit(prevState, statePatch, { now })
+        const validationNow = commitKind === 'AUTO_PASS' && net?.enabled ? expirationNow() : gameNow()
+        const commitValidation = validationNow == null
+          ? { ok: false, reason: 'clock-not-ready' }
+          : validateTurnCommit(prevState, statePatch, { now: validationNow })
         observedStateVersion = prevState.stateVersion ?? 0
-        if (!commitValidation.ok) {
+        const endgameCanLiquidate =
+          commitKind === 'ENDGAME' && commitValidation.reason === 'human-revenue-pending'
+        if (!commitValidation.ok && !endgameCanLiquidate) {
           casLost = true
           if (isSkipAttempt) {
             releaseSharedSkipKey(expectTurnId, expectTurnSeq)
@@ -1281,6 +1339,64 @@ export default function App() {
             console.log('[commit] rejected:', commitValidation.reason, commitValidation)
           }
           return prevState
+        }
+
+        // ENDGAME: liquida todos os faturamentos devidos no snapshot vigente
+        // antes do merge público (mesma gravação CAS).
+        let workingPrev = prevState
+        if (commitKind === 'ENDGAME') {
+          const rev = applyDueHumanRevenuesToRoster(prevState, { now })
+          const luck = applyDueHumanLuckToRoster({
+            ...prevState,
+            players: Array.isArray(rev.players) ? rev.players : prevState.players,
+          }, { now })
+          workingPrev = {
+            ...prevState,
+            players: Array.isArray(luck.players) ? luck.players : (rev.players || prevState.players),
+          }
+          const endgameValidation = validateTurnCommit(workingPrev, statePatch, { now: validationNow })
+          if (!endgameValidation.ok) {
+            casLost = true
+            if (isDevVerbose()) {
+              console.log('[commit] rejected after revenue liquidation:', endgameValidation.reason)
+            }
+            return prevState
+          }
+        }
+
+        if (commitKind === 'HUMAN_REVENUE' || commitKind === 'HUMAN_LUCK') {
+          const applied = commitKind === 'HUMAN_LUCK'
+            ? applyHumanLuckCasToState(
+              workingPrev,
+              { playersDeltaById, statePatch },
+              { now },
+            )
+            : applyHumanRevenueCasToState(
+            workingPrev,
+            { playersDeltaById, statePatch },
+            { now },
+          )
+          if (!applied.ok) {
+            casLost = true
+            if (isDevVerbose()) {
+              console.log('[commit] rejected:', applied.reason)
+            }
+            return prevState
+          }
+          const localStateVersion = currentVersion
+          const remoteStateVersion = workingPrev.stateVersion ?? 0
+          const safeVersion = Math.max(localStateVersion, remoteStateVersion) + 1
+          observedStateVersion = safeVersion
+          const next = {
+            ...applied.state,
+            boardVersion: localBoardVersion,
+            stateVersion: safeVersion,
+            updatedAt: now,
+            updatedBy: myUid,
+          }
+          try { delete next.turnIdx } catch {}
+          if (next.players) next.players = normalizePlayers(next.players)
+          return next
         }
         
         // ✅ CORREÇÃO 1: Garantir versão monotônica no commit remoto
@@ -1293,13 +1409,15 @@ export default function App() {
         // Em commits iniciais, prevState.players pode vir vazio/stale (antes do primeiro snapshot).
         // Então usamos um seed robusto vindo de refs locais (lastLocalStateRef / playersBeforeRef).
         const seedPlayersRaw =
-          (Array.isArray(prevState.players) && prevState.players.length > 0)
-            ? prevState.players
-            : (Array.isArray(lastLocalStateRef.current?.players) && lastLocalStateRef.current.players.length > 0)
-              ? lastLocalStateRef.current.players
-              : (Array.isArray(playersBeforeRef.current) && playersBeforeRef.current.length > 0)
-                ? playersBeforeRef.current
-                : []
+          (Array.isArray(workingPrev.players) && workingPrev.players.length > 0)
+            ? workingPrev.players
+            : (Array.isArray(prevState.players) && prevState.players.length > 0)
+              ? prevState.players
+              : (Array.isArray(lastLocalStateRef.current?.players) && lastLocalStateRef.current.players.length > 0)
+                ? lastLocalStateRef.current.players
+                : (Array.isArray(playersBeforeRef.current) && playersBeforeRef.current.length > 0)
+                  ? playersBeforeRef.current
+                  : []
 
         const prevPlayers = normalizePlayers(seedPlayersRaw)
 
@@ -1311,6 +1429,33 @@ export default function App() {
           const existing = prevPlayers.find((p) => String(p?.id) === playerId)
           if (actionId && existing?.lastActions && existing.lastActions[actionId]) {
             if (DEBUG_LOGS) console.warn('[IDEMPOTENCY] ignorando delta já aplicado', { playerId, actionId })
+            continue
+          }
+          // Faturamento humano: done no plano da mesma identidade também conta como pago
+          // (recibo pode ter sido expurgado da janela lastActions).
+          if (
+            statePatch?._commitKind === 'HUMAN_REVENUE' &&
+            actionId &&
+            existing &&
+            isHumanRevenuePaid({
+              player: existing,
+              actionId,
+              effects: existing.humanTurnEffects,
+            })
+          ) {
+            if (DEBUG_LOGS) console.warn('[IDEMPOTENCY] faturamento já em done', { playerId, actionId })
+            continue
+          }
+          if (
+            statePatch?._commitKind === 'HUMAN_LUCK' &&
+            actionId &&
+            existing &&
+            isHumanLuckPaid({
+              player: existing,
+              actionId,
+            })
+          ) {
+            if (DEBUG_LOGS) console.warn('[IDEMPOTENCY] sorte já paga', { playerId, actionId })
             continue
           }
           filteredDeltaById[playerId] = delta
@@ -1349,9 +1494,14 @@ export default function App() {
           })
         }
 
-        // BOT_MOVE: baseline só depois de {ok:true} (broadcastState deferLocalUntilCommit).
+        // BOT_MOVE / HUMAN_REVENUE: baseline só depois de {ok:true} (broadcastState deferLocalUntilCommit).
         // Atualizar aqui antes da confirmação remota fazia o snapshot antigo “engolir” o delta.
-        if (statePatch?._commitKind !== 'BOT_MOVE') {
+        if (
+          statePatch?._commitKind !== 'BOT_MOVE'
+          && statePatch?._commitKind !== 'HUMAN_REVENUE'
+          && statePatch?._commitKind !== 'HUMAN_LUCK'
+          && !statePatch._expectHumanRollId
+        ) {
           try {
             playersBeforeRef.current = JSON.parse(JSON.stringify(mergedPlayers))
           } catch {
@@ -1418,6 +1568,7 @@ export default function App() {
           ok: !casLost && !!commitResult?.ok,
           casLost,
           stateVersion: observedStateVersion,
+          turnDeadlineAt: commitResult?.state?.turnDeadlineAt,
         })
       } catch (e) {
         const failAction = resolveSkipGuardAction(statePatch, { casLost: true, commitOk: false })
@@ -1428,6 +1579,19 @@ export default function App() {
     })
     })
   }, [netCommit, myUid, gameMode, DEBUG_LOGS])
+
+  const commitGamePatch = React.useCallback((input) => {
+    if (isSpectatorRef.current) return Promise.resolve(SPECTATOR_READ_ONLY)
+    const p = input.statePatch || {}
+    if (!p._expectHumanRollId || gameMode === GAME_MODE.LOCAL) return commitGamePatchOnce(input)
+    // Capture deltas now: subsequent optimistic renders must not rewrite a retry.
+    const captured = structuredClone(input)
+    return humanCommitQueueRef.current.enqueue(() => commitGamePatchOnce(captured), () =>
+      String(turnPlayerIdRef.current) === String(p._expectTurnPlayerId)
+      && Number(turnSeqRef.current) === Number(p._expectTurnSeq)
+      && String(netStateRef.current?.matchId ?? '') === String(p._expectMatchId ?? '')
+    )
+  }, [commitGamePatchOnce, gameMode])
   
   // ✅ CORREÇÃO: O baseline é capturado no broadcastState antes de fazer commit
   // Não precisamos capturar via useEffect, pois o baseline deve ser o estado ANTES da mudança
@@ -1482,6 +1646,11 @@ export default function App() {
     }
 
     const np = Array.isArray(incomingNetState.players) ? incomingNetState.players : null
+    const claim = humanRollRef.current
+    const humanPending = !!(claim && humanCommitQueueRef.current?.pending
+      && String(incomingNetState.turnPlayerId) === claim.playerId
+      && Number(incomingNetState.turnSeq) === claim.turnSeq
+      && String(incomingNetState.matchId ?? '') === claim.matchId)
     const nr = Number.isInteger(incomingNetState.round) ? incomingNetState.round : null
 
     const incomingTurnId =
@@ -1552,7 +1721,7 @@ export default function App() {
     }
 
     // --- aplica players (merge seguro; [] não apaga; parcial não zera ausentes) ---
-    if (np) {
+    if (np && !humanPending) {
       const localRoster =
         (Array.isArray(playersBeforeRef.current) && playersBeforeRef.current.length > 0)
           ? playersBeforeRef.current
@@ -1696,7 +1865,7 @@ export default function App() {
 
     let resolvedDeadline
     if (isStartState && !hasIncomingDeadline) {
-      resolvedDeadline = computeTurnDeadlineAt(Date.now(), turnTimeForDeadline)
+      resolvedDeadline = computeTurnDeadlineAt(deadlineNow(), turnTimeForDeadline)
     } else {
       resolvedDeadline = resolveTurnDeadlineAfterHandoff({
         prevTurnPlayerId: prevTurnId,
@@ -1705,7 +1874,7 @@ export default function App() {
         nextTurnSeq: nextTurnSeq,
         incomingDeadlineAt: incomingDeadlineRaw,
         currentDeadlineAt: turnDeadlineAtRef.current,
-        now: Date.now(),
+        now: gameNow(),
         turnTimeSec: turnTimeForDeadline,
         hasIncomingDeadline,
       })
@@ -1718,7 +1887,7 @@ export default function App() {
       setTurnDeadlineAt(null)
       turnDeadlineAtRef.current = null
     } else if (identityChanged && !Number.isFinite(Number(resolvedDeadline))) {
-      const fresh = computeTurnDeadlineAt(Date.now(), turnTimeForDeadline)
+      const fresh = computeTurnDeadlineAt(deadlineNow(), turnTimeForDeadline)
       setTurnDeadlineAt(fresh)
       turnDeadlineAtRef.current = fresh
     }
@@ -1788,7 +1957,7 @@ export default function App() {
     }
 
     // --- anti-double-roll autoritativo ---
-    if (incomingNetState.lastRollTurnKey !== undefined) setLastRollTurnKey(incomingNetState.lastRollTurnKey ? String(incomingNetState.lastRollTurnKey) : null)
+    if (!humanPending && incomingNetState.lastRollTurnKey !== undefined) setLastRollTurnKey(incomingNetState.lastRollTurnKey ? String(incomingNetState.lastRollTurnKey) : null)
     if (typeof incomingNetState.turnSeq === 'number') setTurnSeq(incomingNetState.turnSeq)
 
     // --- última rolagem do dado (passivo; somente UI) ---
@@ -2129,7 +2298,7 @@ export default function App() {
     } else if (clearDeadlineForLocalHandoff) {
       nextTurnDeadlineAt = null
     } else if (turnIdentityChanged) {
-      nextTurnDeadlineAt = computeTurnDeadlineAt(Date.now(), safeTurnTimeSec)
+      nextTurnDeadlineAt = computeTurnDeadlineAt(deadlineNow(), safeTurnTimeSec)
     }
     if (nextTurnDeadlineAt != null && Number.isFinite(Number(nextTurnDeadlineAt))) {
       if (!shouldDeferLocal) {
@@ -2270,6 +2439,7 @@ export default function App() {
     // ✅ CORREÇÃO: Verifica explicitamente patch.isStartGame primeiro (não depende de safeRound que pode vir de estado antigo)
     const isStartGame = patch.isStartGame === true || (
       patch.isStartGame !== false &&
+      !['TURN', 'LOCK', 'PLAYER_DELTA', 'ENDGAME'].includes(patchKind) &&
       safeRound === 1 && 
       nextTurnIdx === 0 && 
       normalizedPlayers.every(p => Number(p?.pos ?? 0) === 0) &&
@@ -2330,7 +2500,18 @@ export default function App() {
       }
 
       // Fallback: só campos que mudaram vs baseline (nunca full-player stale)
-      if (Object.keys(playersDeltaById).length === 0) {
+      // TURN/skip/auto-pass: não republicar economia a partir de roster local (pode estar pré-faturamento).
+      const handoffWithoutEconomy =
+        (patchKind === 'TURN' ||
+          patch._commitKind === 'AUTO_PASS' ||
+          patch._commitKind === 'AUTO_SKIP_OFFLINE' ||
+          patch._commitKind === 'NORMAL_HANDOFF') &&
+        patch.includePlayerEconomy !== true &&
+        !patch.playersDeltaById
+
+      if (handoffWithoutEconomy) {
+        playersDeltaById = {}
+      } else if (Object.keys(playersDeltaById).length === 0) {
         const baselineArr = Array.isArray(playersBeforeRef.current) && playersBeforeRef.current.length > 0
           ? playersBeforeRef.current
           : (Array.isArray(players) ? players : [])
@@ -2401,6 +2582,36 @@ export default function App() {
         statePatch.turnSeq = Number(patch.turnSeq)
       }
       applyBroadcastCommitExpect(statePatch, patch)
+      const humanRoll = humanRollRef.current
+      if (humanRoll && !String(statePatch._commitKind || '').startsWith('BOT_')
+        && statePatch._commitKind !== 'HUMAN_REVENUE'
+        && statePatch._commitKind !== 'HUMAN_LUCK'
+        && String(statePatch._expectTurnPlayerId ?? turnPlayerIdRef.current) === humanRoll.playerId
+        && Number(statePatch._expectTurnSeq ?? turnSeqRef.current) === humanRoll.turnSeq
+        && ['PLAYER_DELTA', 'TURN', 'ENDGAME'].includes(patchKind)) {
+        statePatch._expectHumanRollId = humanRoll.id
+        statePatch._expectTurnPlayerId = humanRoll.playerId
+        statePatch._expectTurnSeq = humanRoll.turnSeq
+        statePatch._expectMatchId = humanRoll.matchId
+        if (patchKind === 'PLAYER_DELTA' && patch.lastRoll) {
+          statePatch._commitKind = 'HUMAN_MOVE'
+          statePatch.humanRoll = { ...humanRoll, moved: true }
+          statePatch.actionId = humanRoll.id
+          for (const delta of Object.values(playersDeltaById)) delta._actionId = humanRoll.id
+        }
+      }
+      // PLAYER_DELTA humano: exige CAS de turno (origem do ROLL via lastRollTurnKey).
+      if (patchKind === 'PLAYER_DELTA') {
+        ensurePlayerDeltaCommitMeta(statePatch, {
+          turnPlayerId: turnPlayerIdRef.current ?? turnPlayerId,
+          turnSeq: turnSeqRef.current ?? turnSeq,
+          lastRollTurnKey: patch.lastRollTurnKey ?? statePatch.lastRollTurnKey,
+          lastRollPlayerId: patch.lastRoll?.playerId,
+        })
+        if (patch.lastRoll && !statePatch.lastRoll) {
+          statePatch.lastRoll = patch.lastRoll
+        }
+      }
       if (patch && patch.lastRoll !== undefined) {
         statePatch.lastRoll =
           patch.lastRoll === null
@@ -2430,6 +2641,7 @@ export default function App() {
       if (shouldDeferLocal) {
         patchCommit = Promise.resolve(patchCommit).then((r) => {
           if (r?.ok === false) return r
+          if (r?.turnDeadlineAt != null && patchKind === 'TURN') nextTurnDeadlineAt = r.turnDeadlineAt
           const gate = shouldApplyDeferredLocalPatch({
             emission: emissionSnapshot,
             current: readCurrentTurnSnapshot(),
@@ -2493,7 +2705,7 @@ export default function App() {
     maxRoundsRef.current = startMaxRounds
     setTurnTimeSec(startTurnTimeSec)
     turnTimeSecRef.current = startTurnTimeSec
-    const startDeadline = computeTurnDeadlineAt(Date.now(), startTurnTimeSec)
+    const startDeadline = computeTurnDeadlineAt(deadlineNow(), startTurnTimeSec)
     setTurnDeadlineAt(startDeadline)
     turnDeadlineAtRef.current = startDeadline
 
@@ -3344,7 +3556,7 @@ export default function App() {
     turnPlayerId != null &&
     gameplayActorId != null &&
     String(turnPlayerId) === String(gameplayActorId) &&
-    turnLock === false &&
+    (turnLock === false || humanClaimRecovery) &&
     lockOwnerOk &&
     Number(modalLocks || 0) === 0 &&
     !alreadyRolledThisTurn &&
@@ -3402,18 +3614,44 @@ export default function App() {
       const localKey = `local:${currentTurnKey || turnSeq || Date.now()}`
       diceAnimatedKeysRef.current.add(localKey)
       if (currentTurnKey) diceAnimatedKeysRef.current.add(String(currentTurnKey))
-      setTurnLockBroadcast(true, String(gameplayActorId))
-      onAction(act)
-      setDiceFx({
+      const startRoll = async () => {
+        const originId = String(turnPlayerIdRef.current)
+        const originSeq = Number(turnSeqRef.current)
+        if (gameMode !== GAME_MODE.LOCAL && net?.enabled) {
+          const id = createUuidV4()
+          const claim = { id, executorId: id, playerId: originId, turnSeq: originSeq,
+            matchId: String(netStateRef.current?.matchId ?? ''), moved: false, steps,
+            expiresAt: deadlineNow() + 30_000 }
+          const result = await commitGamePatch({ statePatch: {
+            kind: 'HUMAN_ROLL_CLAIM', _commitKind: 'HUMAN_ROLL_CLAIM',
+            _expectTurnPlayerId: originId, _expectTurnSeq: originSeq,
+            _expectMatchId: claim.matchId, _expectHumanRollId: id,
+            humanRoll: claim, turnLock: true, lockOwner: originId, lockTs: gameNow(),
+          } })
+          if (!result?.ok || String(turnPlayerIdRef.current) !== originId
+            || Number(turnSeqRef.current) !== originSeq) {
+            diceInFlightRef.current = false
+            setIsRollingUI(false)
+            appendLog('A jogada não foi iniciada: aguardando a sincronização da vez.')
+            return
+          }
+          humanRollRef.current = claim
+        }
+        setTurnLockBroadcast(true, String(gameplayActorId))
+        onAction(act)
+        setDiceFx({
         id: localKey,
         steps,
         playerName: meHudLive?.name || meHud?.name || 'Jogador',
         pendingAction: null,
         expectedTurnPlayerId: String(turnPlayerId),
         expectedTurnSeq: Number(turnSeq) || 0,
-      })
+        })
+      }
+      startRoll().catch(() => { diceInFlightRef.current = false; setIsRollingUI(false) })
       return
     }
+    if (act?.type === 'ROLL' && gameMode !== GAME_MODE.LOCAL && net?.enabled) return
     onAction(act)
   }
 
@@ -3739,20 +3977,8 @@ export default function App() {
           // normaliza jogadores vindos do lobby
           const raw = Array.isArray(payload) ? payload : (payload?.players ?? payload?.lobbyPlayers ?? [])
           
-          // ✅ CORREÇÃO: Ordena raw antes de map para garantir ordem consistente
-          // Ordena por created_at/joined_at se existir, senão por id
-          const sortedRaw = [...raw].sort((a, b) => {
-            // Se ambos têm created_at ou joined_at, ordena por timestamp
-            const timeA = a.created_at || a.joined_at || a.createdAt || a.joinedAt
-            const timeB = b.created_at || b.joined_at || b.createdAt || b.joinedAt
-            if (timeA && timeB) {
-              return new Date(timeA) - new Date(timeB)
-            }
-            // Caso contrário, ordena por id
-            const idA = String(a.id ?? a.player_id ?? '')
-            const idB = String(b.id ?? b.player_id ?? '')
-            return idA.localeCompare(idB)
-          })
+          // Ordem autoritativa: joined_at → index da lista do lobby. Nunca UUID.
+          const sortedRaw = sortLobbyPlayersForSeats(raw)
           
           const mapped = sortedRaw.map((p, i) =>
             applyStarterKit({
@@ -3762,7 +3988,9 @@ export default function App() {
               pos: 0,
               bens: MANUAL_CONSTANTS.startBens,
               color: ['#FFD600', '#2196F3', '#00C853', '#FF6D00'][i % 4],
-              seat: i // ✅ CORREÇÃO: Atribui seat baseado na ordem ordenada
+              seat: i,
+              joinOrder: i,
+              joined_at: p.joined_at ?? p.joinedAt ?? p.created_at ?? p.createdAt ?? null,
             })
           )
           const roster = botsFeatureOn

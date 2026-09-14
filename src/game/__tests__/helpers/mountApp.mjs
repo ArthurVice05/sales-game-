@@ -24,6 +24,14 @@ function stubPlugin () {
   return {
     name: 'sg-test-stubs',
     setup (b) {
+      // Dice pixels require WebGL; retain the completion callback contract.
+      b.onResolve({ filter: /DiceRollOverlay\.jsx$/ }, () => ({ path: 'dice', namespace: 'sg-dice' }))
+      b.onLoad({ filter: /.*/, namespace: 'sg-dice' }, () => ({
+        contents: `import React from 'react'; export default function DiceRollOverlay({onComplete}) {
+          React.useEffect(() => { const t=setTimeout(() => onComplete?.(), 5); return () => clearTimeout(t) }, []);
+          return null;
+        }`, loader: 'js',
+      }))
       // Estilos e mídia não existem no node.
       b.onResolve({ filter: /\.(css|png|jpe?g|svg|gif|mp3|mp4|webm|woff2?)$/ }, () => ({
         path: 'asset', namespace: EMPTY_NS,
@@ -129,6 +137,9 @@ function safeInspect (value) {
 
 export async function mountRoot ({ supabase, search = '', tabPlayerId, quiet = true } = {}) {
   const dom = installDomShim({ search })
+  const originalFetch = globalThis.fetch
+  // Transport double for the same-origin clock endpoint; no real HTTP in tests.
+  globalThis.fetch = async () => new Response(null, { status: 200, headers: { date: new Date().toUTCString() } })
   // O app é falante; o teste guarda os logs em vez de despejá-los no relatório.
   const consoleLog = []
   const originalConsole = {}
@@ -168,6 +179,13 @@ export async function mountRoot ({ supabase, search = '', tabPlayerId, quiet = t
     container,
     root,
     act,
+    componentProps(name) {
+      let found = null
+      walkFibers(currentFiber(), node => {
+        if (node.type?.name === name) found = node.memoizedProps
+      })
+      return found
+    },
     text: () => fiberText(currentFiber()),
     includes: (needle) => fiberText(currentFiber()).includes(needle),
     clickables: () => collectClickables(currentFiber()).map((c) => c.label),
@@ -219,6 +237,7 @@ export async function mountRoot ({ supabase, search = '', tabPlayerId, quiet = t
     async unmount () {
       await act(async () => { root.unmount() })
       delete globalThis.__SG_TEST_SUPABASE__
+      globalThis.fetch = originalFetch
       for (const [level, fn] of Object.entries(originalConsole)) console[level] = fn
     },
   }

@@ -44,6 +44,7 @@ import {
 import {
   buildBotEconomicPlayerDelta,
   buildBotTurnEffectPlan,
+  classifyBotEffectCommitResult,
   isBotTurnEffectsSettled,
   nextPlayersWith,
   readBotTurnEffects,
@@ -55,6 +56,34 @@ import {
   shouldRunBotEconomicEffects,
   botEconomicJobKey,
 } from './bots/botEconomicRuntime.js'
+import {
+  HUMAN_REVENUE_COMMIT_KIND,
+  applyDueHumanRevenuesToRoster,
+  buildHumanTurnEffectPlan,
+  buildHumanRevenueActionId,
+  humanQueuedEventsFromEffects,
+  isFaturamentoOnceBlocking,
+  isHumanRevenueDue,
+  isHumanRevenuePaid,
+  planHumanRevenuePersist,
+  planCoordinatorRevenueLiquidation,
+  readHumanTurnEffects,
+  reconcileHumanRevenueAfterCommit,
+  shouldBlockHumanHandoffForEffects,
+  shouldBlockOfflineSkipForHumanEffects,
+  shouldResumeHumanTurnEffects,
+  stampHumanRevenueLastActions,
+  classifyHumanRevenueLifecycle,
+} from './humanRevenueCredit.js'
+import {
+  HUMAN_LUCK_COMMIT_KIND,
+  isHumanLuckDue,
+  persistHumanLuckWithRetries,
+  planCoordinatorLuckLiquidation,
+  resolveHumanLuckPayloadForScope,
+  shouldBlockHumanHandoffForLuck,
+} from './humanLuckCredit.js'
+import { SORTE_REVES_CARDS } from '../modals/sorteRevesDeck.js'
 import { shouldRejectEngineBotTimerAutoPass } from './turnCommitValidation.js'
 import {
   buildDecisionHold,
@@ -73,13 +102,13 @@ import {
 } from './turnLockSafety.js'
 import { isHandoffPendingObsolete, shouldDiscardSameSeatHandoffPending } from './turnStateMonotonic.js'
 import { decideMatchTransientEndgameReset } from './matchEntryReadiness.js'
-import { applyMonthlyRevenueCredit } from './revenueCredit.js'
 import {
   applyBankruptcyState,
   planMatchForfeit,
   decideEndgameAfterBankruptcy as decideEndgameAfterBankruptcyPure,
   resolveAftermathAfterBankruptcy,
   commitBankruptcyAftermath,
+  rebuildPendingAfterBankruptTurn,
 } from './matchForfeit.js'
 
 // Modal system
@@ -630,6 +659,8 @@ export function useTurnEngine({
   const endGameFinalizedRef = React.useRef(false)
   const seenMatchIdRef = React.useRef('')
   const recoveredBotHandoffKeyRef = React.useRef('')
+  const humanRevenueResumeKeyRef = React.useRef('')
+  const humanLuckResumeKeyRef = React.useRef('')
   const locallyStartedBotTurnKeyRef = React.useRef('')
   const botEconomicBusyRef = React.useRef(false)
   const botEconomicJobKeyRef = React.useRef('')
@@ -1245,6 +1276,386 @@ export function useTurnEngine({
     return { finished: true, winner: champ, finalRound: MAX_ROUNDS }
   }, [MAX_ROUNDS])
 
+  const commitLiveHumanRevenue = React.useCallback(async ({
+    ownerId,
+    matchId,
+    turnSeq,
+    fat,
+    effects = null,
+  } = {}) => {
+    const revenueMatchId = matchId ?? authoritativeMatchId
+    const revenueTurnSeq = Number(turnSeq) || 0
+    const actorId = String(ownerId || '')
+    if (!actorId) return { ok: false, reason: 'no-owner', localPlayers: null, fat: 0 }
+
+    let localPlayers = Array.isArray(playersRef.current) && playersRef.current.length
+      ? playersRef.current
+      : []
+    let revenueOk = false
+    let commitResult = null
+    let appliedFat = Math.max(0, Math.floor(Number(fat) || 0))
+
+    for (let attempt = 0; attempt < 5; attempt++) {
+      if (String(turnPlayerIdRef.current || '') !== actorId) break
+      if ((Number(turnSeqRef.current) || 0) !== revenueTurnSeq) break
+
+      const liveRoster = Array.isArray(playersRef.current) && playersRef.current.length
+        ? playersRef.current
+        : localPlayers
+      const liveBefore = getById(liveRoster, actorId)
+      if (!liveBefore) break
+
+      const livePlan = planHumanRevenuePersist({
+        matchId: revenueMatchId,
+        playerId: actorId,
+        turnSeq: revenueTurnSeq,
+        playerBefore: liveBefore,
+        revenueValue: appliedFat,
+        fat: appliedFat,
+        effects: liveBefore.humanTurnEffects || effects,
+        roster: liveRoster,
+      })
+      if (livePlan.skip) {
+        revenueOk = true
+        commitResult = { ok: true, alreadyApplied: true }
+        localPlayers = mapById(liveRoster, actorId, () => liveBefore)
+        appliedFat = livePlan.fat
+        break
+      }
+      appliedFat = livePlan.fat
+
+      const nextRoster = mapById(liveRoster, actorId, () => livePlan.playerAfter)
+      commitResult = await Promise.resolve(
+        broadcastState(
+          nextRoster,
+          turnIdxRef.current,
+          currentRoundRef.current,
+          false,
+          null,
+          {
+            kind: 'PLAYER_DELTA',
+            playersDeltaById: livePlan.playersDeltaById,
+            actionId: livePlan.actionId,
+            _commitKind: HUMAN_REVENUE_COMMIT_KIND,
+            _expectMatchId: revenueMatchId,
+            _expectTurnPlayerId: actorId,
+            _expectTurnSeq: revenueTurnSeq,
+            deferLocalUntilCommit: true,
+          },
+        ),
+      )
+
+      const classified = classifyBotEffectCommitResult(commitResult)
+      if (classified.ok) {
+        revenueOk = true
+        const stamped = stampHumanRevenueLastActions(livePlan.playerAfter, livePlan.actionId)
+        localPlayers = mapById(nextRoster, actorId, () => stamped)
+        break
+      }
+
+      const auth = getById(
+        Array.isArray(playersRef.current) ? playersRef.current : nextRoster,
+        actorId,
+      )
+      const recon = reconcileHumanRevenueAfterCommit({
+        actionId: livePlan.actionId,
+        authoritativePlayer: auth,
+        effects: auth?.humanTurnEffects,
+        matchId: revenueMatchId,
+        turnPlayerId: actorId,
+        turnSeq: revenueTurnSeq,
+      })
+      if (recon.applied) {
+        revenueOk = true
+        commitResult = { ok: true, alreadyApplied: true, reason: recon.reason }
+        const stamped = stampHumanRevenueLastActions(
+          {
+            ...livePlan.playerAfter,
+            cash: Number.isFinite(Number(recon.cash))
+              ? Number(recon.cash)
+              : livePlan.playerAfter.cash,
+            humanTurnEffects: auth?.humanTurnEffects || livePlan.humanTurnEffects,
+          },
+          livePlan.actionId,
+        )
+        localPlayers = mapById(nextRoster, actorId, () => stamped)
+        break
+      }
+
+      if (!classified.retry) break
+      await new Promise((r) => setTimeout(r, Math.min(2000, 200 * (attempt + 1))))
+    }
+
+    return {
+      ok: revenueOk,
+      reason: commitResult?.reason || (revenueOk ? 'ok' : 'commit-failed'),
+      localPlayers,
+      fat: appliedFat,
+    }
+  }, [authoritativeMatchId, broadcastState])
+
+  const commitLiveHumanLuck = React.useCallback(async ({
+    ownerId,
+    matchId,
+    turnSeq,
+    payload,
+    skipNegativeCash = false,
+  } = {}) => {
+    const luckMatchId = matchId ?? authoritativeMatchId
+    const luckTurnSeq = Number(turnSeq) || 0
+    const actorId = String(ownerId || '')
+    if (!actorId) return { ok: false, reason: 'no-owner', localPlayers: null, pendingParked: false }
+
+    const persisted = await persistHumanLuckWithRetries({
+      attempts: 5,
+      isCurrentTurn: () =>
+        String(turnPlayerIdRef.current || '') === actorId
+        && (Number(turnSeqRef.current) || 0) === luckTurnSeq,
+      getLivePlayer: () => {
+        const roster = Array.isArray(playersRef.current) ? playersRef.current : []
+        return getById(roster, actorId)
+      },
+      getRoster: () => (Array.isArray(playersRef.current) ? playersRef.current : []),
+      commitPlan: async (plan) => {
+        const roster = Array.isArray(playersRef.current) ? playersRef.current : []
+        const nextRoster = plan.playerAfter
+          ? mapById(roster, actorId, () => plan.playerAfter)
+          : roster
+        const commitResult = await Promise.resolve(
+          broadcastState(
+            nextRoster,
+            turnIdxRef.current,
+            currentRoundRef.current,
+            false,
+            null,
+            {
+              kind: 'PLAYER_DELTA',
+              playersDeltaById: plan.playersDeltaById || {},
+              actionId: plan.actionId,
+              _commitKind: HUMAN_LUCK_COMMIT_KIND,
+              _expectMatchId: luckMatchId,
+              _expectTurnPlayerId: actorId,
+              _expectTurnSeq: luckTurnSeq,
+              _luckPayload: plan.payload,
+              _luckSkipNegativeCash: plan.skipNegativeCash === true,
+              _luckFrozenCashDelta: plan.frozenCashDelta,
+              _luckPendingOnly: plan.pendingOnly === true,
+              deferLocalUntilCommit: true,
+            },
+          ),
+        )
+        const classified = classifyBotEffectCommitResult(commitResult)
+        const auth = getById(
+          Array.isArray(playersRef.current) ? playersRef.current : nextRoster,
+          actorId,
+        )
+        return {
+          ok: classified.ok === true,
+          alreadyApplied: commitResult?.alreadyApplied === true,
+          retry: classified.retry,
+          reason: classified.reason,
+          authoritativePlayer: auth,
+          state: commitResult?.state,
+        }
+      },
+      matchId: luckMatchId,
+      playerId: actorId,
+      turnSeq: luckTurnSeq,
+      payload,
+      skipNegativeCash,
+    })
+
+    const liveRoster = Array.isArray(playersRef.current) ? playersRef.current : []
+    let localPlayers = liveRoster
+    if (persisted.ok && persisted.plan?.playerAfter) {
+      const stamped = stampHumanRevenueLastActions(
+        persisted.plan.playerAfter,
+        persisted.plan.actionId,
+      )
+      localPlayers = mapById(liveRoster, actorId, () => stamped)
+    } else if (!persisted.ok && persisted.plan?.playerAfter) {
+      localPlayers = mapById(liveRoster, actorId, () => persisted.plan.playerAfter)
+    }
+
+    return {
+      ok: persisted.ok === true,
+      alreadyApplied: persisted.alreadyApplied === true,
+      reason: persisted.reason || (persisted.ok ? 'ok' : 'commit-failed'),
+      localPlayers,
+      pendingParked: persisted.pendingParked === true,
+    }
+  }, [authoritativeMatchId, broadcastState])
+
+  const resumeConfirmedHumanPending = React.useCallback(() => {
+    if (gameOverRef.current) return false
+    const expectId = String(turnPlayerIdRef.current || '')
+    const expectSeq = Number(turnSeqRef.current) || 0
+    if (!expectId) return false
+    if (String(expectId) !== String(myUid || '')) return false
+
+    const roster = Array.isArray(playersRef.current) && playersRef.current.length
+      ? playersRef.current
+      : (Array.isArray(players) ? players : [])
+    const current = roster.find((p) => String(p?.id) === expectId)
+    if (!current || isBotPlayer(current)) return false
+
+    const resume = shouldResumeHumanTurnEffects({
+      isHumanTurn: true,
+      player: current,
+      matchId: authoritativeMatchId,
+      turnPlayerId: expectId,
+      turnSeq: expectSeq,
+      gameOver: gameOverRef.current === true,
+    })
+    const luckDue = isHumanLuckDue({
+      player: current,
+      matchId: authoritativeMatchId,
+      playerId: expectId,
+      turnSeq: expectSeq,
+    })
+    if (!resume.ok && !luckDue) return false
+
+    const originKey = `${authoritativeMatchId || ''}|${expectId}|${expectSeq}`
+    const revenueBusy = !resume.ok || humanRevenueResumeKeyRef.current === originKey
+    const luckBusy = !luckDue || humanLuckResumeKeyRef.current === originKey
+    if (revenueBusy && luckBusy) return true
+    if (resume.ok) humanRevenueResumeKeyRef.current = originKey
+    if (luckDue) humanLuckResumeKeyRef.current = originKey
+
+    if (resume.ok) {
+      const pending = rebuildBotPendingAfterConfirmedMove({
+        players: roster,
+        turnPlayerId: expectId,
+        turnSeq: expectSeq,
+        turnIdx: turnIdxRef.current,
+        round: currentRoundRef.current,
+        maxRounds: MAX_ROUNDS,
+        roundFlags: roundFlagsRef.current,
+        crossedStart: resume.effects?.crossedStart === true,
+        matchId: authoritativeMatchId,
+      })
+      if (pending) pendingTurnDataRef.current = pending
+    }
+
+    const remainingEvents = resume.ok ? humanQueuedEventsFromEffects(resume.effects) : []
+    enqueueAction(async () => {
+      const frozen = resume.frozenRevenue
+      if (resume.ok && remainingEvents.some((ev) => ev.type === 'REVENUE')) {
+        openingModalRef.current = true
+        await openModalAndWait(<FaturamentoDoMesModal value={frozen} />)
+        const life = classifyHumanRevenueLifecycle({
+          player: getById(playersRef.current || roster, expectId) || current,
+          matchId: authoritativeMatchId,
+          turnPlayerId: expectId,
+          turnSeq: expectSeq,
+          actionId: buildHumanRevenueActionId({
+            matchId: authoritativeMatchId,
+            playerId: expectId,
+            turnSeq: expectSeq,
+          }),
+        })
+        if (life === 'CANCELLED_MATCH') {
+          humanRevenueResumeKeyRef.current = ''
+          return
+        }
+        if (
+          String(turnPlayerIdRef.current || '') !== expectId ||
+          (Number(turnSeqRef.current) || 0) !== expectSeq
+        ) {
+          return
+        }
+        const persisted = await commitLiveHumanRevenue({
+          ownerId: expectId,
+          matchId: authoritativeMatchId,
+          turnSeq: expectSeq,
+          fat: frozen,
+          effects: resume.effects,
+        })
+        if (!persisted.ok) {
+          humanRevenueResumeKeyRef.current = ''
+          if (pendingTurnDataRef.current?._once) {
+            pendingTurnDataRef.current._once.faturamento = 'queued'
+          }
+          return
+        }
+        commitLocalPlayers(persisted.localPlayers || playersRef.current)
+        if (pendingTurnDataRef.current) {
+          pendingTurnDataRef.current.nextPlayers = persisted.localPlayers || playersRef.current
+          pendingTurnDataRef.current._once = {
+            ...(pendingTurnDataRef.current._once || {}),
+            faturamento: 'done',
+          }
+        }
+        appendLog(`${current.name} recebeu faturamento do mês: +$${Number(persisted.fat || frozen).toLocaleString()}`)
+        await tickAfterModal()
+        await waitForLocksClear()
+      }
+
+      const luckPlayer = getById(playersRef.current || roster, expectId) || current
+      if (
+        isHumanLuckDue({
+          player: luckPlayer,
+          matchId: authoritativeMatchId,
+          playerId: expectId,
+          turnSeq: expectSeq,
+        })
+      ) {
+        const luckPending = luckPlayer.humanLuckPending || {}
+        const luckPayload = resolveHumanLuckPayloadForScope({
+          player: luckPlayer,
+          matchId: authoritativeMatchId,
+          playerId: expectId,
+          turnSeq: expectSeq,
+        })
+        if (!luckPayload) {
+          humanLuckResumeKeyRef.current = ''
+          return
+        }
+        const luckOk = await commitLiveHumanLuck({
+          ownerId: expectId,
+          matchId: authoritativeMatchId,
+          turnSeq: expectSeq,
+          payload: luckPending.payload || luckPayload,
+          skipNegativeCash: luckPending.skipNegativeCash === true,
+        })
+        if (!luckOk.ok) {
+          humanLuckResumeKeyRef.current = ''
+          if (pendingTurnDataRef.current?._once) {
+            pendingTurnDataRef.current._once.luck = 'queued'
+          }
+          return
+        }
+        commitLocalPlayers(luckOk.localPlayers || playersRef.current)
+        if (pendingTurnDataRef.current) {
+          pendingTurnDataRef.current.nextPlayers = luckOk.localPlayers || playersRef.current
+          pendingTurnDataRef.current._once = {
+            ...(pendingTurnDataRef.current._once || {}),
+            luck: 'done',
+          }
+        }
+        await tickAfterModal()
+        await waitForLocksClear()
+      }
+
+      const kick = scheduleTurnCompletionTickRef.current
+      if (typeof kick === 'function') kick()
+    })
+    return true
+  }, [
+    MAX_ROUNDS,
+    appendLog,
+    authoritativeMatchId,
+    commitLiveHumanLuck,
+    commitLiveHumanRevenue,
+    commitLocalPlayers,
+    enqueueAction,
+    myUid,
+    openModalAndWait,
+    players,
+    tickAfterModal,
+    waitForLocksClear,
+  ])
+
   // ========= ação de andar no tabuleiro (inclui TODA a lógica de casas/modais) =========
   const advanceAndMaybeLap = React.useCallback((steps, deltaCash, note, options) => {
     console.log('[DEBUG] 🎯 advanceAndMaybeLap chamada - steps:', steps, 'deltaCash:', deltaCash, 'note:', note)
@@ -1836,7 +2247,7 @@ export function useTurnEngine({
     // ✅ Adiciona lastRevenueRound e waitingAtRevenue
     
     // ✅ CORREÇÃO: Atualiza jogador por ID/seat, não por índice
-    const nextPlayers = normalizePlayers(players).map((p) => {
+    let nextPlayers = normalizePlayers(players).map((p) => {
       if (String(p.id) !== ownerId) return p
 
       const nextCash = (p.cash || 0) + (deltaCash || 0)
@@ -1986,6 +2397,7 @@ export function useTurnEngine({
     commitLocalPlayers(nextPlayers)
     const curIsBot = isBotPlayer(cur)
     let botEffectsPlan = null
+    let humanMovePersistPromise = Promise.resolve({ ok: true })
     if (curIsBot) {
       const proof = claimProofRef?.current
       const originSeq = typeof turnSeqRef.current === 'number' ? turnSeqRef.current : 0
@@ -2107,11 +2519,73 @@ export function useTurnEngine({
       })
     } else {
     // Broadcast imediatamente como PLAYER_DELTA (não mexe em turno aqui)
-    // ✅ CORREÇÃO CRÍTICA: PLAYER_DELTA nunca inclui gameOver/winner (evita vazamento de estado antigo)
-    broadcastState(nextPlayers, turnIdx, currentRoundRef.current, false, null, {
+    // Movimento + plano de faturamento devido na MESMA gravação (sem janela).
+    const originSeqHuman = typeof turnSeqRef.current === 'number' ? turnSeqRef.current : 0
+    const nextMeHuman = (nextPlayers || []).find((p) => String(p?.id) === String(ownerId))
+    const fromPosHuman = Number(cur?.pos)
+    const toPosHuman = Number(nextMeHuman?.pos)
+    const landTileHuman = stopAtRevenue
+      ? 'NONE'
+      : getTileType(Number(moveResolved.landPos) + 1, resolvedBoardVersion)
+    const crossedExpensesHuman = stopAtRevenue
+      ? false
+      : crossedTile(oldPos, newPos, expensesIndex)
+    // Congela fat no mesmo instante econômico do início do evento REVENUE (pós-movimento).
+    const frozenRevenueValue = crossedStart1ForRound
+      ? Math.max(0, Math.floor(computeFaturamentoFor(nextMeHuman || cur)))
+      : 0
+    const frozenLuckCardId = landTileHuman === 'LUCK'
+      ? SORTE_REVES_CARDS[Math.floor(Math.random() * SORTE_REVES_CARDS.length)]?.id || null
+      : null
+    const humanEffectsPlan = buildHumanTurnEffectPlan({
+      matchId: authoritativeMatchId,
+      turnPlayerId: ownerId,
+      turnSeq: originSeqHuman,
+      fromPos: fromPosHuman,
+      toPos: toPosHuman,
+      steps,
+      crossedStart: crossedStart1ForRound === true,
+      crossedExpenses: crossedExpensesHuman === true,
+      landTile: landTileHuman,
+      processLandTile: !stopAtRevenue,
+      revenueValue: frozenRevenueValue,
+      luckCardId: frozenLuckCardId,
+      settled: false,
+      done: [],
+    })
+    let humanPlayersForBroadcast = nextPlayers
+    if (crossedStart1ForRound || humanEffectsPlan) {
+      humanPlayersForBroadcast = nextPlayersWith(nextPlayers, ownerId, {
+        ...(nextMeHuman || {}),
+        humanTurnEffects: humanEffectsPlan,
+      })
+      commitLocalPlayers(humanPlayersForBroadcast)
+      nextPlayers = humanPlayersForBroadcast
+    }
+    const humanPlayerDelta = {
+      pos: toPosHuman,
+      humanTurnEffects: humanEffectsPlan,
+    }
+    if (nextMeHuman && Number(nextMeHuman.cash) !== Number(cur?.cash)) {
+      humanPlayerDelta.cash = nextMeHuman.cash
+    }
+    if (
+      nextMeHuman &&
+      Number(nextMeHuman.lastRevenueRound) !== Number(cur?.lastRevenueRound)
+    ) {
+      humanPlayerDelta.lastRevenueRound = Number(nextMeHuman.lastRevenueRound)
+    }
+    if (
+      nextMeHuman &&
+      Boolean(nextMeHuman.waitingAtRevenue) !== Boolean(cur?.waitingAtRevenue)
+    ) {
+      humanPlayerDelta.waitingAtRevenue = Boolean(nextMeHuman.waitingAtRevenue)
+    }
+    humanMovePersistPromise = Promise.resolve(
+      broadcastState(humanPlayersForBroadcast, turnIdx, currentRoundRef.current, false, null, {
       kind: 'PLAYER_DELTA',
+      playersDeltaById: { [String(ownerId)]: humanPlayerDelta },
       lastRollTurnKey: typeof turnSeqRef.current === 'number' ? String(turnSeqRef.current) : null,
-      // Campo passivo só para UI (última face do dado). Nenhuma regra depende dele.
       lastRoll: {
         playerId: String(cur.id),
         playerName: String(cur.name || '').trim() || 'Jogador',
@@ -2121,7 +2595,8 @@ export function useTurnEngine({
             ? String(turnSeqRef.current)
             : null,
       },
-    })
+      }),
+    )
     }
     
     // ✅ CORREÇÃO CRÍTICA: Atualiza a rodada garantindo que o incremento aconteça corretamente
@@ -2766,8 +3241,9 @@ export function useTurnEngine({
 
       const events = []
       
-      if (crossedStart1 && !td._once.faturamento) {
-        td._once.faturamento = true
+      // queued ≠ done: só bloqueia re-enqueue; crédito econômico confirma depois do commit
+      if (crossedStart1 && !isFaturamentoOnceBlocking(td._once.faturamento)) {
+        td._once.faturamento = 'queued'
         events.push({ type: 'REVENUE', at: forwardDist(oldPos, boardDefinition.revenueIndex, trackLen) })
       }
       if (crossedExpenses23 && !td._once.expenses23) {
@@ -2799,6 +3275,16 @@ export function useTurnEngine({
       // Isso evita travamento quando re-renders causam _once já estar marcado
       if (events.length > 0) {
         enqueueAction(async () => {
+        // O crédito econômico só pode iniciar depois que o recibo do movimento
+        // (posição + humanTurnEffects) existir no estado autoritativo.
+        const moveCommit = await humanMovePersistPromise
+        if (moveCommit?.ok === false || moveCommit?.applied === false) {
+          console.warn('[HUMAN_MOVE] efeitos aguardando confirmação do movimento', {
+            ownerId,
+            turnSeq: turnSeqRef.current,
+          })
+          return
+        }
         // WHY: nextPlayers é o snapshot mais correto da jogada atual, já com movimento aplicado
         // Não usa playersRef.current pois pode estar atrasado ou sofrer commit assíncrono no meio
         let localPlayers = nextPlayers
@@ -2812,42 +3298,138 @@ export function useTurnEngine({
 
           if (ev.type === 'REVENUE') {
             openingModalRef.current = true
-            const fat = Math.max(0, Math.floor(computeFaturamentoFor(meNow)))
-            const cashBefore = Number(meNow.cash) || 0
-            console.log('[LOAN DEBUG] revenue/arm', { ownerId, before: meNow.loanPending || null })
+            const revenueMatchId = authoritativeMatchId
+            const revenueTurnSeq = Number(turnSeqRef.current) || 0
+            const effectsRead = readHumanTurnEffects({
+              players: localPlayers,
+              matchId: revenueMatchId,
+              turnPlayerId: ownerId,
+              turnSeq: revenueTurnSeq,
+            })
+            // Valor congelado no move — nunca recalcular após refresh/mudança econômica.
+            const plannedEffects = effectsRead.effects || meNow?.humanTurnEffects
+            const fat = Math.max(
+              0,
+              Math.floor(
+                Number(
+                  plannedEffects?.crossedStart === true
+                    ? plannedEffects.revenueValue
+                    : computeFaturamentoFor(meNow),
+                ) || 0,
+              ),
+            )
+            console.log('[LOAN DEBUG] revenue/arm', { ownerId, before: meNow.loanPending || null, fat })
             await openModalAndWait(
               <FaturamentoDoMesModal
                 value={fat}
                 playerName={meNow.name || 'Jogador'}
-                cashBefore={cashBefore}
-                cashAfter={cashBefore + fat}
+                cashBefore={Number(meNow.cash) || 0}
+                cashAfter={(Number(meNow.cash) || 0) + fat}
               />
             )
 
-            localPlayers = mapById(localPlayers, ownerId, (p) => {
-              const lp = p.loanPending || null
-              const shouldArmLoan =
-                lp &&
-                Number(lp.amount) > 0 &&
-                lp.charged !== true &&
-                lp.eligibleOnExpenses !== true
+            const life = classifyHumanRevenueLifecycle({
+              player: getById(
+                Array.isArray(playersRef.current) ? playersRef.current : localPlayers,
+                ownerId,
+              ) || meNow,
+              matchId: revenueMatchId,
+              turnPlayerId: ownerId,
+              turnSeq: revenueTurnSeq,
+              actionId: buildHumanRevenueActionId({
+                matchId: revenueMatchId,
+                playerId: ownerId,
+                turnSeq: revenueTurnSeq,
+              }),
+            })
+            if (life === 'CANCELLED_MATCH') {
+              if (pendingTurnDataRef.current?._once) pendingTurnDataRef.current._once.faturamento = 'done'
+              await tickAfterModal()
+              await waitForLocksClear()
+              return
+            }
+            // Troca de turno sem cancelar partida: não credita execução se identidade não bate;
+            // pendência permanece no plano remoto para recovery/coordinator.
+            if (
+              String(turnPlayerIdRef.current || '') !== String(ownerId) ||
+              (Number(turnSeqRef.current) || 0) !== revenueTurnSeq
+            ) {
+              await tickAfterModal()
+              await waitForLocksClear()
+              return
+            }
 
-              return {
-                ...applyMonthlyRevenueCredit(p, fat),
-                ...(shouldArmLoan
-                  ? { loanPending: armLoanAfterRevenue(lp) }
-                  : {}),
-              }
+            const latestBefore =
+              getById(
+                Array.isArray(playersRef.current) && playersRef.current.length
+                  ? playersRef.current
+                  : localPlayers,
+                ownerId,
+              ) || meNow
+
+            const plan = planHumanRevenuePersist({
+              matchId: revenueMatchId,
+              playerId: ownerId,
+              turnSeq: revenueTurnSeq,
+              playerBefore: latestBefore,
+              revenueValue: fat,
+              fat,
+              effects: effectsRead.effects || latestBefore.humanTurnEffects,
+              roster: Array.isArray(playersRef.current) ? playersRef.current : localPlayers,
             })
 
+            if (plan.skip) {
+              localPlayers = mapById(localPlayers, ownerId, () => latestBefore)
+              commitLocalPlayers(localPlayers)
+              if (pendingTurnDataRef.current) {
+                pendingTurnDataRef.current.nextPlayers = localPlayers
+                pendingTurnDataRef.current._once.faturamento = 'done'
+              }
+              await tickAfterModal()
+              await waitForLocksClear()
+              continue
+            }
+
+            let revenueOk = false
+            let commitResult = null
+            const persisted = await commitLiveHumanRevenue({
+              ownerId,
+              matchId: revenueMatchId,
+              turnSeq: revenueTurnSeq,
+              fat,
+              effects: effectsRead.effects || latestBefore.humanTurnEffects,
+            })
+            revenueOk = persisted.ok === true
+            commitResult = persisted
+            if (persisted.localPlayers) localPlayers = persisted.localPlayers
+
+            if (!revenueOk) {
+              console.warn('[REVENUE] crédito pendente — aguardando confirmação', {
+                ownerId,
+                matchId: revenueMatchId,
+                turnSeq: revenueTurnSeq,
+                actionId: plan.actionId,
+                fat: plan.fat,
+                reason: commitResult?.reason || 'commit-failed',
+              })
+              // Mantém pendência recuperável; não processa EXPENSES/etc.; não loga sucesso.
+              if (pendingTurnDataRef.current?._once) {
+                pendingTurnDataRef.current._once.faturamento = 'queued'
+              }
+              await tickAfterModal()
+              await waitForLocksClear()
+              return
+            }
+
             const creditedPlayer = getById(localPlayers, ownerId)
+            const cashBeforeRevenue = Number(latestBefore.cash) || 0
             const cashAfterRevenue = Number(creditedPlayer?.cash)
-            const expectedCashAfterRevenue = cashBefore + fat
+            const expectedCashAfterRevenue = cashBeforeRevenue + plan.fat
             const revenueMonitoringData = {
               ownerId,
               round: currentRoundRef.current,
-              cashBefore,
-              revenue: fat,
+              cashBefore: cashBeforeRevenue,
+              revenue: plan.fat,
               cashAfter: cashAfterRevenue,
               expectedCashAfter: expectedCashAfterRevenue,
             }
@@ -2857,11 +3439,16 @@ export function useTurnEngine({
               console.info('[MONITOR][REVENUE_CREDIT_APPLIED]', revenueMonitoringData)
             }
 
-            console.log('[LOAN DEBUG] armed after full lap', { ownerId, loanPending: getById(localPlayers, ownerId)?.loanPending || null })
+            console.log('[LOAN DEBUG] armed after full lap', {
+              ownerId,
+              loanPending: getById(localPlayers, ownerId)?.loanPending || null,
+            })
             commitLocalPlayers(localPlayers)
-            broadcastState(localPlayers, turnIdxRef.current, currentRoundRef.current)
-            if (pendingTurnDataRef.current) pendingTurnDataRef.current.nextPlayers = localPlayers
-            appendLog(`${meNow.name} recebeu faturamento do mês: +$${fat.toLocaleString()}`)
+            if (pendingTurnDataRef.current) {
+              pendingTurnDataRef.current.nextPlayers = localPlayers
+              pendingTurnDataRef.current._once.faturamento = 'done'
+            }
+            appendLog(`${meNow.name} recebeu faturamento do mês: +$${plan.fat.toLocaleString()}`)
             await tickAfterModal()
             await waitForLocksClear()
             continue
@@ -2989,7 +3576,12 @@ export function useTurnEngine({
             openingModalRef.current = true
             // WHY: Usa localPlayers (não playersRef) para ter o snapshot correto com manutenção já aplicada
             const curPlayer = getById(localPlayers, ownerId) || meNow
-            const res = await openModalAndWait(<SorteRevesModal player={curPlayer} />)
+            const luckMatchId = authoritativeMatchId
+            const luckTurnSeq = Number(turnSeqRef.current) || 0
+            const fixedLuckCardId = curPlayer?.humanTurnEffects?.luckCardId || null
+            const res = await openModalAndWait(
+              <SorteRevesModal player={curPlayer} cardId={fixedLuckCardId} />,
+            )
             if (!res || res.action !== 'APPLY_CARD') {
               await tickAfterModal()
               await waitForLocksClear()
@@ -3009,14 +3601,32 @@ export function useTurnEngine({
               localPlayers = luckRes.players
             }
 
-            localPlayers = mapById(localPlayers, ownerId, (p) => {
-              const applied = applySorteRevesPayloadToPlayer(p, res, {
-                skipNegativeCash: luckCashCharged,
-              })
-              return applied.applied ? applied.player : p
+            const persisted = await commitLiveHumanLuck({
+              ownerId,
+              matchId: luckMatchId,
+              turnSeq: luckTurnSeq,
+              payload: res,
+              skipNegativeCash: luckCashCharged,
             })
+            if (persisted.localPlayers) localPlayers = persisted.localPlayers
+
+            if (!persisted.ok) {
+              console.warn('[LUCK] crédito pendente — carta congelada, sem novo sorteio', {
+                ownerId,
+                matchId: luckMatchId,
+                turnSeq: luckTurnSeq,
+                reason: persisted.reason || 'commit-failed',
+                pendingParked: persisted.pendingParked === true,
+              })
+              if (pendingTurnDataRef.current?._once) {
+                pendingTurnDataRef.current._once.luck = 'queued'
+              }
+              await tickAfterModal()
+              await waitForLocksClear()
+              return
+            }
+
             commitLocalPlayers(localPlayers)
-            broadcastState(localPlayers, turnIdxRef.current, currentRoundRef.current)
             if (pendingTurnDataRef.current) pendingTurnDataRef.current.nextPlayers = localPlayers
             await tickAfterModal()
             await waitForLocksClear()
@@ -3551,6 +4161,38 @@ export function useTurnEngine({
           effects: tickEffects.effects,
           economicBusy: botEconomicBusyRef.current === true,
         })
+        const humanFx = readHumanTurnEffects({
+          players: tickRoster,
+          matchId: authoritativeMatchId,
+          turnPlayerId: tickTurnId,
+          turnSeq: turnSeqRef.current,
+        })
+        const humanEffectGate = shouldBlockHumanHandoffForEffects({
+          isHumanTurn: !!(tickActor && !isBotPlayer(tickActor)),
+          player: tickActor,
+          effects: humanFx.effects,
+          matchId: authoritativeMatchId,
+          turnPlayerId: tickTurnId,
+          turnSeq: turnSeqRef.current,
+        })
+        const luckGate = shouldBlockHumanHandoffForLuck({
+          isHumanTurn: !!(tickActor && !isBotPlayer(tickActor)),
+          player: tickActor,
+          matchId: authoritativeMatchId,
+          turnPlayerId: tickTurnId,
+          turnSeq: turnSeqRef.current,
+        })
+        if (humanEffectGate.block || luckGate.block) {
+          if (
+            tickActor &&
+            !isBotPlayer(tickActor) &&
+            String(tickActor.id) === String(myUid)
+          ) {
+            resumeConfirmedHumanPending()
+          }
+          setTimeout(tick, 150)
+          return
+        }
         if (effectGate.block) {
           if (isBotPlayer(tickActor) && !botEconomicBusyRef.current && !eventsInProgressRef.current) {
             const proof = claimProofRef?.current || null
@@ -3748,6 +4390,7 @@ export function useTurnEngine({
                 _expectTurnSeq: turnData.originTurnSeq,
                 _commitKind: 'NORMAL_HANDOFF',
                 deferLocalUntilCommit: true,
+                includePlayerEconomy: false,
               }
               if (turnData.nextRoundFlags) patch.roundFlags = turnData.nextRoundFlags
               if (turnData.shouldIncrementRound) patch.round = roundToBroadcast
@@ -3947,6 +4590,8 @@ export function useTurnEngine({
     pushModal, awaitTop, closeTop,
     resolvedBoardVersion, trackLen, expensesIndex, boardDefinition,
     enqueueBotEconomicEffects,
+    commitLiveHumanRevenue,
+    resumeConfirmedHumanPending,
   ])
 
   // ========= handlers menores =========
@@ -3968,7 +4613,7 @@ export function useTurnEngine({
    * Reutiliza findNextAliveIdx (via planOfflineTurnSkip) + turnSeq + TURN patch.
    * Retorna true se o avanço local foi aplicado (CAS remoto pode ainda falhar).
    */
-  const skipAbsentTurn = React.useCallback(({ expectedTurnPlayerId, expectedTurnSeq, reason } = {}) => {
+  const skipAbsentTurn = React.useCallback(async ({ expectedTurnPlayerId, expectedTurnSeq, reason } = {}) => {
     if (gameOverRef.current) return false
 
     const expectId = expectedTurnPlayerId != null
@@ -4029,6 +4674,163 @@ export function useTurnEngine({
     })
     if (skipGuard2.reject) return false
 
+    // Coordenador: liquida faturamento devido ANTES do skip (não pula efeitos obrigatórios restantes).
+    const skipActor = roster.find((p) => String(p?.id) === expectId)
+    if (
+      skipActor &&
+      !isBotPlayer(skipActor) &&
+      isHumanRevenueDue({
+        player: skipActor,
+        matchId: authoritativeMatchId,
+        turnPlayerId: expectId,
+        turnSeq: expectSeq,
+      })
+    ) {
+      const liq = planCoordinatorRevenueLiquidation({
+        matchId: authoritativeMatchId,
+        turnPlayerId: expectId,
+        turnSeq: expectSeq,
+        players: roster,
+        playerBefore: skipActor,
+      })
+      if (!liq.skip && liq.playersDeltaById) {
+        const liqRoster = mapById(roster, expectId, () => liq.playerAfter)
+        const liqResult = await Promise.resolve(
+          broadcastState(
+            liqRoster,
+            turnIdxRef.current,
+            currentRoundRef.current,
+            false,
+            null,
+            {
+              kind: 'PLAYER_DELTA',
+              playersDeltaById: liq.playersDeltaById,
+              actionId: liq.actionId,
+              _commitKind: HUMAN_REVENUE_COMMIT_KIND,
+              _expectMatchId: authoritativeMatchId,
+              _expectTurnPlayerId: expectId,
+              _expectTurnSeq: expectSeq,
+              deferLocalUntilCommit: true,
+            },
+          ),
+        )
+        if (liqResult?.ok === false) return false
+        commitLocalPlayers(mapById(roster, expectId, () => liq.playerAfter))
+      } else if (liq.skip && liq.reason === 'no-pending-revenue') {
+        // ok
+      } else if (!liq.skip) {
+        return false
+      }
+    }
+
+    {
+      const liveForLuck =
+        getById(
+          Array.isArray(playersRef.current) && playersRef.current.length
+            ? playersRef.current
+            : roster,
+          expectId,
+        ) || skipActor
+      if (
+        liveForLuck &&
+        !isBotPlayer(liveForLuck) &&
+        isHumanLuckDue({
+          player: liveForLuck,
+          matchId: authoritativeMatchId,
+          playerId: expectId,
+          turnSeq: expectSeq,
+        })
+      ) {
+        const luckLiq = planCoordinatorLuckLiquidation({
+          matchId: authoritativeMatchId,
+          turnPlayerId: expectId,
+          turnSeq: expectSeq,
+          players: Array.isArray(playersRef.current) && playersRef.current.length
+            ? playersRef.current
+            : roster,
+          playerBefore: liveForLuck,
+        })
+        if (!luckLiq.skip && luckLiq.playersDeltaById) {
+          const luckRoster = mapById(
+            Array.isArray(playersRef.current) && playersRef.current.length
+              ? playersRef.current
+              : roster,
+            expectId,
+            () => luckLiq.playerAfter,
+          )
+          const luckResult = await Promise.resolve(
+            broadcastState(
+              luckRoster,
+              turnIdxRef.current,
+              currentRoundRef.current,
+              false,
+              null,
+              {
+                kind: 'PLAYER_DELTA',
+                playersDeltaById: luckLiq.playersDeltaById,
+                actionId: luckLiq.actionId,
+                _commitKind: HUMAN_LUCK_COMMIT_KIND,
+                _expectMatchId: authoritativeMatchId,
+                _expectTurnPlayerId: expectId,
+                _expectTurnSeq: expectSeq,
+                _luckPayload: luckLiq.payload,
+                _luckSkipNegativeCash: luckLiq.skipNegativeCash === true,
+                _luckFrozenCashDelta: luckLiq.frozenCashDelta,
+                _luckPendingOnly: false,
+                deferLocalUntilCommit: true,
+              },
+            ),
+          )
+          if (luckResult?.ok === false) return false
+          commitLocalPlayers(luckRoster)
+        } else if (luckLiq.skip && luckLiq.reason === 'no-pending-luck') {
+          // ok
+        } else if (!luckLiq.skip) {
+          return false
+        }
+      }
+    }
+
+    // Não pular despesas/sorte/compras restantes após liquidar só o faturamento.
+    {
+      const liveAfterLiq =
+        getById(
+          Array.isArray(playersRef.current) && playersRef.current.length
+            ? playersRef.current
+            : roster,
+          expectId,
+        ) || skipActor
+      const remGate = shouldBlockOfflineSkipForHumanEffects({
+        player: liveAfterLiq,
+        matchId: authoritativeMatchId,
+        turnPlayerId: expectId,
+        turnSeq: expectSeq,
+      })
+      if (remGate.block) {
+        console.warn('[TURN] skip ausente recusado: efeitos obrigatórios restantes', {
+          reason: remGate.reason,
+          remaining: remGate.remaining,
+          expectId,
+          expectSeq,
+        })
+        return false
+      }
+      if (
+        isHumanLuckDue({
+          player: liveAfterLiq,
+          matchId: authoritativeMatchId,
+          playerId: expectId,
+          turnSeq: expectSeq,
+        })
+      ) {
+        console.warn('[TURN] skip ausente recusado: credito de sorte pendente', {
+          expectId,
+          expectSeq,
+        })
+        return false
+      }
+    }
+
     const patch = {
       kind: 'TURN',
       turnPlayerId: plan.nextTurnPlayerId,
@@ -4042,6 +4844,8 @@ export function useTurnEngine({
       _expectTurnSeq: expectSeq,
       _commitKind: lastAction === 'AUTO_PASS_TIMER' ? 'AUTO_PASS' : 'AUTO_SKIP_OFFLINE',
       deferLocalUntilCommit: true,
+      // Não republicar economia stale no handoff/skip.
+      includePlayerEconomy: false,
     }
 
     const commitPromise = broadcastState(
@@ -4101,6 +4905,7 @@ export function useTurnEngine({
     setLastRollTurnKey,
     setTurnLockBroadcast,
     appendLog,
+    commitLocalPlayers,
   ])
 
   /**
@@ -4121,6 +4926,28 @@ export function useTurnEngine({
       (Array.isArray(playersRef.current) && playersRef.current.length)
         ? playersRef.current
         : (turnData.nextPlayers || [])
+
+    const latestActor = latestPlayers.find((p) => String(p?.id) === String(turnPlayerIdRef.current || ''))
+    const pendingHuman = shouldBlockHumanHandoffForEffects({
+      isHumanTurn: !!(latestActor && !isBotPlayer(latestActor)),
+      player: latestActor,
+      matchId: authoritativeMatchId,
+      turnPlayerId: turnPlayerIdRef.current,
+      turnSeq: turnSeqRef.current,
+    })
+    const pendingLuck = shouldBlockHumanHandoffForLuck({
+      isHumanTurn: !!(latestActor && !isBotPlayer(latestActor)),
+      player: latestActor,
+      matchId: authoritativeMatchId,
+      turnPlayerId: turnPlayerIdRef.current,
+      turnSeq: turnSeqRef.current,
+    })
+    if (pendingHuman.block || pendingLuck.block) {
+      if (latestActor && String(latestActor.id) === String(myUid)) {
+        resumeConfirmedHumanPending()
+      }
+      return false
+    }
 
     const shouldEnd = !!(
       turnData.endGame ||
@@ -4263,6 +5090,7 @@ export function useTurnEngine({
     setTurnSeq,
     setWinner,
     claimProofRef,
+    resumeConfirmedHumanPending,
   ])
 
   React.useEffect(() => {
@@ -4302,6 +5130,24 @@ export function useTurnEngine({
       : (Array.isArray(players) ? players : [])
     const current = roster.find((p) => String(p?.id) === expectId)
     if (!isBotPlayer(current)) return false
+
+    if (current?.bankrupt === true) {
+      if (String(lockOwnerRef.current || '') !== String(myUid)) return false
+      pendingTurnDataRef.current = rebuildPendingAfterBankruptTurn({
+        players: roster,
+        initialPlayerCount: initialPlayerCountRef.current,
+        bankruptPlayerId: expectId,
+        turnSeq: expectSeq,
+        matchId: authoritativeMatchId,
+        round: currentRoundRef.current,
+        roundFlags: roundFlagsRef.current,
+      })
+      openingModalRef.current = false
+      const kick = scheduleTurnCompletionTickRef.current
+      if (typeof kick === 'function') kick()
+      return true
+    }
+
     const proof = claimProofRef?.current || null
     const resumeAuth = shouldRunBotEconomicEffects({
       currentPlayer: current,
@@ -4411,6 +5257,10 @@ export function useTurnEngine({
     const roster = Array.isArray(players) ? players : []
     const current = roster.find((p) => String(p?.id) === expectId)
     if (!isBotPlayer(current) || gameOver) return undefined
+    if (current?.bankrupt === true) {
+      resumeConfirmedBotPending()
+      return undefined
+    }
     const recovery = classifyBotTurnRecovery({
       expectedTurnPlayerId: expectId,
       expectedTurnSeq: expectSeq,
@@ -4439,6 +5289,24 @@ export function useTurnEngine({
     lockOwner,
     players,
     resumeConfirmedBotPending,
+    turnPlayerId,
+    turnSeq,
+  ])
+
+  React.useEffect(() => {
+    if (gameOver) return undefined
+    const expectId = String(turnPlayerId || '')
+    const roster = Array.isArray(players) ? players : []
+    const current = roster.find((p) => String(p?.id) === expectId)
+    if (!current || isBotPlayer(current)) return undefined
+    if (String(expectId) !== String(myUid || '')) return undefined
+    resumeConfirmedHumanPending()
+    return undefined
+  }, [
+    gameOver,
+    myUid,
+    players,
+    resumeConfirmedHumanPending,
     turnPlayerId,
     turnSeq,
   ])

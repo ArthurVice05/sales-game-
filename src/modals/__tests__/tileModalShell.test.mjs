@@ -93,7 +93,8 @@ test('Field Sales mantém contratos e certificações só informativas', () => {
 })
 
 test('Sorte & Revés usa a apresentação 3D e confirma só uma vez', () => {
-  assert.match(luck, /useState\(\(\) => CARDS\[/)
+  assert.match(luck, /useState\(\(\) =>[\s\S]*CARDS\.find/)
+  assert.match(luck, /\|\| CARDS\[Math\.floor\(Math\.random\(\)/)
   assert.match(luck, /SorteRevesScene/)
   assert.match(luck, /SorteRevesCardContent/)
   assert.match(luck, /sr3d-wrap/)

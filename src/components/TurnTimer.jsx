@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import { remainingTurnMs } from '../game/turnTimerLogic.js'
 import { normalizeTurnTime } from '../game/turnTimeConfig.js'
+import { gameNow } from '../net/sharedClock.js'
+import { useGameNet } from '../net/GameNetProvider.jsx'
 
 function formatMmSs(totalSec) {
   const s = Math.max(0, Math.floor(Number(totalSec) || 0))
@@ -22,14 +24,16 @@ export default function TurnTimer({
   gameOver = false,
   paused = false,
 }) {
-  const [now, setNow] = useState(() => Date.now())
+  const net = useGameNet()
+  const readNow = () => net?.enabled ? gameNow() : Date.now()
+  const [now, setNow] = useState(readNow)
   const configured = normalizeTurnTime(turnTimeSec)
 
   useEffect(() => {
     if (gameOver) return undefined
-    const id = setInterval(() => setNow(Date.now()), 250)
+    const id = setInterval(() => setNow(readNow()), 250)
     return () => clearInterval(id)
-  }, [gameOver, turnDeadlineAt, turnPlayerId, turnSeq])
+  }, [gameOver, turnDeadlineAt, turnPlayerId, turnSeq, net?.enabled])
 
   if (gameOver) return null
 

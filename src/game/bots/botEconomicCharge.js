@@ -45,6 +45,11 @@ function markChargeDone(effects, kind, extra = {}) {
   const purchases = ['CLIENTS', 'COMMON', 'FIELD', 'INSIDE', 'MANAGER', 'ERP', 'MIX', 'TRAINING', 'DIRECT_BUY']
   if (base.processLandTile === true && purchases.includes(land)) required.push(land)
   const next = { ...base, ...extra, done }
+  if (next.recoveryResolved === 'BANKRUPT') {
+    for (const requiredKind of required) {
+      if (!next.done.includes(requiredKind)) next.done.push(requiredKind)
+    }
+  }
   next.settled = required.length === 0 || required.every((x) => next.done.includes(x))
   return next
 }

@@ -27,6 +27,7 @@ import {
 } from './sharedTurnSkipGuard.js'
 
 import { isDevVerbose } from './debugFlags.js'
+import { expirationNow, gameNow, syncSharedClock } from '../net/sharedClock.js'
 
 const DEV = isDevVerbose()
 const POLL_MS = 500
@@ -135,7 +136,8 @@ export function useTurnTimerAutoPass({
         return
       }
 
-      const now = Date.now()
+      const now = lobbyId ? expirationNow() : Date.now()
+      if (now == null) { syncSharedClock().catch(() => {}); return }
       const turnKey = `${curTurnId}|${curTurnSeq}`
       const remaining = remainingTurnMs(deadlineRef.current, now)
       const armTimer = shouldArmCoordinatorTimer({
@@ -272,7 +274,8 @@ export function useTurnTimerAutoPass({
               return
             }
             if (cancelled) return
-            const now2 = Date.now()
+            const now2 = expirationNow()
+            if (now2 == null) return
             const auth2 = resolveTurnSkipAuthority({
               rosterPlayers: roster,
               presenceList: presence2,

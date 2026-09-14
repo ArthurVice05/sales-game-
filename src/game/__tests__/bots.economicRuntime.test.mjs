@@ -1031,6 +1031,46 @@ describe('paridade EXPENSES / recovery', () => {
     assert.equal(isBotTurnEffectsSettled(after.botTurnEffects), true)
   })
 
+  it('D2 — falência encerra todo o plano econômico persistido e libera o handoff', async () => {
+    const secondBot = botPlayer({ id: 'bot:match-econ-1:1', name: 'Máquina 2' })
+    const { store } = storeWithPlan(
+      'EXPENSES',
+      { cash: 0, bens: 0, vendedoresComuns: 0 },
+      {
+        landTile: 'LUCK',
+        crossedStart: true,
+        crossedExpenses: true,
+        processLandTile: true,
+      },
+      { others: [humanPlayer(), secondBot] },
+    )
+    const result = await runOnce(store, recoveryDecide({
+      funds: { action: 'RECOVERY' },
+      recovery: buildTriggerBankruptcyPayload(),
+      bankrupt: true,
+    }), { extrasFor: expensesExtras(4000) })
+    const persisted = actorOf(store).botTurnEffects
+
+    assert.equal(result.ok, true)
+    assert.equal(result.bankrupt, true)
+    assert.equal(actorOf(store).bankrupt, true)
+    assert.deepEqual(requiredEffectKinds(persisted), ['REVENUE', 'EXPENSES', 'LUCK'])
+    assert.deepEqual(remainingEffectKinds(persisted), [])
+    assert.equal(persisted.settled, true)
+    assert.deepEqual(
+      shouldBlockBotHandoffForEffects({ isBotTurn: true, effects: persisted }),
+      { block: false, reason: 'settled' },
+    )
+    const aftermath = resolveAftermathAfterBankruptcy({
+      players: store.state.players,
+      initialPlayerCount: 3,
+      bankruptPlayerId: BOT_ID,
+    })
+    assert.equal(aftermath.emitHandoff, true)
+    assert.equal(aftermath.nextTurnPlayerId, HUMAN_ID)
+    assert.notEqual(aftermath.nextTurnPlayerId, BOT_ID)
+  })
+
   it('E / F — settled false durante recovery e true só no final', async () => {
     const need = 8000
     const { store } = storeWithPlan('EXPENSES', { cash: 100, bens: 4000 }, {
