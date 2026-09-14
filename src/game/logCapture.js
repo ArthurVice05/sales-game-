@@ -8,6 +8,7 @@ class LogCapture {
   constructor() {
     this.enabled = false
     this.logs = []
+    this.listeners = new Set()
     this.maxLogs = 10000 // Limite de logs para evitar consumo excessivo de memória
     this.originalConsole = {
       log: console.log,
@@ -102,6 +103,19 @@ class LogCapture {
     }
 
     this.logs.push(logEntry)
+    this.listeners.forEach(listener => {
+      try {
+        listener(logEntry)
+      } catch {
+        // Telemetria nunca pode interferir no jogo.
+      }
+    })
+  }
+
+  subscribe(listener) {
+    if (typeof listener !== 'function') return () => {}
+    this.listeners.add(listener)
+    return () => this.listeners.delete(listener)
   }
 
   /**

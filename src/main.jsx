@@ -8,6 +8,7 @@ import GameNetProvider from './net/GameNetProvider.jsx'
 import { ModalProvider } from './modals/ModalContext'
 
 import { isVercelDebugEnabled } from './game/debugFlags.js'
+import { startVercelLogTransport } from './game/vercelLogTransport.js'
 import { parseSpectateRequest } from './game/spectatorMode.js'
 
 // ✅ Funções globais para export de logs
@@ -67,7 +68,9 @@ export function Root() {
   React.useEffect(() => {
     if (!isVercelDebugEnabled()) return
     logCapture.enable()
+    const stopTransport = startVercelLogTransport(logCapture)
     console.log('[SG] logCapture auto-ativo (VITE_SG_DEBUG_LOGS=1)')
+    return stopTransport
   }, [])
 
   // ✅ Expõe funções globais para export de logs
