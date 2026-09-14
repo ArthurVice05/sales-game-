@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { createHumanCommitQueue, humanClaimExpired } from '../humanTurnTransaction.js'
 import { applyGamePatchToState } from '../playerStateSync.js'
 import { createSharedClock } from '../../net/sharedClock.js'
+import { readFileSync } from 'node:fs'
 
 const NOW = 1_000_000
 function world(n = 4) {
@@ -125,4 +126,13 @@ test('missing/cached HTTP Date never becomes a trusted clock; old samples expire
   assert.equal(clock.observe(new Date(NOW).toUTCString(), 0, 100), true)
   now += 120_001
   assert.equal(clock.ready(), false)
+})
+
+test('falha ao sincronizar relógio não bloqueia START nem commits da partida', () => {
+  const provider = readFileSync(
+    new URL('../../net/GameNetProvider.jsx', import.meta.url),
+    'utf8',
+  )
+  assert.match(provider, /await syncSharedClock\(\)\.catch\(\(\) => false\)/)
+  assert.doesNotMatch(provider, /clock-not-ready/)
 })

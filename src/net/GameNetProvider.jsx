@@ -439,7 +439,9 @@ function GameNetProvider({ roomCode, hostId, readOnly = false, children }) {
     if (!enabled || !ready) return { ok: false, skipped: true }
     // Sessão read-only (espectador): recebe estado, nunca escreve.
     if (readOnly) return { ok: false, skipped: true, reason: 'read-only-session' }
-    if (!await syncSharedClock()) return { ok: false, reason: 'clock-not-ready' }
+    // O relógio compartilhado melhora deadlines, mas não pode impedir START/commits.
+    // deadlineNow() já usa Date.now() enquanto ainda não existe uma amostra confiável.
+    await syncSharedClock().catch(() => false)
 
     const MAX_ATTEMPTS = 3
     const nowISO = new Date().toISOString()
