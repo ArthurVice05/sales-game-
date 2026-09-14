@@ -29,6 +29,19 @@ class LogCapture {
       '[leaveRoom]',
       '[GameNet]',
       '[useTurnEngine]',
+      '[MONITOR]',
+      '[MODAL LOCK]',
+      '[TURN]',
+      '[TURN_LOCK_WATCHDOG]',
+      '[BOT]',
+      '[ENGINE_V2]',
+      '[lobby]',
+      '[rooms]',
+      '[cleanup]',
+      '[hb]',
+      '[presence]',
+      '[host-transfer]',
+      '[ENDGAME]',
     ]
   }
 

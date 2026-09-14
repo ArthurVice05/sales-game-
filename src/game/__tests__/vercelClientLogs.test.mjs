@@ -2,7 +2,11 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import handler, { normalizeClientLogPayload } from '../../../api/client-logs.js'
-import { toRemoteLogEntry } from '../vercelLogTransport.js'
+import {
+  classifyMonitoringEvent,
+  startVercelLogTransport,
+  toRemoteLogEntry,
+} from '../vercelLogTransport.js'
 
 test('transporte remoto limita o tamanho e normaliza o nível', () => {
   const entry = toRemoteLogEntry({ level: 'invalid', message: 'x'.repeat(3000), time: '2026-09-13T00:00:00.000Z' })
@@ -10,22 +14,98 @@ test('transporte remoto limita o tamanho e normaliza o nível', () => {
   assert.equal(entry.message.length, 2000)
 })
 
-test('endpoint limita lotes e remove credenciais dos logs', () => {
+test('monitoramento ignora debug normal e classifica falhas operacionais', () => {
+  assert.equal(classifyMonitoringEvent({
+    level: 'log',
+    message: '[DEBUG] movimento concluído normalmente',
+  }), null)
+
+  const conflict = classifyMonitoringEvent({
+    level: 'warn',
+    message: '[NET] commit conflict (attempt 2/4)',
+    time: '2026-09-14T10:00:00.000Z',
+  })
+  assert.equal(conflict.code, 'NETWORK_COMMIT_CONFLICT')
+  assert.equal(conflict.severity, 'warning')
+
+  const revenue = classifyMonitoringEvent({
+    level: 'info',
+    message: '[MONITOR][REVENUE_CREDIT_APPLIED] {"revenue":14495}',
+  })
+  assert.equal(revenue.code, 'REVENUE_CREDIT_APPLIED')
+  assert.equal(revenue.category, 'economy')
+
+  assert.equal(classifyMonitoringEvent({
+    level: 'error',
+    message: '[ENGINE_V2] erro no shadow (ignorado): teste',
+  }), null)
+})
+
+test('transporte envia saúde e erro, mas não envia debug normal', async () => {
+  const originalWindow = globalThis.window
+  const originalFetch = globalThis.fetch
+  let listener
+  let sentBody
+  const handlers = new Map()
+  globalThis.window = {
+    sessionStorage: { getItem: () => null, setItem: () => {} },
+    location: { pathname: '/jogo', search: '?room=ABCD' },
+    navigator: { userAgent: 'Test Browser' },
+    addEventListener: (name, fn) => handlers.set(name, fn),
+    removeEventListener: name => handlers.delete(name),
+    setInterval: () => 1,
+    clearInterval: () => {},
+  }
+  globalThis.fetch = async (_url, options) => {
+    sentBody = JSON.parse(options.body)
+    return { ok: true }
+  }
+  const capture = {
+    enabled: true,
+    subscribe(fn) { listener = fn; return () => { listener = null } },
+    addLog() {},
+  }
+
+  try {
+    const stop = startVercelLogTransport(capture)
+    listener({ level: 'log', message: '[DEBUG] fluxo normal' })
+    listener({ level: 'error', message: '[NET] commit failed after retries' })
+    await new Promise(resolve => setTimeout(resolve, 0))
+    stop()
+  } finally {
+    globalThis.window = originalWindow
+    globalThis.fetch = originalFetch
+  }
+
+  assert.deepEqual(sentBody.events.map(event => event.code), [
+    'CLIENT_MONITORING_STARTED',
+    'NETWORK_COMMIT_FAILED',
+  ])
+  assert.equal(sentBody.metrics.captured, 2)
+  assert.equal(sentBody.metrics.ignored, 1)
+})
+
+test('endpoint estrutura eventos, limita lotes e remove credenciais', () => {
   const payload = normalizeClientLogPayload({
+    schemaVersion: 2,
     sessionId: 'session-1',
     room: 'ABCD',
-    logs: Array.from({ length: 30 }, (_, index) => ({
-      level: index === 0 ? 'error' : 'debug',
+    release: 'commit-123',
+    events: Array.from({ length: 30 }, (_, index) => ({
+      severity: index === 0 ? 'error' : 'info',
+      code: index === 0 ? 'runtime.failure' : `EVENT_${index}`,
       message: index === 0
         ? 'Authorization: Bearer secret-token eyJabc.def.ghi'
         : `evento-${index}`,
     })),
   })
 
-  assert.equal(payload.logs.length, 25)
-  assert.equal(payload.logs[0].level, 'error')
-  assert.match(payload.logs[0].message, /\[REDACTED\]/)
-  assert.doesNotMatch(payload.logs[0].message, /secret-token|eyJabc/)
+  assert.equal(payload.events.length, 25)
+  assert.equal(payload.events[0].severity, 'error')
+  assert.equal(payload.events[0].code, 'RUNTIME_FAILURE')
+  assert.equal(payload.release, 'commit-123')
+  assert.match(payload.events[0].message, /\[REDACTED\]/)
+  assert.doesNotMatch(payload.events[0].message, /secret-token|eyJabc/)
 })
 
 test('endpoint aceita o próprio domínio e rejeita origem externa', () => {
@@ -47,8 +127,10 @@ test('endpoint aceita o próprio domínio e rejeita origem externa', () => {
   assert.equal(blocked.code, 403)
 
   const accepted = response()
-  const originalLog = console.log
-  console.log = () => {}
+  const originalConsole = { info: console.info, warn: console.warn, error: console.error }
+  console.info = () => {}
+  console.warn = () => {}
+  console.error = () => {}
   try {
     handler({
       method: 'POST',
@@ -56,7 +138,7 @@ test('endpoint aceita o próprio domínio e rejeita origem externa', () => {
       body: { logs: [{ message: 'teste' }] },
     }, accepted)
   } finally {
-    console.log = originalLog
+    Object.assign(console, originalConsole)
   }
   assert.equal(accepted.code, 204)
 })

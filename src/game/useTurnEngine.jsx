@@ -2840,6 +2840,23 @@ export function useTurnEngine({
               }
             })
 
+            const creditedPlayer = getById(localPlayers, ownerId)
+            const cashAfterRevenue = Number(creditedPlayer?.cash)
+            const expectedCashAfterRevenue = cashBefore + fat
+            const revenueMonitoringData = {
+              ownerId,
+              round: currentRoundRef.current,
+              cashBefore,
+              revenue: fat,
+              cashAfter: cashAfterRevenue,
+              expectedCashAfter: expectedCashAfterRevenue,
+            }
+            if (!Number.isFinite(cashAfterRevenue) || cashAfterRevenue !== expectedCashAfterRevenue) {
+              console.error('[MONITOR][REVENUE_CREDIT_MISMATCH]', revenueMonitoringData)
+            } else {
+              console.info('[MONITOR][REVENUE_CREDIT_APPLIED]', revenueMonitoringData)
+            }
+
             console.log('[LOAN DEBUG] armed after full lap', { ownerId, loanPending: getById(localPlayers, ownerId)?.loanPending || null })
             commitLocalPlayers(localPlayers)
             broadcastState(localPlayers, turnIdxRef.current, currentRoundRef.current)
