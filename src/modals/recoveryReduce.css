@@ -524,3 +524,77 @@
     gap: 8px;
   }
 }
+
+/*
+ * Mobile / pouca altura: cabeçalho + título + lead + rodapé fixos deixavam
+ * só uma faixa para .rr-scroll. Aqui o .rr-root é o único scroller; a lista
+ * de níveis e o rodapé seguem o fluxo (altura natural).
+ * 1199×700 cobre 667×375, 844×320/390 e 1024×480; não altera 1366×650+.
+ */
+@media (max-width: 1199px) and (max-height: 700px) {
+  .recovery-card--reduce .recovery-header {
+    padding: 8px 12px !important;
+  }
+
+  .recovery-card--reduce .recovery-header > div:first-child {
+    font-size: 18px !important;
+    line-height: 1.2;
+  }
+
+  .recovery-card--reduce .recovery-header button {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    min-height: 36px !important;
+    font-size: 18px;
+  }
+
+  .rr-root {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    overscroll-behavior-y: contain;
+  }
+
+  .rr-title,
+  .rr-lead {
+    flex: 0 0 auto;
+  }
+
+  .rr-scroll {
+    flex: 0 0 auto;
+    min-height: auto;
+    height: auto;
+    max-height: none;
+    overflow: visible;
+    padding-bottom: 8px;
+  }
+
+  .rr-group,
+  .rr-levels {
+    max-height: none;
+    height: auto;
+    overflow: visible;
+  }
+
+  .rr-footer {
+    flex: 0 0 auto;
+    position: static;
+    margin-top: 4px;
+    padding-top: 12px;
+    padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+  }
+
+  .rr-card {
+    min-height: 112px;
+    padding: 10px 8px;
+  }
+
+  .rr-btn-back,
+  .rr-btn-reduce {
+    min-height: 44px;
+  }
+}

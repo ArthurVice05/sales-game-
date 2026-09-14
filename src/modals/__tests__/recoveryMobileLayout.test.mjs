@@ -56,10 +56,11 @@ describe('Recuperação — um único scroller vertical', () => {
 
     const cardOverflow = (css.match(/overflow-y:\s*auto/g) || []).length
     assert.ok(cardOverflow >= 1, '.rr-scroll deve ter overflow-y: auto')
-    const nonScrollOverflow = css
+    const baseCss = css.replace(/@media[^{]+\{[\s\S]*?\n\}/g, '')
+    const nonScrollOverflow = baseCss
       .replace(/\.rr-scroll\s*\{[^}]+\}/g, '')
       .match(/overflow-y:\s*auto/g)
-    assert.equal(nonScrollOverflow, null, 'somente .rr-scroll deve ter overflow-y: auto neste CSS')
+    assert.equal(nonScrollOverflow, null, 'no CSS base, só .rr-scroll rola; viewport baixa pode rolar .rr-root')
   })
 
   it('header e footer não encolhem; footer fica fora de .rr-scroll', () => {
@@ -179,6 +180,82 @@ describe('Recuperação — um único scroller vertical', () => {
 
     assert.doesNotMatch(compact, /transform:\s*scale/)
     assert.doesNotMatch(compact, /(?:^|\n)\s*\.recovery-header\s*\{/)
+  })
+})
+
+function mediaBlock(source, query) {
+  const idx = source.indexOf(query)
+  if (idx < 0) return ''
+  const next = source.indexOf('@media', idx + query.length)
+  return source.slice(idx, next > idx ? next : source.length)
+}
+
+describe('Recuperação reduzir — um scroller em viewport baixa', () => {
+  const query = '@media (max-width: 1199px) and (max-height: 700px)'
+
+  it('título, explicação, opções e rodapé continuam no mesmo rr-root', () => {
+    const rootIdx = reduceSrc.indexOf('className="rr-root"')
+    const titleIdx = reduceSrc.indexOf('className="rr-title"')
+    const leadIdx = reduceSrc.indexOf('className="rr-lead"')
+    const scrollIdx = reduceSrc.indexOf('className="rr-scroll"')
+    const footerIdx = reduceSrc.indexOf('className="rr-footer"')
+    assert.ok(rootIdx >= 0 && titleIdx > rootIdx && leadIdx > titleIdx)
+    assert.ok(scrollIdx > leadIdx && footerIdx > scrollIdx)
+    assert.match(reduceSrc, /className="rr-btn-back"/)
+    assert.match(reduceSrc, /className="rr-btn-reduce"/)
+  })
+
+  it('mobile baixo: .rr-root é o scroller; lista de níveis na altura natural', () => {
+    const block = mediaBlock(css, query)
+    assert.ok(block.length > 80, 'media query mobile/baixa altura deve existir')
+
+    const root = block.match(/\.rr-root\s*\{[^}]+\}/)
+    assert.ok(root, '.rr-root deve rolar neste modo')
+    assert.match(root[0], /overflow-y:\s*auto/)
+    assert.match(root[0], /overflow-x:\s*hidden/)
+    assert.match(root[0], /-webkit-overflow-scrolling:\s*touch/)
+    assert.match(root[0], /touch-action:\s*pan-y/)
+    assert.match(root[0], /overscroll-behavior-y:\s*contain/)
+    assert.match(root[0], /min-height:\s*0/)
+
+    const inner = block.match(/\.rr-scroll\s*\{[^}]+\}/)
+    assert.ok(inner, '.rr-scroll deixa de ser scroller interno')
+    assert.match(inner[0], /overflow:\s*visible/)
+    assert.match(inner[0], /flex:\s*0\s+0\s+auto/)
+    assert.match(inner[0], /height:\s*auto/)
+    assert.doesNotMatch(inner[0], /overflow-y:\s*auto/)
+    assert.doesNotMatch(inner[0], /max-height:\s*\d/)
+
+    const footer = block.match(/\.rr-footer\s*\{[^}]+\}/)
+    assert.ok(footer)
+    assert.match(footer[0], /flex:\s*0\s+0\s+auto/)
+    assert.doesNotMatch(footer[0], /position:\s*sticky/)
+    assert.doesNotMatch(footer[0], /position:\s*fixed/)
+
+    assert.doesNotMatch(block, /transform:\s*scale/)
+    assert.doesNotMatch(block, /\.rr-card\s*\{[^}]*display:\s*none/)
+    assert.doesNotMatch(block, /\.rr-levels\s*\{[^}]*display:\s*none/)
+  })
+
+  it('cabeçalho da redução compacta padding sem esconder o fechar condicional', () => {
+    const block = mediaBlock(css, query)
+    assert.match(block, /\.recovery-card--reduce \.recovery-header\s*\{/)
+    const header = block.match(/\.recovery-card--reduce \.recovery-header\s*\{[^}]+\}/)
+    assert.ok(header)
+    assert.match(header[0], /padding:/)
+    assert.doesNotMatch(modalSrc, /canClose &&[\s\S]{0,80}display:\s*none/)
+    assert.match(modalSrc, /canClose && \(/)
+  })
+
+  it('desktop largo preserva scroller interno e rodapé fora da lista', () => {
+    const desktop = mediaBlock(css, '@media (min-width: 721px) and (min-height: 820px)')
+    assert.ok(desktop.length > 40)
+    assert.doesNotMatch(desktop, /\.rr-root\s*\{[^}]*overflow-y:\s*auto/)
+    assert.doesNotMatch(desktop, /\.rr-scroll\s*\{[^}]*overflow:\s*visible/)
+    const scroll = ruleBlock(css, '.rr-scroll')
+    assert.match(scroll, /overflow-y:\s*auto/)
+    const footer = ruleBlock(css, '.rr-footer')
+    assert.match(footer, /flex:\s*0\s+0\s+auto/)
   })
 })
 
