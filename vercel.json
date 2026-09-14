@@ -1,5 +1,11 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "npm run build",
+  "build": {
+    "env": {
+      "VITE_SG_DEBUG_LOGS": "1"
+    }
+  },
   "outputDirectory": "dist",
   "framework": "vite",
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
