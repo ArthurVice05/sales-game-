@@ -2553,6 +2553,13 @@ export function useTurnEngine({
       settled: false,
       done: [],
     })
+    const humanRevenueOriginKey = `${authoritativeMatchId || ''}|${ownerId}|${originSeqHuman}`
+    if (crossedStart1ForRound) {
+      // O fluxo normal é o dono desta apresentação. A sincronização do recibo
+      // pode disparar o recovery antes do commit econômico e não deve abrir
+      // um segundo modal para a mesma identidade de turno.
+      humanRevenueResumeKeyRef.current = humanRevenueOriginKey
+    }
     let humanPlayersForBroadcast = nextPlayers
     if (crossedStart1ForRound || humanEffectsPlan) {
       humanPlayersForBroadcast = nextPlayersWith(nextPlayers, ownerId, {
@@ -3279,6 +3286,9 @@ export function useTurnEngine({
         // (posição + humanTurnEffects) existir no estado autoritativo.
         const moveCommit = await humanMovePersistPromise
         if (moveCommit?.ok === false || moveCommit?.applied === false) {
+          if (humanRevenueResumeKeyRef.current === humanRevenueOriginKey) {
+            humanRevenueResumeKeyRef.current = ''
+          }
           console.warn('[HUMAN_MOVE] efeitos aguardando confirmação do movimento', {
             ownerId,
             turnSeq: turnSeqRef.current,
@@ -3343,6 +3353,9 @@ export function useTurnEngine({
               }),
             })
             if (life === 'CANCELLED_MATCH') {
+              if (humanRevenueResumeKeyRef.current === humanRevenueOriginKey) {
+                humanRevenueResumeKeyRef.current = ''
+              }
               if (pendingTurnDataRef.current?._once) pendingTurnDataRef.current._once.faturamento = 'done'
               await tickAfterModal()
               await waitForLocksClear()
@@ -3404,6 +3417,9 @@ export function useTurnEngine({
             if (persisted.localPlayers) localPlayers = persisted.localPlayers
 
             if (!revenueOk) {
+              if (humanRevenueResumeKeyRef.current === humanRevenueOriginKey) {
+                humanRevenueResumeKeyRef.current = ''
+              }
               console.warn('[REVENUE] crédito pendente — aguardando confirmação', {
                 ownerId,
                 matchId: revenueMatchId,
@@ -5376,6 +5392,9 @@ export function useTurnEngine({
           turnPlayerId: plan.nextTurnPlayerId,
           turnSeq: nextTurnSeq,
           lastRollTurnKey: null,
+          playersDeltaById: {
+            [plan.playerId]: nextPlayers.find((p) => String(p?.id) === String(plan.playerId)),
+          },
           playerDeltaIds,
           lastAction,
         }

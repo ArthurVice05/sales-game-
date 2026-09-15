@@ -1,5 +1,8 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import {
   applyDueHumanRevenuesToRoster,
   buildHumanRevenueActionId,
@@ -27,6 +30,7 @@ const MATCH_ID = 'match-human-revenue'
 const HUMAN_ID = 'arthur'
 const OTHER_ID = 'bot-1'
 const OTHER_HUMAN_ID = 'bia'
+const root = join(dirname(fileURLToPath(import.meta.url)), '../../..')
 
 function revenueEffects(turnSeq = 7, extra = {}) {
   return buildHumanTurnEffectPlan({
@@ -597,5 +601,18 @@ describe('human revenue pipeline', () => {
     assert.equal(liq.applied.length, 2)
     assert.equal(liq.players.find((p) => p.id === HUMAN_ID).cash, 18_770)
     assert.equal(liq.players.find((p) => p.id === OTHER_HUMAN_ID).cash, 9_250)
+  })
+
+  it('fluxo normal reivindica a apresentação antes de publicar o recibo para o recovery', () => {
+    const engine = readFileSync(join(root, 'src/game/useTurnEngine.jsx'), 'utf8')
+    const planStart = engine.indexOf('const humanEffectsPlan = buildHumanTurnEffectPlan')
+    const queueStart = engine.indexOf('enqueueAction(async () => {', planStart)
+    const block = engine.slice(planStart, queueStart)
+    const claimPos = block.indexOf('humanRevenueResumeKeyRef.current = humanRevenueOriginKey')
+    const publishPos = block.indexOf('commitLocalPlayers(humanPlayersForBroadcast)')
+    assert.ok(claimPos >= 0, 'a apresentação precisa ter um dono síncrono')
+    assert.ok(publishPos >= 0 && claimPos < publishPos, 'o claim deve ocorrer antes do recibo ficar observável')
+    assert.match(engine, /humanRevenueResumeKeyRef\.current === originKey/)
+    assert.match(engine, /humanRevenueResumeKeyRef\.current === humanRevenueOriginKey[\s\S]*?humanRevenueResumeKeyRef\.current = ''/)
   })
 })

@@ -231,6 +231,18 @@ test('App aplica forfeitMatch antes de leaveRoom no Sair para Lobbies', () => {
   assert.ok(forfeitPos < leavePos, 'falência deve ser commitada antes de sair da sala')
 })
 
+test('falência no próprio turno envia o estado bankrupt junto com o handoff', () => {
+  const root = join(dirname(fileURLToPath(import.meta.url)), '../../..')
+  const engine = readFileSync(join(root, 'src/game/useTurnEngine.jsx'), 'utf8')
+  const start = engine.indexOf('if (plan.turnChanged)')
+  const end = engine.indexOf("kind: 'PLAYER_DELTA'", start)
+  assert.ok(start > 0 && end > start)
+  const handoff = engine.slice(start, end)
+  assert.match(handoff, /kind:\s*'TURN'/)
+  assert.match(handoff, /playersDeltaById:\s*\{/)
+  assert.match(handoff, /\[plan\.playerId\]/)
+})
+
 test('Sair para Lobbies exige confirmação antes de aplicar o forfeit', () => {
   const root = join(dirname(fileURLToPath(import.meta.url)), '../../..')
   const app = readFileSync(join(root, 'src/App.jsx'), 'utf8')

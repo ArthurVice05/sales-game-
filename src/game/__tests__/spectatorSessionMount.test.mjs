@@ -58,6 +58,83 @@ test('sessão que jogou a partida A consegue assistir à partida B (matchId dife
   }
 })
 
+test('falência humana no próprio turno persiste no estado compartilhado', async () => {
+  const world = worldFixture()
+  world.lobby_players.push({
+    lobby_id: ROOM_A,
+    player_id: 'p-bia',
+    player_name: 'Bia',
+    ready: true,
+    joined_at: '2026-01-01T00:00:02Z',
+    last_seen: new Date().toISOString(),
+  })
+  const fake = createFakeSupabase(world)
+  const app = await mountRoot({ supabase: fake.client, search: `?room=${ROOM_A}` })
+  try {
+    await playMatchInRoomA(app)
+    await app.click('DECLARAR FALÊNCIA')
+    await app.settle()
+    const confirmIndex = app.clickables().filter((label) => label.includes('Declarar Falência')).length - 1
+    await app.click('Declarar Falência', { index: confirmIndex })
+    await app.waitFor(
+      () => {
+        const room = fake.tables.rooms.find((r) => r.code === ROOM_A)
+        return room?.state?.players?.some((p) => p.name === 'Carla' && p.bankrupt === true)
+      },
+      { label: 'falência persistida na sala', rounds: 300 },
+    )
+    const room = fake.tables.rooms.find((r) => r.code === ROOM_A)
+    const player = room.state.players.find((p) => p.name === 'Carla')
+    assert.equal(player.bankrupt, true)
+    assert.equal(player.cash, 0)
+  } finally {
+    await app.unmount()
+  }
+})
+
+test('após confirmar faturamento resolve a casa de chegada da mesma jogada', async () => {
+  const fake = createFakeSupabase(worldFixture())
+  const app = await mountRoot({ supabase: fake.client, search: `?room=${ROOM_A}` })
+  const originalRandom = Math.random
+  try {
+    await playMatchInRoomA(app)
+    const room = fake.tables.rooms.find((r) => r.code === ROOM_A)
+    const actorId = room.state.turnPlayerId
+    const positioned = room.state.players.map((player) =>
+      String(player.id) === String(actorId) ? { ...player, pos: 38 } : player,
+    )
+    await fake.client
+      .from('rooms')
+      .update({
+        state: { ...room.state, players: positioned, stateId: 'before-revenue-arrival' },
+        version: room.version + 1,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', room.id)
+      .eq('version', room.version)
+      .select('id, code, state, version, updated_at')
+      .maybeSingle()
+    await app.settle(10)
+
+    Math.random = () => 0.5 // dado 4: casa 39 -> passa 01 e chega 03 (ERP)
+    await app.click('Rolar dado')
+    await app.waitForText('Faturamento do mês', { rounds: 500 })
+    const revenueConfirm = app.clickables().filter((label) => label === 'OK').length - 1
+    await app.click('OK', { index: revenueConfirm })
+    await app.waitFor(
+      (h) => !!h.componentProps('ERPSystemsModal'),
+      { label: 'modal da casa ERP após faturamento', rounds: 500 },
+    )
+    const afterRevenueRoom = fake.tables.rooms.find((row) => row.code === ROOM_A)
+    const movedActor = afterRevenueRoom?.state?.players?.find((player) => String(player.id) === String(actorId))
+    assert.equal(movedActor.pos, 2, 'a peça precisa permanecer na casa ERP de chegada')
+    await app.click('Não comprar')
+  } finally {
+    Math.random = originalRandom
+    await app.unmount()
+  }
+})
+
 test('versão alta da sala A não bloqueia a hidratação da sala B com versão baixa', async () => {
   // B fica deliberadamente numa versão MENOR que a alcançada em A.
   const fake = createFakeSupabase(worldFixture({ roomB: roomBRow({ version: 1 }) }))

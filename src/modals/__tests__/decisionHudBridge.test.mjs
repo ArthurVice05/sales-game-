@@ -58,12 +58,13 @@ test('mobile usa HUD recolhível externo sem reservar largura do formulário', (
   assert.doesNotMatch(css, /hudFinanceStrip\s*\{\s*display:\s*none/)
 })
 
-test('desktop permanece com decisão e HUD simultâneos', () => {
+test('desktop mantém HUD consultável sem deslocar o modal do centro da tela', () => {
   const css = read('src/modals/decision-hud-bridge.css')
   assert.match(
     css,
-    /@media \(min-width:\s*1200px\)[\s\S]*?padding-right:\s*clamp\(336px/,
+    /@media \(min-width:\s*1200px\)[\s\S]*?padding:\s*12px/,
   )
+  assert.match(css, /html\[data-sg-modal-depth="1"\] \.hudConsultRegion[\s\S]*?pointer-events:\s*auto/)
 })
 
 test('compra registra comprador para o HUD lateral', () => {

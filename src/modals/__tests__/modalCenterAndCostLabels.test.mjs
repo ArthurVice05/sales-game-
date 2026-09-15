@@ -15,10 +15,11 @@ function mediaBlock(css, query) {
 }
 
 describe('centralização de modais na região útil', () => {
-  it('desktop: overlay reserva HUD uma vez e cartão usa % da camada (não 100vw)', () => {
+  it('desktop: overlay usa margens simétricas e cartão usa % da camada (não 100vw)', () => {
     const css = read('modals/decision-hud-bridge.css')
     const desktop = mediaBlock(css, '@media (min-width: 1200px)')
-    assert.match(desktop, /padding-right:\s*clamp\(336px/)
+    assert.match(desktop, /padding:\s*12px/)
+    assert.doesNotMatch(desktop, /padding-right:\s*clamp\(/)
     assert.match(desktop, /justify-content:\s*center/)
     assert.match(desktop, /align-items:\s*center/)
     // Largura do tileModal relativa à camada já reduzida — evita “subtrair HUD duas vezes”.

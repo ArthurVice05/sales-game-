@@ -29,12 +29,12 @@ html[data-sg-modal-depth="4"] .hudConsultRegion {
   html[data-sg-modal-depth="1"] .sgModalOverlay,
   html[data-sg-modal-depth="2"] .sgModalOverlay,
   html[data-sg-modal-depth="3"] .sgModalOverlay {
-    padding-right: clamp(336px, calc(22vw + 16px), 386px);
+    padding: 12px;
     justify-content: center;
     align-items: center;
   }
 
-  /* Camada do modal usa só a largura útil à esquerda do HUD (sem 96vw). */
+  /* Camada centralizada no viewport; o HUD não desloca mais a janela para a esquerda. */
   html[data-sg-modal-depth="1"] .sgModalOverlay > [data-modal-top="true"],
   html[data-sg-modal-depth="2"] .sgModalOverlay > [data-modal-top="true"],
   html[data-sg-modal-depth="3"] .sgModalOverlay > [data-modal-top="true"] {
@@ -47,8 +47,8 @@ html[data-sg-modal-depth="4"] .hudConsultRegion {
   }
 
   /*
-   * Cartão relativo à camada (já descontada do HUD) — evita width em 100vw
-   * que “subtrai” a sidebar outra vez e desloca o centro.
+   * Cartão relativo à camada — evita width em 100vw e mantém o centro real
+   * em qualquer largura de notebook/desktop.
    */
   html[data-sg-modal-depth="1"] .sgModalOverlay .tileModal,
   html[data-sg-modal-depth="2"] .sgModalOverlay .tileModal,
@@ -97,7 +97,7 @@ html[data-sg-modal-depth="4"] .hudConsultRegion {
 
   /*
    * Recuperação: backdrop próprio não pode ser fixed full-bleed.
-   * Reserva lateral já está no .sgModalOverlay — sem segunda padding-right.
+   * Sem reserva lateral no .sgModalOverlay — sem segunda padding-right.
    */
   html[data-sg-modal-depth="1"] .recovery-backdrop,
   html[data-sg-modal-depth="2"] .recovery-backdrop {

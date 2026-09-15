@@ -1,5 +1,5 @@
 /**
- * Recuperação + HUD: backdrop interno não pode ignorar a reserva lateral do overlay.
+ * Recuperação + HUD: backdrop interno deve respeitar o overlay centralizado.
  * Aba Empresa no notebook: densidade suficiente para caber sem depender de scroll.
  */
 import { describe, it } from 'node:test'
@@ -30,11 +30,12 @@ describe('Recovery × HUD — regiões distintas', () => {
     assert.equal(S.card.maxWidth, '100%')
   })
 
-  it('bridge desktop reserva HUD uma vez e limita o cartão ao espaço útil', () => {
+  it('bridge desktop centraliza o cartão sem uma segunda margem lateral', () => {
     const css = read('modals/decision-hud-bridge.css')
     const desktop = mediaBlock(css, '@media (min-width: 1200px)')
     assert.ok(desktop.length > 80)
-    assert.match(desktop, /padding-right:\s*clamp\(336px/)
+    assert.match(desktop, /padding:\s*12px/)
+    assert.doesNotMatch(desktop, /padding-right:\s*clamp\(/)
     assert.match(desktop, /\[data-modal-top="true"\]/)
     assert.match(desktop, /min-width:\s*0/)
     assert.match(desktop, /\.recovery-backdrop/)
