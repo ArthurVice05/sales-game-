@@ -40,6 +40,8 @@ test('sessão que jogou a partida A consegue assistir à partida B (matchId dife
     assert.ok(app.includes('Rolar dado'), 'a sessão precisa estar jogando a partida A')
 
     await app.click('Sair para Lobbies')
+    await app.settle()
+    await app.click('Confirmar', { index: 1 })
     await app.settle(10)
 
     await app.click('Assistir partida', { index: 1 })
@@ -67,6 +69,8 @@ test('versão alta da sala A não bloqueia a hidratação da sala B com versão 
     assert.ok(roomA.version > roomB.version, 'o cenário exige versão de A maior que a de B')
 
     await app.click('Sair para Lobbies')
+    await app.settle()
+    await app.click('Confirmar', { index: 1 })
     await app.settle(10)
     await app.click('Assistir partida', { index: 1 })
 

@@ -29,7 +29,8 @@ import TurnTimer from './components/TurnTimer.jsx'
 import BankruptOverlay from './modals/BankruptOverlay.jsx'
 import DebugPanel from './components/DebugPanel.jsx'
 import GameSoundToggle from './components/GameSoundToggle.jsx'
-import { ModalProvider } from './modals/ModalContext'
+import { ModalProvider, useModal } from './modals/ModalContext'
+import ConfirmModal from './modals/ConfirmModal.jsx'
 import { DecisionBuyerProvider } from './modals/decisionBuyerContext.jsx'
 import HudConsultBridge from './components/hud/HudConsultBridge.jsx'
 
@@ -208,6 +209,7 @@ function normalizeLastRoll(value) {
 }
 
 export default function App() {
+  const { openAndWait } = useModal()
   const DEBUG_LOGS = isDebugLogsEnabled()
   const DEBUG_VALIDATE = import.meta.env.DEV && localStorage.getItem('SALES_DEBUG_VALIDATE') === '1'
   const desktopHud = useDesktopHudLayout()
@@ -3340,6 +3342,21 @@ export default function App() {
     setPhase('lobbies')
   }
 
+  async function confirmExitCurrentGame() {
+    const isLocalGame = gameMode === GAME_MODE.LOCAL
+    const confirmed = await openAndWait(
+      <ConfirmModal
+        title={isLocalGame ? 'Sair da partida?' : 'Sair para os Lobbies?'}
+        message={isLocalGame
+          ? 'Tem certeza que deseja encerrar esta partida neste dispositivo?'
+          : 'Tem certeza que deseja sair desta partida e voltar para os Lobbies?'}
+      />
+    )
+    if (confirmed !== true) return false
+    await exitCurrentGame()
+    return true
+  }
+
   // Presença + auto-skip (Etapa 2) — só durante game multiplayer
   const [turnAbsenceStatus, setTurnAbsenceStatus] = useState(null)
 
@@ -4381,7 +4398,7 @@ export default function App() {
                   <button
                     type="button"
                     className="btn dark"
-                    onClick={exitCurrentGame}
+                    onClick={confirmExitCurrentGame}
                   >
                     {gameMode === GAME_MODE.LOCAL ? 'Sair da partida' : 'Sair para Lobbies'}
                   </button>
@@ -4498,9 +4515,9 @@ export default function App() {
                 <button
                   type="button"
                   className="btn dark"
-                  onClick={() => {
-                    setMoreSheetOpen(false)
-                    exitCurrentGame()
+                  onClick={async () => {
+                    const exited = await confirmExitCurrentGame()
+                    if (exited) setMoreSheetOpen(false)
                   }}
                 >
                   {gameMode === GAME_MODE.LOCAL ? 'Sair da partida' : 'Sair para Lobbies'}
