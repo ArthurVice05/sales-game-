@@ -129,6 +129,37 @@ html[data-sg-modal-depth="4"] .hudConsultRegion {
     pointer-events: none;
   }
 
+  /*
+   * Cabeçalho (Caixa/Faturamento/Despesas/Resultado) também fica visível e
+   * legível acima do backdrop durante a decisão. O overlay recebe recuo
+   * medido (ModalContext → useHudSafeInsets), então o modal nunca o cobre.
+   * Só leitura: nada do cabeçalho vira alvo, exceto o botão de som.
+   */
+  html[data-sg-modal-depth="1"] .page[data-game-shell] > .gameDesktopHeader {
+    position: relative;
+    z-index: 10050;
+    pointer-events: none;
+  }
+
+  html[data-sg-modal-depth="1"] .page[data-game-shell] > .gameDesktopHeader .gameSoundToggle {
+    pointer-events: auto;
+  }
+
+  /* Com recuo medido, a camada usa toda a altura livre abaixo do cabeçalho. */
+  html[data-sg-modal-depth="1"] .sgModalOverlay[data-hud-safe="1"] > [data-modal-top="true"],
+  html[data-sg-modal-depth="2"] .sgModalOverlay[data-hud-safe="1"] > [data-modal-top="true"],
+  html[data-sg-modal-depth="3"] .sgModalOverlay[data-hud-safe="1"] > [data-modal-top="true"] {
+    max-height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  html[data-sg-modal-depth="1"] .sgModalOverlay[data-hud-safe="1"] .tileModal,
+  html[data-sg-modal-depth="2"] .sgModalOverlay[data-hud-safe="1"] .tileModal,
+  html[data-sg-modal-depth="3"] .sgModalOverlay[data-hud-safe="1"] .tileModal {
+    max-height: 100%;
+  }
+
   html[data-sg-modal-depth="1"] .hudConsultRegion {
     position: relative;
     z-index: 1;

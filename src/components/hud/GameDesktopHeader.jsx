@@ -7,7 +7,9 @@ import {
   deriveMonthlyResult,
   monthlyResultTone,
   formatHudCash,
+  formatHudCashCompact,
   formatGameMoney,
+  formatGameMoneyCompact,
 } from './hudPresentation.js'
 import './desktop-hud.css'
 
@@ -40,12 +42,14 @@ export default function GameDesktopHeader({
         <img className="gdhLogo" src={logoGame} alt="Sales Game" />
         {iAmHost && (
           <span className="gdhHost" title="Você é o Host da sala">
-            👑 Você é o Host
+            <span aria-hidden="true">👑</span>
+            <span className="gdhHostText">Você é o Host</span>
           </span>
         )}
         {!iAmHost && hostName && (
           <span className="gdhHost gdhHost--other" title="Host atual da sala">
-            👑 Host: {hostName}
+            <span aria-hidden="true">👑</span>
+            <span className="gdhHostText">Host: {hostName}</span>
           </span>
         )}
         <span className="gdhPlayer">
@@ -77,22 +81,30 @@ export default function GameDesktopHeader({
             paused={timerPaused}
           />
         </HudMetricCard>
-        <HudMetricCard label="Caixa" value={formatHudCash(cash)} icon="💵" />
+        <HudMetricCard
+          label="Caixa"
+          value={formatHudCash(cash)}
+          compactValue={formatHudCashCompact(cash)}
+          icon="💵"
+        />
         <HudMetricCard
           label="Faturamento"
           value={formatGameMoney(totals.faturamento)}
+          compactValue={formatGameMoneyCompact(totals.faturamento)}
           tone="positive"
           icon="📈"
         />
         <HudMetricCard
           label="Despesas"
           value={formatGameMoney(totals.manutencao)}
+          compactValue={formatGameMoneyCompact(totals.manutencao)}
           tone="negative"
           icon="📉"
         />
         <HudMetricCard
           label="Resultado mensal"
           value={formatGameMoney(monthly)}
+          compactValue={formatGameMoneyCompact(monthly)}
           tone={resultTone}
           icon="📊"
         />

@@ -7,6 +7,7 @@ import {
   expirationPayloadForKind,
 } from '../game/decisionTimeoutPolicy.js'
 import { inferBotDecisionKindFromElement } from '../game/bots/botDecisionKind.js'
+import { HUD_SAFE_GAP, useHudSafeInsets } from './useHudSafeInsets.js'
 import './decision-hud-bridge.css'
 import './modal-notebook-scrollbar.css'
 
@@ -234,6 +235,19 @@ export function ModalProvider({ children }) {
     ]
   )
 
+  // Desktop: recuo medido do HUD superior/lateral (inline vence qualquer regra
+  // CSS e acompanha a largura real da sidebar em qualquer tela/zoom).
+  const hudSafeInsets = useHudSafeInsets(stack.length > 0)
+  const hudSafeStyle = hudSafeInsets
+    ? {
+        paddingTop: Math.max(HUD_SAFE_GAP, hudSafeInsets.top),
+        paddingRight: Math.max(HUD_SAFE_GAP, hudSafeInsets.right),
+        paddingBottom: HUD_SAFE_GAP,
+        paddingLeft: HUD_SAFE_GAP,
+        boxSizing: 'border-box',
+      }
+    : null
+
   return (
     <ModalCtx.Provider value={value}>
       {children}
@@ -241,6 +255,7 @@ export function ModalProvider({ children }) {
       {stack.length > 0 && (
         <div
           className="sgModalOverlay"
+          data-hud-safe={hudSafeInsets ? '1' : undefined}
           style={{
             position: 'fixed',
             inset: 0,
@@ -249,6 +264,7 @@ export function ModalProvider({ children }) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            ...hudSafeStyle,
           }}
         >
           {/* backdrop — cobre tabuleiro/ações; HUD informativo sobe via .hudConsultRegion */}

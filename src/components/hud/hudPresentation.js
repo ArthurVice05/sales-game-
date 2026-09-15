@@ -1,11 +1,11 @@
-import { formatGameMoney } from '../gameStats.js'
+import { formatGameMoney, formatGameMoneyCompact } from '../gameStats.js'
 import {
   capacityAndAttendance,
   computeDespesasFor,
   computeFaturamentoFor,
 } from '../../game/gameMath.js'
 
-export { formatGameMoney }
+export { formatGameMoney, formatGameMoneyCompact }
 
 /**
  * Totais de apresentação do HUD para um jogador (somente leitura).
@@ -88,6 +88,11 @@ export function gaugeRatio(used, total) {
 export function formatHudCash(cash) {
   if (cash == null) return '—'
   return formatGameMoney(cash)
+}
+
+export function formatHudCashCompact(cash) {
+  if (cash == null) return '—'
+  return formatGameMoneyCompact(cash)
 }
 
 export const HUD_TABS = Object.freeze(['empresa', 'comercial', 'estrutura', 'ranking'])

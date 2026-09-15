@@ -56,7 +56,8 @@
   gap: 8px;
   min-width: 0;
   flex: 1 1 112px;
-  max-width: 168px;
+  max-width: 200px;
+  overflow: hidden;
   padding: 8px 12px;
   border-radius: 12px;
   border: 1px solid var(--hud-border);
@@ -66,12 +67,14 @@
 }
 
 .hudMetricCardIcon {
+  flex: 0 0 auto;
   font-size: 14px;
   line-height: 1;
   opacity: 0.9;
 }
 
 .hudMetricCardBody {
+  flex: 1 1 auto;
   min-width: 0;
 }
 
@@ -92,6 +95,31 @@
   line-height: 1.2;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  /* Valor nunca vaza do card: JS reduz a fonte / usa formato compacto. */
+  position: relative;
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Altura da linha fixa: reduzir a fonte não faz o card "pular". */
+.hudMetricCardValueText {
+  display: inline-block;
+  min-height: 1.2em;
+  vertical-align: bottom;
+}
+
+/* Nós de medição (fonte base, fora do fluxo, invisíveis). */
+.hudMetricCardMeasure {
+  position: absolute;
+  top: 0;
+  left: 0;
+  visibility: hidden;
+  pointer-events: none;
+  white-space: nowrap;
+  width: max-content;
 }
 
 .hudMetricCard--positive .hudMetricCardValue { color: var(--hud-positive); }
@@ -366,6 +394,7 @@
 }
 
 .hudRankingPat {
+  flex: 0 0 auto;
   font-size: 13px;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -520,6 +549,60 @@
     min-width: 0;
     flex: 1 1 auto;
     justify-content: flex-end;
+  }
+
+  .gdhHostText {
+    white-space: nowrap;
+  }
+
+  /*
+   * Notebooks (1200–1535px, ex.: 1366×768): a marca cede espaço aos cards
+   * numéricos — Host/Som viram ícones (texto segue no title/aria-label).
+   */
+  @media (max-width: 1535px) {
+    .gameDesktopHeader {
+      gap: 10px;
+      padding: 8px 12px;
+    }
+
+    .gdhBrand {
+      gap: 8px;
+    }
+
+    .gdhLogo {
+      height: 40px;
+      max-width: 112px;
+    }
+
+    .gdhHost {
+      padding: 0 9px;
+    }
+
+    .gdhHostText {
+      display: none;
+    }
+
+    .gdhPlayerName {
+      max-width: 96px;
+    }
+
+    .gameDesktopHeader .gameSoundToggle {
+      width: 32px;
+      padding: 0;
+      justify-content: center;
+    }
+
+    .gameDesktopHeader .gameSoundToggleLabel {
+      display: none;
+    }
+
+    .gdhMetrics {
+      gap: 6px;
+    }
+
+    .gameDesktopHeader .hudMetricCard {
+      gap: 6px;
+    }
   }
 
   .gameDesktopHeader .turnTimer {

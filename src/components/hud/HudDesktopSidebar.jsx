@@ -5,7 +5,9 @@ import DiceResult from '../DiceResult.jsx'
 import HudMetricCard from './HudMetricCard.jsx'
 import {
   formatGameMoney,
+  formatGameMoneyCompact,
   formatHudCash,
+  formatHudCashCompact,
   gaugeRatio,
   HUD_TABS,
   buildHudGauges,
@@ -94,22 +96,30 @@ export default function HudDesktopSidebar({
     <div className={`hudDesktop hudDesktop--${variant}`}>
       {(variant === 'sheet') && (
         <div className="hudFinanceStrip">
-          <HudMetricCard label="Caixa" value={formatHudCash(cash)} icon="💵" />
+          <HudMetricCard
+            label="Caixa"
+            value={formatHudCash(cash)}
+            compactValue={formatHudCashCompact(cash)}
+            icon="💵"
+          />
           <HudMetricCard
             label="Faturamento"
             value={formatGameMoney(totals.faturamento)}
+            compactValue={formatGameMoneyCompact(totals.faturamento)}
             tone="positive"
             icon="📈"
           />
           <HudMetricCard
             label="Despesas"
             value={formatGameMoney(totals.manutencao)}
+            compactValue={formatGameMoneyCompact(totals.manutencao)}
             tone="negative"
             icon="📉"
           />
           <HudMetricCard
             label="Resultado"
             value={formatGameMoney(monthly)}
+            compactValue={formatGameMoneyCompact(monthly)}
             tone={resultTone}
             icon="📊"
           />

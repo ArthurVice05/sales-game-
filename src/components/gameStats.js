@@ -7,6 +7,24 @@ const brlFormatter = new Intl.NumberFormat('pt-BR', {
 
 export const formatGameMoney = (value) => brlFormatter.format(Number(value) || 0)
 
+const brlCompactFormatter = new Intl.NumberFormat('pt-BR', {
+  style: 'currency',
+  currency: 'BRL',
+  notation: 'compact',
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 1,
+})
+
+/**
+ * Formato curto para cards estreitos do HUD ("R$ 1,2 mi", "R$ 16,9 mil").
+ * Abaixo de mil mantém o formato completo (já é curto).
+ */
+export const formatGameMoneyCompact = (value) => {
+  const n = Number(value) || 0
+  if (Math.abs(n) < 1000) return formatGameMoney(n)
+  return brlCompactFormatter.format(n)
+}
+
 const plain = (value) => String(value ?? 0)
 const money = (key, label, value, tone = 'neutral') => ({
   key,
