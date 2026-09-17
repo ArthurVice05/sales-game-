@@ -92,6 +92,7 @@ function GameNetProvider({ roomCode, hostId, readOnly = false, children }) {
   const versionRef = useRef(version)
   const stateIdRef = useRef(stateId)
   const lastEvtRef = useRef(0)
+  const roomChannelRef = useRef(null)
   const activeRoomIdRef = useRef(null)
   const latestKnownUpdatedAtRef = useRef(null)
   const activeCodeRef = useRef(code)
@@ -329,61 +330,68 @@ function GameNetProvider({ roomCode, hostId, readOnly = false, children }) {
   // realtime por code
   useEffect(() => {
     if (!enabled) return
+    const applyIncomingRow = (row) => {
+      if (!row || (row.code != null && String(row.code) !== String(code))) return
+
+      const incomingVersion = (typeof row.version === 'number') ? row.version : null
+      const incomingState = row.state || null
+      const incomingStateId = incomingState?.stateId ?? null
+      const remoteHasPlayers =
+        Array.isArray(incomingState?.players) && incomingState.players.length > 0
+      const localHasPlayers =
+        Array.isArray(stateRef.current?.players) && stateRef.current.players.length > 0
+
+      const shouldApply =
+        (remoteHasPlayers && !localHasPlayers) ||
+        (incomingVersion != null && incomingVersion > versionRef.current) ||
+        (incomingVersion != null && incomingVersion === versionRef.current && incomingStateId && incomingStateId !== stateIdRef.current)
+
+      if (!shouldApply) return
+      applyRoomSnapshotIfNewer(
+        {
+          versionRef,
+          stateRef,
+          stateIdRef,
+          latestKnownUpdatedAtRef,
+          activeRoomIdRef,
+          setVersion,
+          setState,
+          setStateId,
+        },
+        {
+          version: incomingVersion,
+          state: incomingState,
+          stateId: incomingStateId,
+          updatedAt: row.updated_at,
+          roomId: row.id,
+        },
+      )
+      lastEvtRef.current = Date.now()
+    }
     const ch = supabase
-      .channel(`rooms:${code}`)
+      .channel(`rooms:${code}`, { config: { broadcast: { ack: true, self: false } } })
+      .on('broadcast', { event: 'room_state' }, async ({ payload }) => {
+        if (payload?.code != null && String(payload.code) !== String(code)) return
+        const hintedVersion = Number(payload?.version)
+        if (Number.isFinite(hintedVersion) && hintedVersion <= versionRef.current) return
+        // Broadcast é apenas um aviso não confiável. O estado aplicado sempre
+        // vem de rooms, protegido pelas políticas e pelo gate monotônico.
+        const lookup = await getLatestRoomByCode(code)
+        if (lookup.status === 'ok' && lookup.row) applyIncomingRow(lookup.row)
+      })
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'rooms', filter: `code=eq.${code}` },
         (payload) => {
-          const row = payload.new || payload.old || {}
-          if (!row || (row.code != null && String(row.code) !== String(code))) return
-
-          const incomingVersion = (typeof row.version === 'number') ? row.version : null
-          const incomingState = row.state || null
-          const incomingStateId = incomingState?.stateId ?? null
-          const remoteHasPlayers =
-            Array.isArray(incomingState?.players) && incomingState.players.length > 0
-          const localHasPlayers =
-            Array.isArray(stateRef.current?.players) && stateRef.current.players.length > 0
-
-          // Aplica se versão avançou, stateId mudou, OU recuperação: local sem players e remoto com players
-          const shouldApply =
-            (remoteHasPlayers && !localHasPlayers) ||
-            (incomingVersion != null && incomingVersion > versionRef.current) ||
-            (incomingVersion != null && incomingVersion === versionRef.current && incomingStateId && incomingStateId !== stateIdRef.current)
-
-          if (shouldApply) {
-            applyRoomSnapshotIfNewer(
-              {
-                versionRef,
-                stateRef,
-                stateIdRef,
-                latestKnownUpdatedAtRef,
-                activeRoomIdRef,
-                setVersion,
-                setState,
-                setStateId,
-              },
-              {
-                version: incomingVersion,
-                state: incomingState,
-                stateId: incomingStateId,
-                updatedAt: row.updated_at,
-                roomId: row.id,
-              },
-            )
-            lastEvtRef.current = Date.now()
-            if (DEV_NET_LOGS) {
-              console.log('[NET] ✅ applied remote (realtime)', {
-                version: incomingVersion,
-                hasPlayers: remoteHasPlayers,
-              })
-            }
-          }
+          applyIncomingRow(payload.new || payload.old || {})
         }
       )
       .subscribe()
-    return () => { try { supabase.removeChannel(ch) } catch {} }
+    roomChannelRef.current = ch
+    return () => {
+      if (roomChannelRef.current === ch) roomChannelRef.current = null
+      try { supabase.removeChannel(ch) } catch {}
+    }
   }, [enabled, code])
 
   // polling de segurança (se o realtime estiver off)
@@ -579,6 +587,13 @@ function GameNetProvider({ roomCode, hostId, readOnly = false, children }) {
       if (cancelled()) return aborted()
 
       if (!e2 && updated) {
+        const committedRow = {
+          id: targetId,
+          code,
+          state: updated.state || {},
+          version: updated.version ?? ((current.version || 0) + 1),
+          updated_at: updated.updated_at,
+        }
         applyRoomSnapshotIfNewer(
           {
             versionRef,
@@ -591,13 +606,24 @@ function GameNetProvider({ roomCode, hostId, readOnly = false, children }) {
             setStateId,
           },
           {
-            version: updated.version ?? ((current.version || 0) + 1),
-            state: updated.state || {},
-            stateId: updated.state?.stateId,
-            updatedAt: updated.updated_at,
+            version: committedRow.version,
+            state: committedRow.state,
+            stateId: committedRow.state?.stateId,
+            updatedAt: committedRow.updated_at,
             roomId: targetId,
           },
         )
+        // Postgres Changes permanece autoritativo e o polling continua sendo a
+        // recuperação. O broadcast reduz a latência quando o fan-out do WAL
+        // está congestionado; o receptor aplica o mesmo gate monotônico.
+        const roomChannel = roomChannelRef.current
+        if (roomChannel) {
+          Promise.resolve(roomChannel.send({
+            type: 'broadcast',
+            event: 'room_state',
+            payload: { code, version: committedRow.version },
+          })).catch(() => {})
+        }
         if (attempt > 1) {
           console.log(`[NET] commit succeeded on attempt ${attempt}/${MAX_ATTEMPTS}`)
         }

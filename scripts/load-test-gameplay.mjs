@@ -7,6 +7,8 @@ const anonKey = String(process.env.VITE_SUPABASE_ANON_KEY || '')
 const roomCount = Math.max(1, Math.min(40, Number(process.env.SG_LOAD_TEST_ROOMS) || 20))
 const playersPerRoom = Math.max(2, Math.min(8, Number(process.env.SG_LOAD_TEST_PLAYERS) || 4))
 const durationMs = Math.max(15_000, Math.min(120_000, Number(process.env.SG_LOAD_TEST_DURATION_MS) || 60_000))
+const subscribeLobbyEvents = process.env.SG_LOAD_TEST_LOBBY_EVENTS !== '0'
+const requireRoomEvents = process.env.SG_LOAD_TEST_REQUIRE_ROOM_EVENTS === '1'
 const runId = `LOAD-GAME-${Date.now()}-${randomUUID().slice(0, 8)}`
 const createdLobbyIds = []
 const clients = []
@@ -16,6 +18,9 @@ const metrics = {
   realtimeSubscribed: 0,
   realtimeFailed: 0,
   roomEvents: 0,
+  roomPostgresEvents: 0,
+  roomBroadcastEvents: 0,
+  broadcastsSent: 0,
   lobbyEvents: 0,
   foreignRoomEvents: 0,
   casWins: 0,
@@ -133,22 +138,34 @@ async function connectPlayer(room, playerId, seat) {
     lastPolledVersion: null,
   }
   const roomChannel = client
-    .channel(`rooms:${room.lobbyId}`)
+    .channel(`rooms:${room.lobbyId}`, { config: { broadcast: { ack: true, self: false } } })
+    .on('broadcast', { event: 'room_state' }, payload => {
+      metrics.roomEvents += 1
+      metrics.roomBroadcastEvents += 1
+      session.roomEvents += 1
+      const code = payload.payload?.code
+      if (code && String(code) !== room.lobbyId) metrics.foreignRoomEvents += 1
+    })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms', filter: `code=eq.${room.lobbyId}` }, payload => {
       metrics.roomEvents += 1
+      metrics.roomPostgresEvents += 1
       session.roomEvents += 1
       const code = payload.new?.code || payload.old?.code
       if (code && String(code) !== room.lobbyId) metrics.foreignRoomEvents += 1
     })
-  const lobbyChannel = client
-    .channel(`lobby-${room.lobbyId}`)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'lobby_players', filter: `lobby_id=eq.${room.lobbyId}` }, () => {
-      metrics.lobbyEvents += 1
-      session.lobbyEvents += 1
-    })
   const spectatorChannel = client.channel(`spectators:${room.lobbyId}`, { config: { presence: { key: '' } } })
-  const statuses = await Promise.all([subscribe(roomChannel), subscribe(lobbyChannel), subscribe(spectatorChannel)])
-  session.channels = [roomChannel, lobbyChannel, spectatorChannel]
+  const channels = [roomChannel, spectatorChannel]
+  if (subscribeLobbyEvents) {
+    channels.push(client
+      .channel(`lobby-${room.lobbyId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'lobby_players', filter: `lobby_id=eq.${room.lobbyId}` }, () => {
+        metrics.lobbyEvents += 1
+        session.lobbyEvents += 1
+      }))
+  }
+  const statuses = await Promise.all(channels.map(channel => subscribe(channel)))
+  session.channels = channels
+  if (seat === 0) room.broadcastChannel = roomChannel
   session.statuses = statuses
   return session
 }
@@ -158,7 +175,16 @@ async function patchRoom(room, nextState, expectedVersion) {
     method: 'PATCH',
     body: { state: nextState, version: expectedVersion + 1, updated_at: new Date().toISOString() },
   })
-  return rows?.[0] || null
+  const updated = rows?.[0] || null
+  if (updated && room.broadcastChannel) {
+    const status = await room.broadcastChannel.send({
+      type: 'broadcast',
+      event: 'room_state',
+      payload: { code: room.lobbyId, version: updated.version },
+    }).catch(() => 'error')
+    if (status === 'ok') metrics.broadcastsSent += 1
+  }
+  return updated
 }
 
 async function contentionProbe(room) {
@@ -317,6 +343,9 @@ const expectedLobbyEvents = metrics.heartbeatWrites * playersPerRoom
 const lobbyDeliveryRatio = expectedLobbyEvents > 0
   ? Number((metrics.lobbyEvents / expectedLobbyEvents).toFixed(3))
   : null
+if (requireRoomEvents && realtimeRoomSilentSessions > 0) {
+  failures.push(`${realtimeRoomSilentSessions}/${sessions.length} clientes sem eventos Realtime de rooms`)
+}
 
 console.log(JSON.stringify({
   ok: failures.length === 0,
@@ -324,6 +353,8 @@ console.log(JSON.stringify({
   rooms: roomCount,
   players: roomCount * playersPerRoom,
   durationMs,
+  subscribeLobbyEvents,
+  requireRoomEvents,
   elapsedMs: Math.round(performance.now() - startedAt),
   requests: latencies.length,
   latencyP50Ms: percentile(latencies, 0.50),
