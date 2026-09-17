@@ -16,6 +16,7 @@ import {
   createLobby,
   joinLobby,
   canResumeLockedMatch,
+  findRecoverableLockedSeatByName,
 } from '../lib/lobbies'
 
 /* ---------- Ícones SVG inline (decorativos; sem dependência externa) ----------
@@ -131,6 +132,7 @@ export default function LobbyList({ onEnterRoom, onSpectateRoom, onBack, playerN
   const [loading, setLoading] = useState(false)
   /** lobbyIds que passaram canResumeLockedMatch (identidade + snapshot). */
   const [resumableIds, setResumableIds] = useState(() => new Set())
+  const [recoverableSeats, setRecoverableSeats] = useState(() => new Map())
 
   // Estados locais do modal "Criar sala" — apenas formulário de interface;
   // nada disso vai para Supabase, realtime ou multiplayer.
@@ -196,30 +198,44 @@ export default function LobbyList({ onEnterRoom, onSpectateRoom, onBack, playerN
     async function probeResumable() {
       const locked = (rows || []).filter((r) => String(r.status || 'open') !== 'open')
       if (!locked.length) {
-        if (!cancelled) setResumableIds(new Set())
+        if (!cancelled) {
+          setResumableIds(new Set())
+          setRecoverableSeats(new Map())
+        }
         return
       }
 
       const next = new Set()
+      const recovered = new Map()
       await Promise.all(
         locked.map(async (r) => {
           const playerId = getMatchIdentity(r.id)?.playerId
-          if (!playerId) return
           try {
-            const { ok } = await canResumeLockedMatch(r.id, playerId)
-            if (ok) next.add(String(r.id))
+            if (playerId) {
+              const { ok } = await canResumeLockedMatch(r.id, playerId)
+              if (ok) next.add(String(r.id))
+              return
+            }
+            const byName = await findRecoverableLockedSeatByName(r.id, playerName)
+            if (byName.ok) {
+              next.add(String(r.id))
+              recovered.set(String(r.id), byName.player)
+            }
           } catch {
             // rede/snapshot: mantém sem destaque; clique ainda revalida
           }
         })
       )
 
-      if (!cancelled) setResumableIds(next)
+      if (!cancelled) {
+        setResumableIds(next)
+        setRecoverableSeats(recovered)
+      }
     }
 
     probeResumable()
     return () => { cancelled = true }
-  }, [rows])
+  }, [rows, playerName])
 
   // Abre o modal de criação com o mesmo nome padrão do antigo prompt.
   // A criação em si acontece em confirmCreateLobby.
@@ -311,10 +327,29 @@ export default function LobbyList({ onEnterRoom, onSpectateRoom, onBack, playerN
     onSpectateRoom?.(lobbyId)
   }
 
+  async function recoverSeatIdentityByName(lobbyId) {
+    const pn = String(playerName || '').trim()
+    if (!pn || getMatchIdentity(lobbyId)?.playerId) return false
+    const cached = recoverableSeats.get(String(lobbyId))
+    const recovered = cached
+      ? { ok: true, player: cached }
+      : await findRecoverableLockedSeatByName(lobbyId, pn)
+    if (!recovered.ok || !recovered.player?.id) return false
+    setMatchIdentity(lobbyId, {
+      playerId: recovered.player.id,
+      playerName: recovered.player.name || pn,
+    })
+    return true
+  }
+
   async function handleJoin(lobbyId, roomStatus = 'open') {
     try {
       const status = String(roomStatus || 'open')
       const isOpen = status === 'open'
+
+      if (!isOpen && recoverableSeats.has(String(lobbyId))) {
+        await recoverSeatIdentityByName(lobbyId)
+      }
 
       // Prioridade: quem tem identidade nesta sala retoma o assento; só quem não
       // tem é encaminhado para o modo espectador.
@@ -478,7 +513,8 @@ export default function LobbyList({ onEnterRoom, onSpectateRoom, onBack, playerN
                     // Reentrada: se há identidade local desta room, o botão fica clicável
                     // (validação real contra rooms.state ocorre no clique — localStorage sozinho não basta).
                     const identity = !isOpen ? getMatchIdentity(r.id) : null
-                    const hasLocalMatchIdentity = !!identity?.playerId
+                    const recoveredSeat = !isOpen ? recoverableSeats.get(String(r.id)) : null
+                    const hasLocalMatchIdentity = !!identity?.playerId || !!recoveredSeat?.id
                     const canResume = !isOpen && resumableIds.has(String(r.id))
                     // Fonte única da ação do card (join / resume / spectate / none).
                     // Espectador não ocupa vaga: isFull nunca bloqueia "Assistir".

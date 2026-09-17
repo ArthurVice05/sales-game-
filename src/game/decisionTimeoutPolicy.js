@@ -18,6 +18,27 @@ export const DECISION_TIMEOUT_CATEGORY = Object.freeze({
   UNKNOWN: 'unknown',
 })
 
+export const ORPHANED_POST_ROLL_GRACE_MS = 15_000
+
+export function isOrphanedPostRollLock({
+  now = Date.now(),
+  turnDeadlineAt = null,
+  lockTs = null,
+  lastRollTurnKey = null,
+  expectedTurnSeq = 0,
+  graceMs = ORPHANED_POST_ROLL_GRACE_MS,
+} = {}) {
+  const current = Number(now)
+  const deadline = Number(turnDeadlineAt)
+  if (turnDeadlineAt == null || !Number.isFinite(current) || !Number.isFinite(deadline)) return false
+  if (lastRollTurnKey == null || String(lastRollTurnKey) !== String(expectedTurnSeq ?? '')) return false
+  // lockTs legado usava o relogio local do dispositivo e pode estar adiantado.
+  // O deadline autoritativo e a margem adicional bastam para proteger a animacao.
+  void lockTs
+  const staleAfter = deadline + Math.max(0, Number(graceMs) || 0)
+  return current >= staleAfter
+}
+
 const OPTIONAL_KINDS = new Set([
   'CLIENTS',
   'COMMON',
@@ -150,10 +171,21 @@ export function shouldAllowRemoteAutoPassThroughLock({
   decisionHold = null,
   expectedTurnSeq,
   expectedTurnPlayerId,
+  lastRollTurnKey = null,
+  allowOrphanedPostRoll = false,
 } = {}) {
   if (!turnLock) return { ok: true, reason: 'unlocked' }
   const hold = decisionHold && typeof decisionHold === 'object' ? decisionHold : null
-  if (!hold) return { ok: false, reason: 'turn-locked-no-hold' }
+  if (!hold) {
+    if (
+      allowOrphanedPostRoll === true &&
+      lastRollTurnKey != null &&
+      String(lastRollTurnKey) === String(expectedTurnSeq ?? '')
+    ) {
+      return { ok: true, reason: 'orphaned-post-roll-lock' }
+    }
+    return { ok: false, reason: 'turn-locked-no-hold' }
+  }
   if (String(hold.turnPlayerId || '') !== String(expectedTurnPlayerId || '')) {
     return { ok: false, reason: 'hold-player-mismatch' }
   }

@@ -18,6 +18,7 @@ export function shouldRejectAbsentTurnSkip({
   expectedTurnSeq = 0,
   decisionHold = null,
   expectedTurnPlayerId = null,
+  allowOrphanedPostRoll = false,
 } = {}) {
   if (turnLock) {
     const through = shouldAllowRemoteAutoPassThroughLock({
@@ -25,13 +26,16 @@ export function shouldRejectAbsentTurnSkip({
       decisionHold,
       expectedTurnPlayerId,
       expectedTurnSeq,
+      lastRollTurnKey,
+      allowOrphanedPostRoll,
     })
     if (!through.ok) return { reject: true, reason: through.reason || 'turn-locked' }
     return { reject: false, reason: 'optional-expire' }
   }
   if (
     lastRollTurnKey != null &&
-    String(lastRollTurnKey) === String(expectedTurnSeq)
+    String(lastRollTurnKey) === String(expectedTurnSeq) &&
+    allowOrphanedPostRoll !== true
   ) {
     return { reject: true, reason: 'already-rolled' }
   }

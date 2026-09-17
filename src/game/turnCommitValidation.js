@@ -6,8 +6,8 @@
 import { isBotPlayer } from './bots/botTypes.js'
 import { botLeaseExpired, evaluateBotClaimCas } from './bots/botTurnClaim.js'
 import { validateHumanTransaction } from './humanTurnTransaction.js'
-import { hasUnsettledHumanRevenue, isHumanRevenueDue } from './humanRevenueCredit.js'
-import { shouldAllowRemoteAutoPassThroughLock } from './decisionTimeoutPolicy.js'
+import { hasUnsettledHumanRevenue, isHumanRevenueDue, shouldBlockOfflineSkipForHumanEffects } from './humanRevenueCredit.js'
+import { isOrphanedPostRollLock, shouldAllowRemoteAutoPassThroughLock } from './decisionTimeoutPolicy.js'
 import { SORTE_REVES_CARDS } from '../modals/sorteRevesDeck.js'
 
 export function inferCommitKind(statePatch = {}) {
@@ -217,6 +217,13 @@ export function validateTurnCommit(prevState = {}, statePatch = {}, { now = Date
       const lrk = prev.lastRollTurnKey
       const alreadyRolled =
         lrk != null && expectTurnSeq != null && String(lrk) === String(expectTurnSeq)
+      const orphanedPostRoll = alreadyRolled && isOrphanedPostRollLock({
+        now,
+        turnDeadlineAt: prev.turnDeadlineAt,
+        lockTs: prev.lockTs,
+        lastRollTurnKey: prev.lastRollTurnKey,
+        expectedTurnSeq: expectTurnSeq,
+      })
 
       if (prev.turnLock) {
         // Animação/pré-roll: nunca atravessar.
@@ -227,11 +234,22 @@ export function validateTurnCommit(prevState = {}, statePatch = {}, { now = Date
           decisionHold: prev.decisionHold || null,
           expectedTurnPlayerId: expectTurnId,
           expectedTurnSeq: expectTurnSeq,
+          lastRollTurnKey: prev.lastRollTurnKey,
+          allowOrphanedPostRoll: orphanedPostRoll,
         })
         if (!through.ok) return { ok: false, reason: through.reason || 'turn-locked' }
-      } else if (alreadyRolled) {
+      } else if (alreadyRolled && !orphanedPostRoll) {
         // Sem modal/lock: avanço pós-roll é pelo tick, não por AUTO_PASS.
         return { ok: false, reason: 'already-rolled' }
+      }
+      if (orphanedPostRoll) {
+        const pending = shouldBlockOfflineSkipForHumanEffects({
+          player: remoteTurnPlayer(prev),
+          matchId: prev.matchId,
+          turnPlayerId: expectTurnId,
+          turnSeq: expectTurnSeq,
+        })
+        if (pending.block) return { ok: false, reason: pending.reason || 'human-effects-pending' }
       }
 
       const deadlineRaw = prev.turnDeadlineAt
@@ -431,6 +449,8 @@ export function shouldProceedTimerAutoPassAfterAwait({
   inFlight = false,
   amCoordinator = true,
   decisionHold = null,
+  lastRollTurnKey = null,
+  allowOrphanedPostRoll = false,
 } = {}) {
   const curId = currentTurnPlayerId != null ? String(currentTurnPlayerId) : ''
   const capId = capturedTurnPlayerId != null ? String(capturedTurnPlayerId) : ''
@@ -445,6 +465,8 @@ export function shouldProceedTimerAutoPassAfterAwait({
       decisionHold,
       expectedTurnPlayerId: capturedTurnPlayerId,
       expectedTurnSeq: capturedTurnSeq,
+      lastRollTurnKey,
+      allowOrphanedPostRoll,
     })
     if (!through.ok) return { ok: false, reason: through.reason || 'turn-locked' }
   }

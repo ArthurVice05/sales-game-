@@ -2,18 +2,17 @@
 // Não remove a lógica de presença; compartilha o CAS de avanço.
 
 import { useEffect, useRef } from 'react'
-import { listLobbyPresence } from '../lib/lobbies.js'
-import { resolveTurnSkipAuthority } from './canonicalPresence.js'
 import {
   remainingTurnMs,
   shouldAttemptTimerAutoPass,
   shouldArmCoordinatorTimer,
-  TURN_HANDOFF_STALE_REMAINING_MS,
+  resolveTimerAttemptAuthority,
 } from './turnTimerLogic.js'
 import { shouldProceedTimerAutoPassAfterAwait, shouldDisableTimerAutoPassForTurn, parseSkipAttemptResult } from './turnCommitValidation.js'
 import {
   shouldAttemptLocalDecisionExpire,
   shouldAllowRemoteAutoPassThroughLock,
+  isOrphanedPostRollLock,
 } from './decisionTimeoutPolicy.js'
 import {
   getLastSharedSkipKey,
@@ -66,6 +65,7 @@ export function useTurnTimerAutoPass({
   turnSeq,
   turnDeadlineAt,
   turnLock,
+  lockTs = null,
   diceBusy = false,
   modalLocks = 0,
   lastRollTurnKey = null,
@@ -80,6 +80,7 @@ export function useTurnTimerAutoPass({
   const turnSeqRef = useRef(turnSeq)
   const deadlineRef = useRef(turnDeadlineAt)
   const turnLockRef = useRef(turnLock)
+  const lockTsRef = useRef(lockTs)
   const diceBusyRef = useRef(diceBusy)
   const modalLocksRef = useRef(modalLocks)
   const lastRollTurnKeyRef = useRef(lastRollTurnKey)
@@ -98,6 +99,7 @@ export function useTurnTimerAutoPass({
   useEffect(() => { turnSeqRef.current = turnSeq }, [turnSeq])
   useEffect(() => { deadlineRef.current = turnDeadlineAt }, [turnDeadlineAt])
   useEffect(() => { turnLockRef.current = turnLock }, [turnLock])
+  useEffect(() => { lockTsRef.current = lockTs }, [lockTs])
   useEffect(() => { diceBusyRef.current = diceBusy }, [diceBusy])
   useEffect(() => { modalLocksRef.current = modalLocks }, [modalLocks])
   useEffect(() => { lastRollTurnKeyRef.current = lastRollTurnKey }, [lastRollTurnKey])
@@ -157,32 +159,30 @@ export function useTurnTimerAutoPass({
 
       evalInFlightRef.current = true
       try {
-        let amCoordinator = false
-        let authReason = 'local'
-        if (lobbyId) {
-          let presence = []
-          try {
-            presence = await listLobbyPresence(lobbyId)
-          } catch {
-            return
-          }
-          if (cancelled) return
-          const auth = resolveTurnSkipAuthority({
-            rosterPlayers: roster,
-            presenceList: presence,
-            now,
-            myUid: String(myUid),
-            lobbyHostId: lobbyHostIdRef.current,
-          })
-          amCoordinator = auth.authorized === true
-          authReason = auth.reason
-        } else {
-          amCoordinator = true
-        }
+        // Nao consulta lobby_players: presenca pode estar atrasada/removida em
+        // celulares. Os jogadores vivos tentam em ordem escalonada e o CAS
+        // remoto garante que somente um avanco seja aplicado.
+        const auth = lobbyId
+          ? resolveTimerAttemptAuthority({
+              rosterPlayers: roster,
+              myUid: String(myUid),
+              now,
+              turnDeadlineAt: deadlineRef.current,
+            })
+          : { authorized: true, reason: 'local' }
+        const amCoordinator = auth.authorized === true
+        const authReason = auth.reason
 
         const decisionHold = decisionHoldRef.current
         const diceBusy = !!diceBusyRef.current
         const locked = !!turnLockRef.current
+        const allowOrphanedPostRoll = isOrphanedPostRollLock({
+          now,
+          turnDeadlineAt: deadlineRef.current,
+          lockTs: lockTsRef.current,
+          lastRollTurnKey: lastRollTurnKeyRef.current,
+          expectedTurnSeq: curTurnSeq,
+        })
 
         // Decisão aberta neste cliente: resolve SKIP/OK e deixa o tick avançar.
         // Não chama attemptSkipTurn (evita segundo avanço).
@@ -238,6 +238,8 @@ export function useTurnTimerAutoPass({
           lastAttemptKey: getLastSharedSkipKey(),
           inFlight: getSharedSkipInFlight(),
           decisionHold,
+          lastRollTurnKey: lastRollTurnKeyRef.current,
+          allowOrphanedPostRoll,
         })
 
         if (!decision.ok) {
@@ -262,31 +264,22 @@ export function useTurnTimerAutoPass({
               decisionHold: decisionHoldRef.current,
               expectedTurnPlayerId: curTurnId,
               expectedTurnSeq: curTurnSeq,
+              lastRollTurnKey: lastRollTurnKeyRef.current,
+              allowOrphanedPostRoll,
             })
             if (!through.ok) return
           }
 
           if (lobbyId) {
-            let presence2 = []
-            try {
-              presence2 = await listLobbyPresence(lobbyId)
-            } catch {
-              return
-            }
-            if (cancelled) return
             const now2 = expirationNow()
             if (now2 == null) return
-            const auth2 = resolveTurnSkipAuthority({
+            const auth2 = resolveTimerAttemptAuthority({
               rosterPlayers: roster,
-              presenceList: presence2,
-              now: now2,
               myUid: String(myUid),
-              lobbyHostId: lobbyHostIdRef.current,
+              now: now2,
+              turnDeadlineAt: deadlineRef.current,
             })
-            if (!auth2.authorized) {
-              devLog('[turn-timer] authority=false reason=' + auth2.reason)
-              return
-            }
+            if (!auth2.authorized) return
 
             const proceed = shouldProceedTimerAutoPassAfterAwait({
               now: now2,
@@ -301,6 +294,14 @@ export function useTurnTimerAutoPass({
               inFlight: false,
               amCoordinator: true,
               decisionHold: decisionHoldRef.current,
+              lastRollTurnKey: lastRollTurnKeyRef.current,
+              allowOrphanedPostRoll: isOrphanedPostRollLock({
+                now: now2,
+                turnDeadlineAt: deadlineRef.current,
+                lockTs: lockTsRef.current,
+                lastRollTurnKey: lastRollTurnKeyRef.current,
+                expectedTurnSeq: curTurnSeq,
+              }),
             })
             if (!proceed.ok) {
               if (DEV) devLog('[turn-timer] post-await blocked reason=' + proceed.reason)
@@ -312,14 +313,21 @@ export function useTurnTimerAutoPass({
 
           // Pós-roll sem lock: o tick já cuida do handoff — não force AUTO_PASS.
           const lrk = lastRollTurnKeyRef.current != null ? String(lastRollTurnKeyRef.current) : ''
-          if (!turnLockRef.current && lrk && lrk === String(curTurnSeq)) {
+          if (!turnLockRef.current && lrk && lrk === String(curTurnSeq) && !allowOrphanedPostRoll) {
             return
           }
 
-          devLog('[turn-timer] attempt turnSeq=' + curTurnSeq + ' via=' + authReason)
+          console.warn('[MONITOR][AUTO_PASS_ATTEMPT]', {
+            room: lobbyId,
+            turnPlayerId: curTurnId,
+            turnSeq: curTurnSeq,
+            reason: authReason,
+          })
           const result = attemptRef.current?.({
             expectedTurnPlayerId: curTurnId,
             expectedTurnSeq: curTurnSeq,
+            lastRollTurnKey: lastRollTurnKeyRef.current,
+            allowOrphanedPostRoll,
             reason: 'AUTO_PASS_TIMER',
           })
 
@@ -338,7 +346,12 @@ export function useTurnTimerAutoPass({
             devLog('[turn-timer] local applied (pending CAS)')
           } else {
             releaseSharedSkipKey(curTurnId, curTurnSeq)
-            devLog('[turn-timer] local rejected')
+            console.warn('[MONITOR][AUTO_PASS_FAILED]', {
+              room: lobbyId,
+              turnPlayerId: curTurnId,
+              turnSeq: curTurnSeq,
+              reason: 'engine-or-commit-rejected',
+            })
           }
         } finally {
           setSharedSkipInFlight(false)

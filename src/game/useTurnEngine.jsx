@@ -4633,7 +4633,7 @@ export function useTurnEngine({
    * Reutiliza findNextAliveIdx (via planOfflineTurnSkip) + turnSeq + TURN patch.
    * Retorna true se o avanço local foi aplicado (CAS remoto pode ainda falhar).
    */
-  const skipAbsentTurn = React.useCallback(async ({ expectedTurnPlayerId, expectedTurnSeq, reason } = {}) => {
+  const skipAbsentTurn = React.useCallback(async ({ expectedTurnPlayerId, expectedTurnSeq, reason, allowOrphanedPostRoll = false } = {}) => {
     if (gameOverRef.current) return false
 
     const expectId = expectedTurnPlayerId != null
@@ -4663,6 +4663,7 @@ export function useTurnEngine({
       expectedTurnSeq: expectSeq,
       decisionHold: decisionHoldRef.current,
       expectedTurnPlayerId: expectId,
+      allowOrphanedPostRoll,
     })
     if (skipGuard.reject) {
       console.log('[TURN] skip ausente recusado:', skipGuard.reason)
@@ -4691,6 +4692,7 @@ export function useTurnEngine({
       expectedTurnSeq: expectSeq,
       decisionHold: decisionHoldRef.current,
       expectedTurnPlayerId: expectId,
+      allowOrphanedPostRoll,
     })
     if (skipGuard2.reject) return false
 

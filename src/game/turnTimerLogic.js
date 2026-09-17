@@ -9,6 +9,7 @@ import {
 } from './turnTimeConfig.js'
 import { normalizeMaxRounds, DEFAULT_MAX_ROUNDS } from './roundConfig.js'
 import { normalizeBotConfig } from './bots/botRoster.js'
+import { isBotPlayer } from './bots/botTypes.js'
 import { shouldAllowRemoteAutoPassThroughLock } from './decisionTimeoutPolicy.js'
 
 export function turnAttemptKey(turnPlayerId, turnSeq) {
@@ -35,6 +36,47 @@ export function remainingTurnMs(turnDeadlineAt, nowMs = Date.now()) {
  * o coordenador pulava a vez na hora — “passa a vez sem jogar”.
  */
 export const TURN_HANDOFF_STALE_REMAINING_MS = 20_000
+export const TIMER_FALLBACK_STAGGER_MS = 1_200
+
+/**
+ * Autoridade escalonada do cronometro, independente de lobby_players.
+ *
+ * Todos os jogadores vivos conhecem a mesma ordem do roster. O primeiro cliente
+ * pode tentar no vencimento; os seguintes tornam-se backups em pequenas janelas.
+ * O CAS do turno continua sendo a barreira final contra avancos duplicados.
+ */
+export function resolveTimerAttemptAuthority({
+  rosterPlayers = [],
+  myUid = null,
+  now = Date.now(),
+  turnDeadlineAt = null,
+  staggerMs = TIMER_FALLBACK_STAGGER_MS,
+} = {}) {
+  const me = myUid != null ? String(myUid) : ''
+  const deadline = Number(turnDeadlineAt)
+  if (!me) return { authorized: false, reason: 'no-player-id', index: -1 }
+  if (!Number.isFinite(deadline)) return { authorized: false, reason: 'no-deadline', index: -1 }
+
+  const candidates = (Array.isArray(rosterPlayers) ? rosterPlayers : [])
+    .filter((player) => player && player.bankrupt !== true && !isBotPlayer(player))
+    .map((player) => String(player.id ?? ''))
+    .filter(Boolean)
+  const index = candidates.indexOf(me)
+  if (index < 0) return { authorized: false, reason: 'not-seated', index: -1 }
+
+  const delay = Math.max(0, Number(staggerMs) || 0) * index
+  const availableAt = deadline + delay
+  const current = Number.isFinite(Number(now)) ? Number(now) : Date.now()
+  if (current < availableAt) {
+    return { authorized: false, reason: 'fallback-wait', index, availableAt }
+  }
+  return {
+    authorized: true,
+    reason: index === 0 ? 'roster-primary' : 'roster-fallback',
+    index,
+    availableAt,
+  }
+}
 
 export function sanitizeTurnDeadlineOnHandoff({
   prevTurnPlayerId,
@@ -178,6 +220,8 @@ export function shouldAttemptTimerAutoPass({
   lastAttemptKey,
   inFlight,
   decisionHold = null,
+  lastRollTurnKey = null,
+  allowOrphanedPostRoll = false,
 } = {}) {
   if (gameOver) return { ok: false, reason: 'game-over' }
   if (!amCoordinator) return { ok: false, reason: 'not-coordinator' }
@@ -190,6 +234,8 @@ export function shouldAttemptTimerAutoPass({
       decisionHold,
       expectedTurnPlayerId: turnPlayerId,
       expectedTurnSeq: turnSeq,
+      lastRollTurnKey,
+      allowOrphanedPostRoll,
     })
     if (!through.ok) {
       return { ok: false, reason: through.reason || 'turn-locked' }

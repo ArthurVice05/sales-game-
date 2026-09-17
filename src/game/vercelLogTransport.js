@@ -26,6 +26,9 @@ const MONITOR_RULES = [
   { pattern: /Supabase não configurado/i, code: 'SUPABASE_CONFIGURATION_MISSING', severity: 'error', category: 'configuration' },
   { pattern: /\[(?:hb|presence)\].*falha/i, code: 'PRESENCE_UPDATE_FAILED', severity: 'warning', category: 'presence' },
   { pattern: /\[MONITOR\]\[CLOCK_SYNC_FAILED\]/i, code: 'CLOCK_SYNC_FAILED', severity: 'warning', category: 'turn' },
+  { pattern: /\[MONITOR\]\[AUTO_PASS_ATTEMPT\]/i, code: 'AUTO_PASS_ATTEMPT', severity: 'warning', category: 'turn' },
+  { pattern: /\[MONITOR\]\[AUTO_PASS_FAILED\]/i, code: 'AUTO_PASS_FAILED', severity: 'error', category: 'turn' },
+  { pattern: /\[MONITOR\]\[AUTO_PASS_RECOVERED\]/i, code: 'AUTO_PASS_RECOVERED', severity: 'info', category: 'turn' },
   { pattern: /\[(?:leaveRoom|leaveRoomById)\].*(?:Erro|erro|falha)/i, code: 'PLAYER_LEAVE_FAILED', severity: 'warning', category: 'room' },
   { pattern: /\[rooms\].*falha/i, code: 'ROOM_DELETE_FAILED', severity: 'warning', category: 'room' },
   { pattern: /\[cleanup\].*hard cap/i, code: 'LOBBY_CAP_EXCEEDED', severity: 'warning', category: 'capacity' },
@@ -63,7 +66,7 @@ export function classifyMonitoringEvent(entry) {
   const rule = MONITOR_RULES.find(candidate => candidate.pattern.test(normalized.message))
   if (rule?.ignore) return null
   if (!rule && normalized.level !== 'error') return null
-  const context = rule?.code?.startsWith('ROLL_')
+  const context = rule?.code?.startsWith('ROLL_') || rule?.code?.startsWith('AUTO_PASS_')
     ? entry?.args?.find(arg => arg && typeof arg === 'object' && !Array.isArray(arg)) : null
   const details = context ? Object.fromEntries(
     ['room', 'matchId', 'playerId', 'turnPlayerId', 'turnSeq', 'reason', 'turnLock', 'modalLocks', 'claimId', 'steps']

@@ -1585,11 +1585,23 @@ export default function App() {
         })
         if (guardAction.action === 'release') {
           releaseSharedSkipKey(expectTurnId, expectTurnSeq)
+          console.warn('[MONITOR][AUTO_PASS_FAILED]', {
+            room: currentRoomRef.current,
+            turnPlayerId: expectTurnId,
+            turnSeq: expectTurnSeq,
+            reason: rejectionReason || commitResult?.reason || 'cas-or-commit-failed',
+          })
           if (isDevVerbose()) {
             console.log('[auto-skip] CAS/commit failed — skip key released')
           }
         } else if (guardAction.action === 'confirm') {
           confirmSharedSkipKey(expectTurnId, expectTurnSeq)
+          console.log('[MONITOR][AUTO_PASS_RECOVERED]', {
+            room: currentRoomRef.current,
+            turnPlayerId: expectTurnId,
+            turnSeq: expectTurnSeq,
+            reason: statePatch?.lastAction || 'auto-pass',
+          })
           if (isDevVerbose()) console.log('[auto-skip] CAS confirmed')
         }
         resolve({
@@ -3521,6 +3533,7 @@ export default function App() {
     turnSeq,
     turnDeadlineAt,
     turnLock: turnLock || !!diceFx || diceInFlightRef.current,
+    lockTs: netState?.lockTs ?? null,
     diceBusy: !!diceFx || !!diceInFlightRef.current,
     modalLocks,
     lastRollTurnKey,

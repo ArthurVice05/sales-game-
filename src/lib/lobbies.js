@@ -1,4 +1,5 @@
 import { gameNow } from '../net/sharedClock.js'
+import { findUniqueRecoverableSeatByName } from '../game/resumeSeatRecovery.js'
 // src/lib/lobbies.js
 // ✅ CORREÇÃO: Usa o client Supabase unificado
 import { supabase } from './supabaseClient.js'
@@ -397,6 +398,12 @@ export async function canResumeLockedMatch (roomCode, playerId) {
   const players = Array.isArray(state?.players) ? state.players : []
   const found = players.some((p) => String(p?.id) === pid)
   return { ok: found, state: found ? state : null }
+}
+
+export async function findRecoverableLockedSeatByName (roomCode, playerName) {
+  const state = await findAuthoritativeRoomState(roomCode)
+  const result = findUniqueRecoverableSeatByName(state, playerName)
+  return { ...result, state: result.ok ? state : null }
 }
 
 /* ==============================
