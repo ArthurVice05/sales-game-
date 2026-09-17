@@ -10,6 +10,9 @@ export default defineConfig({
   },
   // ✅ CORREÇÃO: Habilita sourcemaps para facilitar debugging
   build: {
+    // Windows 7 parou no Chrome/Edge 109. O alvo padrão do Vite 8 começa no
+    // Chrome 111 e pode produzir uma tela vazia antes de o React/log iniciar.
+    target: ['chrome109', 'edge109', 'firefox102', 'safari15.6'],
     sourcemap: true,
     rollupOptions: {
       output: {

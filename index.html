@@ -19,6 +19,96 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      (function () {
+        var bootTimer = null;
+        var reported = {};
+
+        function roomFromUrl() {
+          try { return new URL(window.location.href).searchParams.get('room') || null; }
+          catch (_) { return null; }
+        }
+
+        function report(code, message, details) {
+          if (reported[code]) return;
+          reported[code] = true;
+          try {
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '/api/client-logs', true);
+            xhr.setRequestHeader('content-type', 'application/json');
+            xhr.send(JSON.stringify({
+              schemaVersion: 2,
+              sessionId: 'preboot-' + Date.now(),
+              room: roomFromUrl(),
+              page: window.location.pathname,
+              userAgent: navigator.userAgent || '',
+              events: [{
+                occurredAt: new Date().toISOString(),
+                code: code,
+                severity: 'error',
+                category: 'bootstrap',
+                message: String(message || 'Falha ao iniciar a aplicação').slice(0, 1000),
+                occurrences: 1,
+                details: details || {}
+              }]
+            }));
+          } catch (_) {}
+        }
+
+        function leaveStuckRoom() {
+          try { localStorage.removeItem('sg:lastRoomName'); } catch (_) {}
+          try {
+            var url = new URL(window.location.href);
+            url.searchParams.delete('room');
+            url.searchParams.delete('spectate');
+            url.searchParams.delete('role');
+            window.location.replace(url.pathname + (url.searchParams.toString() ? '?' + url.searchParams.toString() : ''));
+          } catch (_) { window.location.replace('/'); }
+        }
+
+        function showBootRecovery() {
+          var root = document.getElementById('root');
+          if (!root || root.childElementCount > 0) return;
+          root.innerHTML = '<main style="min-height:100%;display:grid;place-items:center;padding:24px;background:#071426;color:#fff;font-family:Arial,sans-serif">' +
+            '<section style="width:min(520px,100%);padding:24px;border:1px solid #334766;border-radius:16px;background:#101d33;text-align:center">' +
+            '<h1 style="margin:0 0 12px;font-size:24px">Não foi possível iniciar o jogo</h1>' +
+            '<p style="margin:0 0 18px;line-height:1.5;color:#d8e2f1">Atualize o navegador e tente novamente. Se a tela voltar a ficar vazia, retorne à entrada e reabra a sala.</p>' +
+            '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">' +
+            '<button type="button" onclick="window.location.reload()" style="min-height:44px;padding:10px 16px;border:0;border-radius:10px;background:#5147e9;color:#fff;font-weight:700">Tentar novamente</button>' +
+            '<button type="button" onclick="window.__SG_LEAVE_STUCK_ROOM__()" style="min-height:44px;padding:10px 16px;border:1px solid #7082a0;border-radius:10px;background:#1d2a40;color:#fff;font-weight:700">Voltar à entrada</button>' +
+            '</div></section></main>';
+        }
+
+        window.__SG_REPORT_BOOT_ERROR__ = report;
+        window.__SG_LEAVE_STUCK_ROOM__ = leaveStuckRoom;
+        window.__SG_BOOT_READY__ = function () {
+          if (bootTimer) window.clearTimeout(bootTimer);
+          bootTimer = null;
+        };
+
+        window.addEventListener('error', function (event) {
+          if (!event || !event.message) return;
+          report('CLIENT_BOOT_ERROR', event.message, {
+            file: event.filename || '',
+            line: event.lineno || 0,
+            column: event.colno || 0
+          });
+          window.setTimeout(showBootRecovery, 0);
+        });
+        window.addEventListener('unhandledrejection', function (event) {
+          var reason = event && event.reason;
+          report('CLIENT_BOOT_REJECTION', reason && (reason.message || reason.stack) || String(reason || 'Promise rejeitada'));
+          window.setTimeout(showBootRecovery, 0);
+        });
+        bootTimer = window.setTimeout(function () {
+          var root = document.getElementById('root');
+          if (root && root.childElementCount === 0) {
+            report('CLIENT_BOOT_TIMEOUT', 'A interface não foi montada em 15 segundos');
+            showBootRecovery();
+          }
+        }, 15000);
+      }());
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

@@ -2,6 +2,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
+import AppErrorBoundary from './components/AppErrorBoundary.jsx'
 import GameNetProvider from './net/GameNetProvider.jsx'
 
 // ✅ importa só o Provider (sem ModalRoot)
@@ -47,6 +48,10 @@ export function Root() {
   useIosVisualViewport()
   // Mobile touch: pinch-zoom + pan quando ampliado
   useMobilePinchZoom()
+
+  React.useEffect(() => {
+    window.__SG_BOOT_READY__?.()
+  }, [])
 
   // expõe um setter global para o App trocar a sala dinamicamente
   React.useEffect(() => {
@@ -152,7 +157,9 @@ const rootElement = typeof document !== 'undefined'
 if (rootElement) {
   ReactDOM.createRoot(rootElement).render(
     <React.StrictMode>
-      <Root />
+      <AppErrorBoundary>
+        <Root />
+      </AppErrorBoundary>
     </React.StrictMode>
   )
 }
