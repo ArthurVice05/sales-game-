@@ -15,7 +15,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
-const APP_URL = 'http://127.0.0.1:5173/'
+const APP_URL = process.env.SG_APP_URL || 'http://127.0.0.1:5173/'
 const PORT = Number(process.env.SG_TILE_REAL_CDP || 9355)
 const OUT = path.join(process.env.TEMP || ROOT, 'sg-board-visual', 'tile-modals-real')
 const CHROME = [

@@ -240,6 +240,38 @@ async function main() {
       report.views[`D-${w}x${h}`] = { start: snap, captures: [await shot(page, `D-menu-${w}x${h}`)] }
     }
 
+    // Confirma as duas ações finais pela interface real, além de apenas medir
+    // o layout: empréstimo fecha a decisão e falência encerra o jogador.
+    await setViewport(page, 844, 390)
+    await clickRecovery(page, '/EMPR/i')
+    await waitForSelector(page, '.recovery-card input[type="number"]', 8_000)
+    await page.evaluate(`(() => {
+      const input = document.querySelector('.recovery-card input[type="number"]')
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
+      setter?.call(input, '500')
+      input?.dispatchEvent(new Event('input', { bubbles: true }))
+      input?.dispatchEvent(new Event('change', { bubbles: true }))
+    })()`)
+    await pause(150)
+    const loanConfirmed = await clickRecovery(page, '/Pegar/i')
+    await pause(500)
+    report.loanConfirm = {
+      clicked: loanConfirmed,
+      recoveryGone: await page.evaluate(`!document.querySelector('.recovery-card')`),
+    }
+
+    await page.evaluate(`document.querySelector('.moreOpenBtn')?.click()`)
+    await pause(200)
+    await page.evaluate(`([...document.querySelectorAll('button')].find((b) => /RECUPERA/i.test(b.textContent || ''))||{click(){}}).click()`)
+    await waitForSelector(page, '.recovery-card', 8_000)
+    const bankruptcyClicked = await clickRecovery(page, '/DECLARAR/i')
+    await pause(700)
+    report.bankruptcy = {
+      clicked: bankruptcyClicked,
+      recoveryGone: await page.evaluate(`!document.querySelector('.recovery-card')`),
+      finalVisible: await page.evaluate(`/fim de jogo|vencedor|falid/i.test(document.body.innerText || '')`),
+    }
+
     const mobiles = MOBILE.map(([w, h]) => report.views[`menu-${w}x${h}`])
     report.ok = mobiles.every((v) => v?.start?.flow?.overflowY === 'auto' && v?.start?.body?.overflowY === 'visible' && v?.end?.ctaHit?.hitIsSelf)
       && report.fire?.start?.flow?.overflowY === 'auto'
@@ -249,6 +281,8 @@ async function main() {
       && report.loan?.valueBefore === '500'
       && report.loan?.valueAfter === '500'
       && report.loan?.end?.ctaHit?.hitIsSelf
+      && report.loanConfirm?.clicked && report.loanConfirm?.recoveryGone
+      && report.bankruptcy?.clicked && report.bankruptcy?.recoveryGone && report.bankruptcy?.finalVisible
       && DESKTOP.every(([w, h]) => report.views[`D-${w}x${h}`]?.start?.body?.overflowY === 'auto')
 
     await writeFile(resolve(OUT, 'report.json'), JSON.stringify(report, null, 2))
@@ -256,6 +290,8 @@ async function main() {
       ok: report.ok,
       fire: { qty: report.fire?.qtyAfter, consult: report.fire?.consultOpen, inertAfter: report.fire?.topInertAfter, cta: report.fire?.end?.ctaHit },
       loan: { value: report.loan?.valueAfter, cta: report.loan?.end?.ctaHit },
+      loanConfirm: report.loanConfirm,
+      bankruptcy: report.bankruptcy,
       views: Object.fromEntries(Object.entries(report.views).map(([k, v]) => [k, {
         vp: v.start?.vp,
         flowOy: v.start?.flow?.overflowY,

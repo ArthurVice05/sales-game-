@@ -293,7 +293,10 @@ export function ModalProvider({ children }) {
                   maxHeight: '100%',
                 }}
                 aria-hidden={isTop ? undefined : true}
-                inert={!isTop ? true : undefined}
+                // React 18 ainda trata `inert` como atributo string. A string
+                // vazia preserva a semântica booleana do HTML sem gerar aviso
+                // no console em cada modal empilhada.
+                inert={!isTop ? '' : undefined}
               >
                 {m.el}
               </div>

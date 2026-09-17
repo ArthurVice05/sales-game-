@@ -19,4 +19,6 @@ test('ModalContext mantém camadas inferiores montadas sob o topo', () => {
   )
   assert.match(ctx, /stack\.map/, 'deve mapear toda a pilha')
   assert.match(ctx, /\binert\b|aria-hidden/, 'camadas inferiores ficam inertes/ocultas')
+  assert.match(ctx, /inert=\{!isTop\s*\?\s*''\s*:\s*undefined\}/, 'React 18 recebe inert como atributo HTML sem warning')
+  assert.doesNotMatch(ctx, /inert=\{!isTop\s*\?\s*true/, 'boolean true gera warning no React 18')
 })

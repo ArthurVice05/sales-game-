@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "test": "node scripts/run-mjs-tests.js",
     "test:check": "node scripts/run-tests.js",
-    "test:load": "node scripts/load-test-rooms.mjs"
+    "test:load": "node scripts/load-test-rooms.mjs",
+    "test:load:game": "node scripts/load-test-gameplay.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.116.0",

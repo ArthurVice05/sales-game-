@@ -14,7 +14,7 @@ import {
   setViewport,
   click,
   setInputValue,
-} from './multiplayer-load/cdp.mjs'
+} from './cdp-min.mjs'
 
 const OUT = resolve('artifacts/modal-clientes-resumo')
 const APP = process.env.SG_APP_URL || 'http://127.0.0.1:5174/'

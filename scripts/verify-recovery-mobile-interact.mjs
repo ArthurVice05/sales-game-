@@ -53,7 +53,8 @@ const PROBE = `(() => {
   const body = document.querySelector('.recovery-body')
   const rr = document.querySelector('.rr-scroll')
   const footer = document.querySelector('.rr-footer, .recovery-row-btns')
-  const scroller = rr || body
+  const flow = document.querySelector('.recovery-flow')
+  const scroller = rr || flow || body
   const btns = [...(card?.querySelectorAll('button') || [])]
   const demitir = btns.find((b) => /^DEMITIR$/i.test((b.textContent || '').trim()))
   const reduzir = btns.find((b) => /REDUZIR/i.test(b.textContent || ''))
@@ -205,13 +206,13 @@ async function main() {
       await pause(400)
       const beforeScroll = await page.evaluate(PROBE)
       await page.evaluate(`(() => {
-        const el = document.querySelector('.rr-scroll, .recovery-body')
+        const el = document.querySelector('.rr-scroll, .recovery-flow, .recovery-body')
         if (!el) return
         el.scrollTop = el.scrollHeight
       })()`)
       await pause(120)
       const afterScroll = await page.evaluate(`(() => {
-        const el = document.querySelector('.rr-scroll, .recovery-body')
+        const el = document.querySelector('.rr-scroll, .recovery-flow, .recovery-body')
         return el ? { top: el.scrollTop, max: el.scrollHeight - el.clientHeight } : null
       })()`)
       report.views[`A-${w}x${h}`] = {
