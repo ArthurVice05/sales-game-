@@ -117,7 +117,7 @@ function GameNetProvider({ roomCode, hostId, readOnly = false, children }) {
    *  - { status: 'error', row: null, error }  // SELECT falhou após retries
    * Nunca trata erro de SELECT como "sala inexistente".
    */
-  const getLatestRoomByCode = async (roomCode) => {
+  const getLatestRoomByCode = async (roomCode, signal) => {
     const targetCode = String(roomCode || '').trim()
     let lastError = null
     // attempt 0 = imediato; depois até 3 backoffs (total até 4 leituras)
@@ -128,12 +128,14 @@ function GameNetProvider({ roomCode, hostId, readOnly = false, children }) {
         await new Promise((resolve) => setTimeout(resolve, LOOKUP_BACKOFF_MS[attempt - 1]))
       }
 
-      const { data, error } = await supabase
+      if (signal?.aborted) return { status: 'error', error: { message: 'request-aborted' } }
+      const query = supabase
         .from('rooms')
         .select('id, code, host_id, state, version, updated_at')
         .eq('code', targetCode)
         .order('updated_at', { ascending: false })
         .limit(10)
+      const { data, error } = await (signal ? query.abortSignal(signal) : query)
 
       if (error) {
         lastError = error
@@ -435,7 +437,10 @@ function GameNetProvider({ roomCode, hostId, readOnly = false, children }) {
 
   // commit (CAS robusto usando ID em vez de code)
   // Retorna { ok: true } se o UPDATE venceu o CAS; { ok: false } se falhou/esgotou retries.
-  const commit = async (updater) => {
+  const commit = async (updater, { signal } = {}) => {
+    const cancelled = () => signal?.aborted || activeCodeRef.current !== code
+    const aborted = () => ({ ok: false, reason: 'request-aborted' })
+    if (cancelled()) return aborted()
     if (!enabled || !ready) return { ok: false, skipped: true }
     // Sessão read-only (espectador): recebe estado, nunca escreve.
     if (readOnly) return { ok: false, skipped: true, reason: 'read-only-session' }
@@ -447,8 +452,10 @@ function GameNetProvider({ roomCode, hostId, readOnly = false, children }) {
     const nowISO = new Date().toISOString()
 
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      if (cancelled()) return aborted()
       // 1) lê snapshot autoritativo (mesma seleção do bootstrap/poll)
-      const lookup = await getLatestRoomByCode(code)
+      const lookup = await getLatestRoomByCode(code, signal)
+      if (cancelled()) return aborted()
       let current = null
 
       if (lookup.status === 'error') {
@@ -467,14 +474,17 @@ function GameNetProvider({ roomCode, hostId, readOnly = false, children }) {
       if (!current) {
         // Só cria row se SELECT confirmou empty (não após erro)
         const initial = { code, state: {}, version: 0, host_id: hostId || null }
-        const { data, error: insErr } = await supabase
+        const insert = supabase
           .from('rooms')
           .insert(initial)
           .select('id, code, host_id, state, version, updated_at')
           .maybeSingle()
+        const { data, error: insErr } = await (signal ? insert.abortSignal(signal) : insert)
+        if (cancelled()) return aborted()
         if (insErr) {
           console.warn(`[NET] commit - insert failed (attempt ${attempt}/${MAX_ATTEMPTS}):`, insErr.message || insErr)
-          const retry = await getLatestRoomByCode(code)
+          const retry = await getLatestRoomByCode(code, signal)
+          if (cancelled()) return aborted()
           if (retry.status === 'ok' && retry.row) {
             current = retry.row
             activeRoomIdRef.current = current.id
@@ -490,7 +500,8 @@ function GameNetProvider({ roomCode, hostId, readOnly = false, children }) {
           activeRoomIdRef.current = current.id
           latestKnownUpdatedAtRef.current = current.updated_at
         } else {
-          const again = await getLatestRoomByCode(code)
+          const again = await getLatestRoomByCode(code, signal)
+          if (cancelled()) return aborted()
           if (again.status === 'ok' && again.row) {
             current = again.row
           } else {
@@ -515,7 +526,14 @@ function GameNetProvider({ roomCode, hostId, readOnly = false, children }) {
       // Commit rejeitado pelo updater (ex.: validateTurnCommit) devolve a mesma
       // referência de `base` — não bumpa version/stateId (evita ghost commits).
       if (next == null || next === base) {
-        return { ok: false, skipped: true, reason: 'rejected-or-noop' }
+        // A rejection can mean this client missed a turn/claim. Hydrate the
+        // authoritative read so the button and the next retry see the same state.
+        applyRoomSnapshotIfNewer({ versionRef, stateRef, stateIdRef,
+          latestKnownUpdatedAtRef, activeRoomIdRef, setVersion, setState, setStateId }, {
+          version: current.version, state: base, stateId: base.stateId,
+          updatedAt: current.updated_at, roomId: current.id,
+        })
+        return { ok: false, skipped: true, reason: 'rejected-or-noop', state: base }
       }
       // Start the next player's full duration when its CAS is actually sent,
       // not when a previous modal/queued request produced the patch.
@@ -545,7 +563,8 @@ function GameNetProvider({ roomCode, hostId, readOnly = false, children }) {
         return { ok: false }
       }
 
-      const { data: updated, error: e2 } = await supabase
+      if (cancelled()) return aborted()
+      const update = supabase
         .from('rooms')
         .update({
           state: next,
@@ -556,6 +575,8 @@ function GameNetProvider({ roomCode, hostId, readOnly = false, children }) {
         .eq('version', current.version)
         .select('state, version, updated_at')
         .maybeSingle()
+      const { data: updated, error: e2 } = await (signal ? update.abortSignal(signal) : update)
+      if (cancelled()) return aborted()
 
       if (!e2 && updated) {
         applyRoomSnapshotIfNewer(
@@ -597,7 +618,8 @@ function GameNetProvider({ roomCode, hostId, readOnly = false, children }) {
 
         // ✅ CORREÇÃO 2: Retry robusto com merge monotônico
         // Re-fetch estado mais recente
-        const freshLookup = await getLatestRoomByCode(code)
+        const freshLookup = await getLatestRoomByCode(code, signal)
+        if (cancelled()) return aborted()
         if (freshLookup.status === 'ok' && freshLookup.row) {
           const fresh = freshLookup.row
           current = fresh
@@ -633,7 +655,8 @@ function GameNetProvider({ roomCode, hostId, readOnly = false, children }) {
     }
 
     // fallback: resync final
-    const finalLookup = await getLatestRoomByCode(code)
+    const finalLookup = await getLatestRoomByCode(code, signal)
+    if (cancelled()) return aborted()
     if (finalLookup.status === 'ok' && finalLookup.row) {
       const current = finalLookup.row
       applyRoomSnapshotIfNewer(

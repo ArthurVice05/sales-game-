@@ -38,6 +38,7 @@ export function createFakeSupabase (initial = {}) {
   const failures = []
   /** Ganchos assíncronos antes de cada operação — usados para forçar corridas. */
   const hooks = []
+  const afterHooks = []
 
   const findFailure = (table, op) => {
     const hit = failures.find((f) => f.table === table && f.op === op && (f.times == null || f.times > 0))
@@ -106,6 +107,9 @@ export function createFakeSupabase (initial = {}) {
         const rows = Array.isArray(result.data) ? result.data : (result.data ? [result.data] : [])
         notifyRealtime(table, rows)
       }
+      for (const hook of afterHooks) {
+        if (hook.table === table && hook.op === state.op) await hook.run({ payload: state.payload, result }, tables)
+      }
       return result
     }
 
@@ -117,6 +121,7 @@ export function createFakeSupabase (initial = {}) {
         payload: state.payload,
         filters: state.filters.map((f) => ({ ...f })),
       })
+      if (state.signal?.aborted) return { data: null, error: { message: 'request-aborted' }, count: null }
       const failure = findFailure(table, state.op)
       calls.push({
         table,
@@ -236,6 +241,7 @@ export function createFakeSupabase (initial = {}) {
         return api
       },
       limit (n) { state.limit = n; return api },
+      abortSignal (signal) { state.signal = signal; return api },
       maybeSingle () { state.single = 'maybe'; return api },
       single () { state.single = 'strict'; return api },
       then (resolve, reject) { return run().then(resolve, reject) },
@@ -284,6 +290,7 @@ export function createFakeSupabase (initial = {}) {
     failOnce (table, op, error) { failures.push({ table, op, error, times: 1 }) },
     failAlways (table, op, error) { failures.push({ table, op, error, times: null }) },
     beforeOp (table, op, run) { hooks.push({ table, op, run }) },
+    afterOp (table, op, run) { afterHooks.push({ table, op, run }) },
     writesTo (table) { return calls.filter((c) => c.table === table && c.op !== 'select') },
     channelNamed (name) { return channels.find((c) => c.name === name) || null },
     reset () { calls.length = 0 },

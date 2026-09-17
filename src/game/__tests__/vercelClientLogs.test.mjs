@@ -108,6 +108,45 @@ test('endpoint estrutura eventos, limita lotes e remove credenciais', () => {
   assert.doesNotMatch(payload.events[0].message, /secret-token|eyJabc/)
 })
 
+test('roll context reaches the endpoint and keeps the complete room UUID', () => {
+  const room = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+  const details = { room, matchId: 'm1', playerId: 'p1', turnSeq: 5, reason: 'confirmation-timeout' }
+  const event = classifyMonitoringEvent({ level: 'warn',
+    message: '[MONITOR][ROLL_CONFIRMATION_RETRY]', args: ['[MONITOR][ROLL_CONFIRMATION_RETRY]', details] })
+  const payload = normalizeClientLogPayload({ room, events: [event] })
+  assert.equal(payload.room, room)
+  assert.deepEqual(payload.events[0].details, details)
+})
+
+test('temporary log delivery failure retains events for the next flush', async () => {
+  const originalWindow = globalThis.window
+  const originalFetch = globalThis.fetch
+  let listener
+  let tick
+  const sent = []
+  globalThis.window = {
+    sessionStorage: { getItem: () => null, setItem: () => {} },
+    location: { pathname: '/', search: '' }, navigator: {},
+    addEventListener() {}, removeEventListener() {},
+    setInterval(fn) { tick = fn; return 1 }, clearInterval() {},
+  }
+  globalThis.fetch = async (_url, options) => {
+    sent.push(JSON.parse(options.body))
+    return { ok: sent.length > 1, status: sent.length === 1 ? 503 : 204 }
+  }
+  let stop
+  try {
+    stop = startVercelLogTransport({ enabled: true, subscribe(fn) { listener = fn; return () => {} } })
+    listener({ level: 'error', message: '[MONITOR][ROLL_CONFIRMATION_FAILED] offline' })
+    await new Promise(resolve => setTimeout(resolve, 0))
+    tick()
+    await new Promise(resolve => setTimeout(resolve, 0))
+    assert.equal(sent.length, 2)
+    assert.ok(sent[1].events.some(e => e.code === 'ROLL_CONFIRMATION_FAILED'))
+    assert.equal(sent[1].metrics.sendFailures, 1)
+  } finally { stop?.(); globalThis.window = originalWindow; globalThis.fetch = originalFetch }
+})
+
 test('endpoint aceita o próprio domínio e rejeita origem externa', () => {
   const response = () => ({
     code: null,

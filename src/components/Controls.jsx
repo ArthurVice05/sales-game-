@@ -17,19 +17,22 @@ export default function Controls({
   modalLocks = 0,
   gameOver = false,
   section = 'all',
+  rollPermission,
 }) {
 
   // AJUSTE: bloqueia tudo se o jogador atual estiver falido
   const isBankrupt = !!current?.bankrupt
   // ✅ OBJ 2: fonte única de turno: turnPlayerId === myUid (sem fallback por prop)
   const isMyTurnExact = (turnPlayerId != null && myUid != null) && (String(turnPlayerId) === String(myUid))
-  const canRoll =
+  const baseCanRoll =
     !!turnPlayerId &&
     isMyTurnExact &&
     turnLock === false &&
     (Number(modalLocks || 0) === 0) &&
     gameOver !== true &&
     !isBankrupt
+  // App and the click handler share the complete permission (including sync).
+  const canRoll = rollPermission ? rollPermission.canRoll : baseCanRoll
 
   useEffect(() => {
     if (!DEBUG_LOGS) return
@@ -54,7 +57,7 @@ export default function Controls({
       console.warn('[ROLL_BLOCK][Controls] not my turn', { turnPlayerId, myUid })
       return
     }
-    if (turnLock) return
+    if (turnLock && !rollPermission?.canRoll) return
 
     const steps = Math.floor(Math.random() * 6) + 1
 
@@ -134,9 +137,11 @@ export default function Controls({
             onClick={roll}
             disabled={!canRoll}
             aria-disabled={!canRoll}
+            aria-busy={!!rollPermission?.busy}
+            title={rollPermission?.message}
           >
-            <span className="rollLabelFull">Rolar Dado &amp; Andar</span>
-            <span className="rollLabelShort">Rolar dado</span>
+            <span className="rollLabelFull">{rollPermission?.label || 'Rolar Dado & Andar'}</span>
+            <span className="rollLabelShort">{rollPermission?.label || 'Rolar dado'}</span>
           </button>
         </div>
       )}

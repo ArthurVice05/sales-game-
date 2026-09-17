@@ -59,7 +59,7 @@ export function normalizeClientLogPayload(body) {
     schemaVersion: Math.max(1, Math.floor(finiteNumber(input.schemaVersion, hasStructuredEvents ? 2 : 1))),
     source: 'sales-game-browser',
     sessionId: text(input.sessionId, 100),
-    room: text(input.room, 32) || null,
+    room: text(input.room, 100) || null,
     page: text(input.page, 500),
     userAgent: text(input.userAgent, 300),
     release: text(input.release, 100) || text(process.env.VERCEL_GIT_COMMIT_SHA, 100) || null,

@@ -82,6 +82,7 @@ import { applyDueHumanRevenuesToRoster, isHumanRevenuePaid } from './game/humanR
 import { applyDueHumanLuckToRoster, isHumanLuckPaid } from './game/humanLuckCredit.js'
 import { sortLobbyPlayersForSeats } from './game/lobbySeatOrder.js'
 import { createHumanCommitQueue, humanClaimExpired } from './game/humanTurnTransaction.js'
+import { confirmRollClaim } from './game/rollStartRecovery.js'
 import { gameNow, deadlineNow, expirationNow, syncSharedClock } from './net/sharedClock.js'
 import {
   getLiveBotMoveBarrier,
@@ -476,6 +477,10 @@ export default function App() {
   const rollingTimeoutRef = useRef(null)
   const lastRollUIRef = useRef(null)
   const diceInFlightRef = useRef(false)
+  const rollAttemptRef = useRef(null)
+  const rollAbortRef = useRef(null)
+  const [rollStartStatus, setRollStartStatus] = useState('idle')
+  const lastRollBlockLogRef = useRef('')
   const handleDiceFxCompleteRef = useRef(null)
   useEffect(() => { lastRollUIRef.current = lastRollUI }, [lastRollUI])
   useEffect(() => { diceFxRef.current = diceFx }, [diceFx])
@@ -1176,6 +1181,14 @@ export default function App() {
   const netVersion = net?.version
   const netState = net?.state
   const netStateId = net?.stateId
+  // Late confirmations must never act in a different turn, room or match.
+  useEffect(() => {
+    rollAbortRef.current?.abort()
+    rollAttemptRef.current = null
+    diceInFlightRef.current = false
+    setRollStartStatus('idle')
+    return () => { rollAbortRef.current?.abort() }
+  }, [phase, currentLobbyId, gameMode, netState?.matchId, turnPlayerId, turnSeq, gameOver])
   const humanRollRef = useRef(null)
   const [humanClaimRecovery, setHumanClaimRecovery] = useState(false)
   useEffect(() => {
@@ -1278,7 +1291,7 @@ export default function App() {
   
   // ✅ CORREÇÃO MULTIPLAYER: Helper para commitar patch/delta (não snapshot completo)
   // Permite fazer merge por ID sem sobrescrever estado completo
-  const commitGamePatchOnce = React.useCallback(({ playersDeltaById = {}, statePatch = {} }) => {
+  const commitGamePatchOnce = React.useCallback(({ playersDeltaById = {}, statePatch = {} }, options = {}) => {
     // READ-ONLY: espectador nunca chega ao netCommit.
     // Contrato desta função é Promise<result> — mantém Promise<result>.
     if (isSpectatorRef.current) return Promise.resolve(SPECTATOR_READ_ONLY)
@@ -1305,9 +1318,12 @@ export default function App() {
       let casLost = false
       let commitResult = null
       let observedStateVersion = null
+      let rejectionReason = null
+      let recoveredClaim = false
       try {
         commitResult = await netCommit(prev => {
           const prevState = prev || {}
+          if (options.signal?.aborted) return prevState
           const localBoardVersion = resolveBoardVersion(boardVersionRef.current)
           const hasRemoteMatch = Array.isArray(prevState.players) && prevState.players.length > 0
           if (
@@ -1333,6 +1349,7 @@ export default function App() {
         const endgameCanLiquidate =
           commitKind === 'ENDGAME' && commitValidation.reason === 'human-revenue-pending'
         if (!commitValidation.ok && !endgameCanLiquidate) {
+          rejectionReason = commitValidation.reason
           casLost = true
           if (isSkipAttempt) {
             releaseSharedSkipKey(expectTurnId, expectTurnSeq)
@@ -1340,6 +1357,15 @@ export default function App() {
           if (isDevVerbose()) {
             console.log('[commit] rejected:', commitValidation.reason, commitValidation)
           }
+          return prevState
+        }
+
+        // A lost HTTP response may hide a successful claim. Reuse its receipt;
+        // never create a second roll or overwrite a claim already moved.
+        if (commitKind === 'HUMAN_ROLL_CLAIM'
+          && prevState.humanRoll?.id === statePatch.humanRoll?.id
+          && !prevState.humanRoll?.moved) {
+          recoveredClaim = true
           return prevState
         }
 
@@ -1551,7 +1577,7 @@ export default function App() {
             'stateVersion:', safeVersion, '(local:', localStateVersion, 'remote:', remoteStateVersion, ')')
         
           return next
-        })
+        }, options)
 
         const guardAction = resolveSkipGuardAction(statePatch, {
           casLost,
@@ -1567,8 +1593,10 @@ export default function App() {
           if (isDevVerbose()) console.log('[auto-skip] CAS confirmed')
         }
         resolve({
-          ok: !casLost && !!commitResult?.ok,
+          ok: !options.signal?.aborted && !casLost && (!!commitResult?.ok || recoveredClaim),
           casLost,
+          reason: rejectionReason || commitResult?.reason,
+          state: commitResult?.state,
           stateVersion: observedStateVersion,
           turnDeadlineAt: commitResult?.state?.turnDeadlineAt,
         })
@@ -1576,15 +1604,17 @@ export default function App() {
         const failAction = resolveSkipGuardAction(statePatch, { casLost: true, commitOk: false })
         if (failAction.action === 'release') releaseSharedSkipKey(expectTurnId, expectTurnSeq)
         console.warn('[NET] commitGamePatch failed:', e?.message || e)
-        resolve({ ok: false, casLost: true, stateVersion: observedStateVersion })
+        resolve({ ok: false, casLost: commitKind !== 'HUMAN_ROLL_CLAIM', reason: 'confirmation-network-error', stateVersion: observedStateVersion })
       }
     })
     })
   }, [netCommit, myUid, gameMode, DEBUG_LOGS])
 
-  const commitGamePatch = React.useCallback((input) => {
+  const commitGamePatch = React.useCallback((input, options = {}) => {
     if (isSpectatorRef.current) return Promise.resolve(SPECTATOR_READ_ONLY)
     const p = input.statePatch || {}
+    // Claim retries have a bounded, cancellable lifecycle before movement.
+    if (p._commitKind === 'HUMAN_ROLL_CLAIM') return commitGamePatchOnce(input, options)
     if (!p._expectHumanRollId || gameMode === GAME_MODE.LOCAL) return commitGamePatchOnce(input)
     // Capture deltas now: subsequent optimistic renders must not rewrite a retry.
     const captured = structuredClone(input)
@@ -3568,17 +3598,37 @@ export default function App() {
     !!currentTurnKey &&
     !!lastRollTurnKey &&
     String(lastRollTurnKey) === String(currentTurnKey)
-  const controlsCanRoll =
-    !gameOver &&
-    turnPlayerId != null &&
-    gameplayActorId != null &&
-    String(turnPlayerId) === String(gameplayActorId) &&
-    (turnLock === false || humanClaimRecovery) &&
-    lockOwnerOk &&
-    Number(modalLocks || 0) === 0 &&
-    !alreadyRolledThisTurn &&
-    !isCurrentPlayerBankrupt &&
-    !isWaitingRevenue
+  const pendingClaim = rollAttemptRef.current?.claim
+  const canRetryOwnClaim = rollStartStatus === 'retry' && pendingClaim
+    && (!netState?.humanRoll || netState.humanRoll.id === pendingClaim.id)
+    && !netState?.humanRoll?.moved
+  const rollBlockReason = gameOver ? 'game-over'
+    : isSpectator ? 'spectator'
+    : !isMyTurnExact ? 'not-your-turn'
+    : isCurrentPlayerBankrupt ? 'bankrupt'
+    : rollStartStatus === 'confirming' ? 'confirming'
+    : diceFx || diceInFlightRef.current ? 'dice-busy'
+    : Number(modalLocks || 0) > 0 ? 'decision-open'
+    : alreadyRolledThisTurn ? 'already-rolled'
+    : isWaitingRevenue ? 'waiting-revenue'
+    : (!lockOwnerOk || (turnLock !== false && !humanClaimRecovery && !canRetryOwnClaim)) ? 'turn-locked'
+    : null
+  const controlsCanRoll = rollBlockReason === null
+  const rollMessages = {
+    confirming: 'Confirmando jogada… Aguarde a conexão.',
+    'dice-busy': 'Dado em andamento…',
+    'already-rolled': 'Jogada já realizada. Aguarde a conclusão do turno.',
+    'turn-locked': 'Sincronizando sua vez… Aguarde.',
+  }
+  const rollMessage = rollMessages[rollBlockReason]
+    || (rollStartStatus === 'retry' && isMyTurnExact ? 'Não foi possível confirmar. Toque em Tentar novamente.' : '')
+  const rollPermission = {
+    canRoll: controlsCanRoll,
+    busy: rollStartStatus === 'confirming' || !!diceFx,
+    message: rollMessage,
+    label: rollStartStatus === 'confirming' ? 'Confirmando jogada…'
+      : rollStartStatus === 'retry' && controlsCanRoll ? 'Tentar novamente' : null,
+  }
 
   // ====== Faixa de próximo passo (somente exibição; não altera turno/ações)
   const nextStepHint = gameOver
@@ -3601,6 +3651,8 @@ export default function App() {
     ? 'Resolva a decisão aberta para concluir o turno.'
     : (isMyTurn && isWaitingRevenue)
     ? 'Aguarde na casa de faturamento para concluir esta etapa.'
+    : (isMyTurn && rollMessage)
+    ? rollMessage
     : (isMyTurn && controlsCanRoll)
     ? 'Sua vez: role o dado.'
     : current?.name
@@ -3612,50 +3664,87 @@ export default function App() {
     // READ-ONLY: espectador não executa ROLL nem qualquer ação de turno.
     // Contrato desta função é void — mantém void.
     if (isSpectator) return
+    const logRoll = (code, reason, extra = {}) => {
+      const details = { room: currentLobbyId, matchId: netStateRef.current?.matchId,
+        playerId: gameplayActorId, turnPlayerId: turnPlayerIdRef.current,
+        turnSeq: turnSeqRef.current, reason, turnLock: turnLockRef.current,
+        modalLocks: Number(modalLocks || 0), claimId: rollAttemptRef.current?.claim?.id, ...extra }
+      const level = code === 'ROLL_CONFIRMATION_FAILED' ? 'error' : code === 'ROLL_CONFIRMED' ? 'info' : 'warn'
+      console[level](`[MONITOR][${code}]`, details)
+    }
+    if (act?.type === 'ROLL' && (!controlsCanRoll || diceInFlightRef.current || diceFxRef.current)) {
+      const reason = rollBlockReason || 'dice-busy'
+      const key = `${currentLobbyId}:${turnSeqRef.current}:${reason}`
+      if (lastRollBlockLogRef.current !== key) {
+        lastRollBlockLogRef.current = key
+        logRoll('ROLL_BLOCKED', reason)
+      }
+      return
+    }
     // Dado 3D é só visual. O motor aplica o ROLL na hora — senão o peão
     // não anda e o host pode passar a vez no meio da animação.
     if (act?.type === 'ROLL' && controlsCanRoll) {
-      const steps = Number(act.steps)
+      const steps = Number(rollAttemptRef.current?.claim?.steps ?? act.steps)
       if (!Number.isInteger(steps) || steps < 1 || steps > 6) {
         onAction(act)
-        return
-      }
-      if (diceInFlightRef.current || diceFxRef.current) {
-        console.warn('[dice] ROLL ignorado — animação ainda em andamento')
         return
       }
       unlockDiceAudio().catch(() => {})
       diceInFlightRef.current = true
       setIsRollingUI(true)
+      setRollStartStatus('confirming')
       clearRollingTimeout()
       const localKey = `local:${currentTurnKey || turnSeq || Date.now()}`
       diceAnimatedKeysRef.current.add(localKey)
       if (currentTurnKey) diceAnimatedKeysRef.current.add(String(currentTurnKey))
+      const controller = new AbortController()
+      rollAbortRef.current = controller
       const startRoll = async () => {
         const originId = String(turnPlayerIdRef.current)
         const originSeq = Number(turnSeqRef.current)
         if (gameMode !== GAME_MODE.LOCAL && net?.enabled) {
-          const id = createUuidV4()
+          const id = rollAttemptRef.current?.claim?.id || createUuidV4()
           const claim = { id, executorId: id, playerId: originId, turnSeq: originSeq,
             matchId: String(netStateRef.current?.matchId ?? ''), moved: false, steps,
             expiresAt: deadlineNow() + 30_000 }
-          const result = await commitGamePatch({ statePatch: {
-            kind: 'HUMAN_ROLL_CLAIM', _commitKind: 'HUMAN_ROLL_CLAIM',
-            _expectTurnPlayerId: originId, _expectTurnSeq: originSeq,
-            _expectMatchId: claim.matchId, _expectHumanRollId: id,
-            humanRoll: claim, turnLock: true, lockOwner: originId, lockTs: gameNow(),
-          } })
-          if (!result?.ok || String(turnPlayerIdRef.current) !== originId
-            || Number(turnSeqRef.current) !== originSeq) {
+          rollAttemptRef.current = { claim }
+          const isCurrent = () => !controller.signal.aborted
+            && String(turnPlayerIdRef.current) === originId && Number(turnSeqRef.current) === originSeq
+            && String(netStateRef.current?.matchId ?? '') === claim.matchId
+          const result = await confirmRollClaim({
+            signal: controller.signal, isCurrent,
+            onRetry: reason => logRoll('ROLL_CONFIRMATION_RETRY', reason),
+            commit: options => commitGamePatch({ statePatch: {
+              kind: 'HUMAN_ROLL_CLAIM', _commitKind: 'HUMAN_ROLL_CLAIM',
+              _expectTurnPlayerId: originId, _expectTurnSeq: originSeq,
+              _expectMatchId: claim.matchId, _expectHumanRollId: id,
+              humanRoll: claim, turnLock: true, lockOwner: originId, lockTs: gameNow(),
+            } }, options),
+          })
+          if (!isCurrent()) return
+          if (!result?.ok) {
             diceInFlightRef.current = false
             setIsRollingUI(false)
-            appendLog('A jogada não foi iniciada: aguardando a sincronização da vez.')
+            setRollStartStatus(result.retryable ? 'retry' : 'idle')
+            logRoll('ROLL_CONFIRMATION_FAILED', result.reason || 'claim-rejected')
+            if (!result.retryable) rollAttemptRef.current = null
             return
           }
           humanRollRef.current = claim
+          logRoll('ROLL_CONFIRMED', 'claim-confirmed', { steps })
         }
+        if (controller.signal.aborted) return
+        setRollStartStatus('idle')
         setTurnLockBroadcast(true, String(gameplayActorId))
-        onAction(act)
+        const started = onAction({ ...act, steps, note: `Dado: ${steps}` })
+        if (started?.ok === false) {
+          diceInFlightRef.current = false
+          setIsRollingUI(false)
+          setRollStartStatus(started.retry ? 'retry' : 'idle')
+          logRoll('ROLL_BLOCKED', started.reason || 'engine-rejected')
+          return
+        }
+        rollAttemptRef.current = null
         setDiceFx({
         id: localKey,
         steps,
@@ -3665,7 +3754,13 @@ export default function App() {
         expectedTurnSeq: Number(turnSeq) || 0,
         })
       }
-      startRoll().catch(() => { diceInFlightRef.current = false; setIsRollingUI(false) })
+      startRoll().catch(error => {
+        if (controller.signal.aborted) return
+        diceInFlightRef.current = false
+        setIsRollingUI(false)
+        setRollStartStatus('retry')
+        logRoll('ROLL_CONFIRMATION_FAILED', 'unexpected-error', { error: error?.message || String(error) })
+      })
       return
     }
     if (act?.type === 'ROLL' && gameMode !== GAME_MODE.LOCAL && net?.enabled) return
@@ -4452,6 +4547,7 @@ export default function App() {
             {!isSpectator && (
               <Controls
                 section="primary"
+                rollPermission={rollPermission}
                 onAction={onControlsAction}
                 current={current}
                 isMyTurn={isMyTurn}

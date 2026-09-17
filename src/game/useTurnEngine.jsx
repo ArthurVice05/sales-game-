@@ -5454,7 +5454,9 @@ export function useTurnEngine({
   )
 
   const onAction = React.useCallback((act) => {
-    if (!act?.type || gameOverRef.current || endGamePendingRef.current || endGameFinalizedRef.current) return
+    if (!act?.type || gameOverRef.current || endGamePendingRef.current || endGameFinalizedRef.current) {
+      return act?.type === 'ROLL' ? { ok: false, reason: 'game-over' } : undefined
+    }
 
     if (act.type === 'ROLL'){
       const liveTurnId = String(turnPlayerIdRef.current || turnPlayerId || '')
@@ -5487,28 +5489,28 @@ export function useTurnEngine({
       } else {
         if (!liveTurnId || liveTurnId !== String(myUid)) {
           console.warn('[ROLL_BLOCK] not my turn (turnPlayerId mismatch)', { turnPlayerId: liveTurnId, myUid })
-          return
+          return { ok: false, reason: 'not-your-turn' }
         }
         if (!isMyTurn && liveTurnId !== String(myUid)) {
           console.warn('[DEBUG] ⚠️ onAction ROLL - não é minha vez, ignorando')
-          return
+          return { ok: false, reason: 'not-your-turn' }
         }
         if (turnLockRef.current) {
           const lo = lockOwnerRef.current != null ? String(lockOwnerRef.current) : ''
           if (lo && lo !== String(myUid)) {
             console.warn('[ROLL_BLOCK] locked by other', { lockOwner: lo, myUid })
-            return
+            return { ok: false, reason: 'locked-by-other' }
           }
         }
       }
       if (modalLocksRef.current > 0 && !isBotRoll) {
         console.warn('[DEBUG] ⚠️ onAction ROLL - há modais abertas, ignorando')
-        return
+        return { ok: false, reason: 'decision-open', retry: true }
       }
 
       if (turnChangeInProgressRef.current) {
         console.log('[DEBUG] 🚫 onAction bloqueado - turnChangeInProgress')
-        return isBotRoll ? { ok: false, reason: 'turn-change-in-progress', retry: true } : undefined
+        return { ok: false, reason: 'turn-change-in-progress', retry: true }
       }
 
       const currentTurnKey =
@@ -5517,7 +5519,7 @@ export function useTurnEngine({
           : null
       if (currentTurnKey && lastRollTurnKeyRef.current === currentTurnKey) {
         console.warn('[ROLL_BLOCK] already rolled this turn', { currentTurnKey })
-        return isBotRoll ? { ok: false, reason: 'already-rolled' } : undefined
+        return { ok: false, reason: 'already-rolled' }
       }
       if (
         !isBotRoll &&
@@ -5603,7 +5605,9 @@ export function useTurnEngine({
           setTurnLockBroadcast(false)
         }
       }
-      if (!isBotRoll) return undefined
+      if (!isBotRoll) return started === false
+        ? { ok: false, reason: 'movement-not-started', retry: true }
+        : { ok: true }
 
       const mapped = toBotOnActionRollResult(started)
       if (!mapped.ok) return mapped

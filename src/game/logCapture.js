@@ -30,6 +30,8 @@ class LogCapture {
       '[GameNet]',
       '[useTurnEngine]',
       '[MONITOR]',
+      '[ROLL_BLOCK]',
+      '[dice]',
       '[MODAL LOCK]',
       '[TURN]',
       '[TURN_LOCK_WATCHDOG]',

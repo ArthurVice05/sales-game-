@@ -4,6 +4,10 @@ const MAX_QUEUED_EVENTS = 100
 const MAX_MESSAGE_LENGTH = 2000
 
 const MONITOR_RULES = [
+  { pattern: /\[MONITOR\]\[ROLL_BLOCKED\]|\[ROLL_BLOCK\]|\[dice\].*ROLL ignorado/i, code: 'ROLL_BLOCKED', severity: 'warning', category: 'turn' },
+  { pattern: /\[MONITOR\]\[ROLL_CONFIRMATION_RETRY\]/, code: 'ROLL_CONFIRMATION_RETRY', severity: 'warning', category: 'sync' },
+  { pattern: /\[MONITOR\]\[ROLL_CONFIRMATION_FAILED\]/, code: 'ROLL_CONFIRMATION_FAILED', severity: 'error', category: 'sync' },
+  { pattern: /\[MONITOR\]\[ROLL_CONFIRMED\]/, code: 'ROLL_CONFIRMED', severity: 'info', category: 'turn' },
   { pattern: /\[ENGINE_V2\].*shadow \(ignorado\)/i, ignore: true },
   { pattern: /\[MONITOR\]\[REVENUE_CREDIT_MISMATCH\]/i, code: 'REVENUE_CREDIT_MISMATCH', severity: 'error', category: 'economy' },
   { pattern: /\[MONITOR\]\[REVENUE_CREDIT_APPLIED\]/i, code: 'REVENUE_CREDIT_APPLIED', severity: 'info', category: 'economy' },
@@ -58,6 +62,13 @@ export function classifyMonitoringEvent(entry) {
   const rule = MONITOR_RULES.find(candidate => candidate.pattern.test(normalized.message))
   if (rule?.ignore) return null
   if (!rule && normalized.level !== 'error') return null
+  const context = rule?.code?.startsWith('ROLL_')
+    ? entry?.args?.find(arg => arg && typeof arg === 'object' && !Array.isArray(arg)) : null
+  const details = context ? Object.fromEntries(
+    ['room', 'matchId', 'playerId', 'turnPlayerId', 'turnSeq', 'reason', 'turnLock', 'modalLocks', 'claimId', 'steps']
+      .filter(key => context[key] != null)
+      .map(key => [key, context[key]])
+  ) : undefined
 
   return {
     occurredAt: normalized.time,
@@ -67,6 +78,7 @@ export function classifyMonitoringEvent(entry) {
     category: rule?.category || 'runtime',
     message: normalized.message,
     occurrences: 1,
+    ...(details ? { details } : {}),
   }
 }
 
@@ -116,7 +128,7 @@ export function startVercelLogTransport(capture, options = {}) {
     schemaVersion: 2,
     sessionId: logSessionId,
     page: window.location.pathname.slice(0, 500),
-    room: new URLSearchParams(window.location.search).get('room')?.slice(0, 32) || null,
+    room: new URLSearchParams(window.location.search).get('room')?.slice(0, 100) || null,
     userAgent: String(window.navigator?.userAgent || '').slice(0, 300),
     release: String(import.meta.env?.VITE_VERCEL_GIT_COMMIT_SHA || '').slice(0, 100),
     environment: String(import.meta.env?.VITE_VERCEL_ENV || 'production').slice(0, 30),
@@ -139,18 +151,26 @@ export function startVercelLogTransport(capture, options = {}) {
     }
 
     sending = true
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 8000)
     try {
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body,
         keepalive: true,
+        signal: controller.signal,
       })
       if (response.ok) metrics.sent += eventCount
-      else metrics.sendFailures += 1
+      else {
+        metrics.sendFailures += 1
+        if (response.status >= 500 || response.status === 429) events.forEach(enqueue)
+      }
     } catch {
       metrics.sendFailures += 1
+      events.forEach(enqueue)
     } finally {
+      clearTimeout(timeout)
       sending = false
     }
   }
