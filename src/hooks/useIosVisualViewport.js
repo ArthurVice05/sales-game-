@@ -3,6 +3,7 @@ import { useEffect } from 'react'
 import { isIOSDevice } from '../utils/iosDetect.js'
 
 const IOS_CLASS = 'sg-ios'
+const VISUAL_VIEWPORT_CLASS = 'sg-visual-viewport'
 
 function readVisualViewportMetrics() {
   if (typeof window === 'undefined') {
@@ -43,18 +44,20 @@ function applyViewportCssVars() {
 }
 
 /**
- * Só no iOS: marca html.sg-ios e sincroniza largura/altura/offsets do visualViewport.
- * No Android/desktop não faz nada (layout atual permanece).
+ * Sincroniza a área realmente visível do navegador em todas as plataformas.
+ * Tablets em "site para computador" podem reportar 100vh maior que a área
+ * abaixo das barras do navegador; --sg-vv-height mantém as ações da partida
+ * dentro da tela. A classe sg-ios continua exclusiva para correções WebKit.
  */
 export function useIosVisualViewport() {
   useEffect(() => {
     if (typeof document === 'undefined' || typeof window === 'undefined') {
       return undefined
     }
-    if (!isIOSDevice()) return undefined
-
     const root = document.documentElement
-    root.classList.add(IOS_CLASS)
+    const ios = isIOSDevice()
+    root.classList.add(VISUAL_VIEWPORT_CLASS)
+    if (ios) root.classList.add(IOS_CLASS)
     applyViewportCssVars()
 
     const onChange = () => applyViewportCssVars()
@@ -76,7 +79,8 @@ export function useIosVisualViewport() {
       window.removeEventListener('orientationchange', onChange)
       vv?.removeEventListener?.('resize', onChange)
       vv?.removeEventListener?.('scroll', onChange)
-      root.classList.remove(IOS_CLASS)
+      root.classList.remove(VISUAL_VIEWPORT_CLASS)
+      if (ios) root.classList.remove(IOS_CLASS)
       root.style.removeProperty('--sg-vv-width')
       root.style.removeProperty('--sg-vv-height')
       root.style.removeProperty('--sg-vv-offset-top')

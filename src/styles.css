@@ -275,6 +275,24 @@ html, body {
   overflow: hidden;  /* nada rola aqui */
 }
 
+/*
+ * Área útil real da partida. Em tablets usando "site para computador",
+ * 100vh pode incluir a região coberta pelas barras do navegador e cortar as
+ * ações inferiores da sidebar. O hook de visualViewport mantém esta variável
+ * atualizada quando a barra aparece, desaparece ou o aparelho gira.
+ */
+html.sg-visual-viewport .page[data-game-shell] {
+  height: var(--sg-vv-height, 100dvh);
+  max-height: var(--sg-vv-height, 100dvh);
+  min-height: 0;
+}
+
+html.sg-visual-viewport .page[data-game-shell] > .content {
+  flex: 1 1 0%;
+  height: auto;
+  min-height: 0;
+}
+
 /* ===== Coluna da esquerda (só o tabuleiro) ===== */
 .boardWrap{
   flex:1 1 auto; min-width:0;
