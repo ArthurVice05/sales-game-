@@ -57,7 +57,7 @@ export function evaluateMatchEntryReadiness({
   }
 
   if (remoteId && remoteId === wanted) {
-    return { action: MATCH_ENTRY.ENTER_CURRENT_MATCH, reason: 'match-id-match' }
+    return { action: MATCH_ENTRY.ENTER_CURRENT_MATCH, reason: 'match-id-match', matchId: remoteId }
   }
 
   if (remoteId && remoteId !== wanted) {

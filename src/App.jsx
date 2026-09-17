@@ -4057,6 +4057,20 @@ export default function App() {
             setPlayers([], { source: 'RESUME_EXISTING_WAIT' })
             setPhase('game')
 
+            const resumeState = payload?.roomState
+            const resumePlayers = Array.isArray(resumeState?.players) ? resumeState.players : []
+            const resumeHasPlayer = resumePlayers.some(
+              (p) => String(p?.id) === String(resolvedId),
+            )
+            if (resumeHasPlayer) {
+              applyRemoteNetState(
+                resumeState,
+                payload?.roomVersion ?? null,
+                payload?.roomStateId ?? resumeState?.stateId ?? null,
+              )
+              resumeLog('snapshot apply', 'validated_entry')
+            }
+
             // Bootstrap determinístico: se o Provider já tem a MESMA room com roster válido
             // contendo o playerId persistido, aplica AGORA (não espera realtime).
             const snap = net?.state

@@ -306,10 +306,13 @@ export default function PlayersLobby({ lobbyId, playerName, onBack, onStartGame 
 
     onStartGame?.({
       lobbyId,
-      matchId: match?.id || null,
+      matchId: decision.matchId || roomMeta.state?.matchId || match?.id || null,
       players: [],
       me: { id: playerId, name: meName || persisted.playerName || '' },
       resumeExistingMatch: true,
+      roomState: roomMeta.state,
+      roomVersion: roomMeta.version,
+      roomStateId: roomMeta.stateId,
     })
     return true
   }

@@ -28,6 +28,13 @@ test('monitoramento ignora debug normal e classifica falhas operacionais', () =>
   assert.equal(conflict.code, 'NETWORK_COMMIT_CONFLICT')
   assert.equal(conflict.severity, 'warning')
 
+  const clock = classifyMonitoringEvent({
+    level: 'warn',
+    message: '[MONITOR][CLOCK_SYNC_FAILED]',
+  })
+  assert.equal(clock.code, 'CLOCK_SYNC_FAILED')
+  assert.equal(clock.category, 'turn')
+
   const revenue = classifyMonitoringEvent({
     level: 'info',
     message: '[MONITOR][REVENUE_CREDIT_APPLIED] {"revenue":14495}',

@@ -25,6 +25,7 @@ const MONITOR_RULES = [
   { pattern: /RPC .* indisponível/i, code: 'DATABASE_RPC_FALLBACK', severity: 'warning', category: 'configuration' },
   { pattern: /Supabase não configurado/i, code: 'SUPABASE_CONFIGURATION_MISSING', severity: 'error', category: 'configuration' },
   { pattern: /\[(?:hb|presence)\].*falha/i, code: 'PRESENCE_UPDATE_FAILED', severity: 'warning', category: 'presence' },
+  { pattern: /\[MONITOR\]\[CLOCK_SYNC_FAILED\]/i, code: 'CLOCK_SYNC_FAILED', severity: 'warning', category: 'turn' },
   { pattern: /\[(?:leaveRoom|leaveRoomById)\].*(?:Erro|erro|falha)/i, code: 'PLAYER_LEAVE_FAILED', severity: 'warning', category: 'room' },
   { pattern: /\[rooms\].*falha/i, code: 'ROOM_DELETE_FAILED', severity: 'warning', category: 'room' },
   { pattern: /\[cleanup\].*hard cap/i, code: 'LOBBY_CAP_EXCEEDED', severity: 'warning', category: 'capacity' },

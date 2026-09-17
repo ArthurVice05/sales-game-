@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { createHumanCommitQueue, humanClaimExpired } from '../humanTurnTransaction.js'
 import { applyGamePatchToState } from '../playerStateSync.js'
 import { createSharedClock } from '../../net/sharedClock.js'
+import clockHandler from '../../../api/clock.js'
 import { readFileSync } from 'node:fs'
 
 const NOW = 1_000_000
@@ -126,6 +127,41 @@ test('missing/cached HTTP Date never becomes a trusted clock; old samples expire
   assert.equal(clock.observe(new Date(NOW).toUTCString(), 0, 100), true)
   now += 120_001
   assert.equal(clock.ready(), false)
+})
+
+test('dynamic clock endpoint anchors expiration without cached HTML Date', () => {
+  let now = 250
+  const clock = createSharedClock({ monotonic: () => now })
+  assert.equal(clock.observeEpoch(NOW, 100, 250, 0), true)
+  assert.deepEqual(clock.bounds(), { lower: NOW, upper: NOW + 150 })
+  now += 1_000
+  assert.deepEqual(clock.bounds(), { lower: NOW + 1_000, upper: NOW + 1_150 })
+  assert.equal(clock.observeEpoch(NOW, 0, 100, 5), false)
+})
+
+test('syncSharedClock uses the dynamic no-cache Vercel endpoint', () => {
+  const clockSource = readFileSync(new URL('../../net/sharedClock.js', import.meta.url), 'utf8')
+  const endpointSource = readFileSync(new URL('../../../api/clock.js', import.meta.url), 'utf8')
+  assert.match(clockSource, /new URL\('\/api\/clock'/)
+  assert.match(clockSource, /sharedClock\.observeEpoch/)
+  assert.match(endpointSource, /Cache-Control', 'no-store, max-age=0'/)
+  assert.match(endpointSource, /now: Date\.now\(\)/)
+})
+
+test('clock endpoint returns server epoch with CDN caching disabled', () => {
+  const headers = new Map()
+  let status = 0
+  let body = null
+  const res = {
+    setHeader(key, value) { headers.set(key, value) },
+    status(value) { status = value; return this },
+    json(value) { body = value; return this },
+    end() { return this },
+  }
+  clockHandler({ method: 'GET' }, res)
+  assert.equal(status, 200)
+  assert.equal(headers.get('Cache-Control'), 'no-store, max-age=0')
+  assert.ok(Number.isFinite(body.now))
 })
 
 test('falha ao sincronizar relógio não bloqueia START nem commits da partida', () => {
