@@ -33,6 +33,11 @@ export function applyBankruptcyState(p = {}) {
     revenue: 0,
     loanPending: null,
     waitingAtRevenue: false,
+    // Falencia encerra a jogada: efeitos antigos nao podem bloquear o handoff
+    // nem ser retomados por outro cliente depois de um refresh.
+    humanTurnEffects: null,
+    humanLuckPending: null,
+    botTurnEffects: null,
     mixProdutos: 'D',
     erpLevel: 'D',
   }
@@ -288,6 +293,7 @@ export function rebuildPendingAfterBankruptTurn({
   matchId = null,
   round = 1,
   roundFlags = null,
+  source = 'bot-bankruptcy-recovery',
 } = {}) {
   const aftermath = resolveAftermathAfterBankruptcy({
     players,
@@ -305,6 +311,28 @@ export function rebuildPendingAfterBankruptTurn({
     nextRoundFlags: roundFlags,
     shouldIncrementRound: false,
     endGame: aftermath.shouldEnd === true,
-    meta: { kind: 'BANKRUPT', source: 'bot-bankruptcy-recovery' },
+    meta: {
+      kind: 'BANKRUPT',
+      source,
+      bankruptPlayerId: bankruptPlayerId != null ? String(bankruptPlayerId) : null,
+    },
+  }
+}
+
+/** Delta atomico que acompanha o TURN apos falencia durante a jogada. */
+export function buildBankruptcyHandoffPatch(pending, players = []) {
+  if (pending?.meta?.kind !== 'BANKRUPT') return {}
+  const id = String(
+    pending?.meta?.bankruptPlayerId ?? pending?.originTurnPlayerId ?? '',
+  )
+  if (!id) return {}
+  const player = (Array.isArray(players) ? players : []).find(
+    (entry) => String(entry?.id) === id,
+  )
+  if (!player?.bankrupt) return {}
+  return {
+    playersDeltaById: { [id]: player },
+    playerDeltaIds: [id],
+    lastAction: 'BANKRUPT',
   }
 }

@@ -104,6 +104,7 @@ import { isHandoffPendingObsolete, shouldDiscardSameSeatHandoffPending } from '.
 import { decideMatchTransientEndgameReset } from './matchEntryReadiness.js'
 import {
   applyBankruptcyState,
+  buildBankruptcyHandoffPatch,
   planMatchForfeit,
   decideEndgameAfterBankruptcy as decideEndgameAfterBankruptcyPure,
   resolveAftermathAfterBankruptcy,
@@ -2086,23 +2087,24 @@ export function useTurnEngine({
                 return failRes(nextPlayers)
               }
 
-              const nextIdx = pickNextAliveIndex(nextPlayers, currIdx)
-              const nextTurnPlayerId = nextPlayers?.[nextIdx]?.id
-
               const nextRoundFlags =
                 (roundFlagsRef?.current && typeof roundFlagsRef.current === 'object')
                   ? roundFlagsRef.current
                   : (typeof roundFlags === 'object' ? roundFlags : {})
 
-              pendingTurnDataRef.current = {
-                nextPlayers,
-                nextTurnIdx: nextIdx,
-                nextTurnPlayerId: nextTurnPlayerId != null ? String(nextTurnPlayerId) : null,
-                nextRound: currentRoundRef.current,
-                shouldIncrementRound: false,
-                nextRoundFlags,
-                meta: { kind: 'BANKRUPT', source: 'RecoveryModal' },
-              }
+              pendingTurnDataRef.current = rebuildPendingAfterBankruptTurn({
+                players: nextPlayers,
+                initialPlayerCount: initialPlayerCountRef.current,
+                bankruptPlayerId: bankruptId,
+                turnSeq: turnSeqRef.current,
+                matchId: authoritativeMatchId,
+                round: currentRoundRef.current,
+                roundFlags: nextRoundFlags,
+                source: 'RecoveryModal',
+              })
+
+              const kick = scheduleTurnCompletionTickRef.current
+              if (typeof kick === 'function') kick()
 
               return failRes(nextPlayers)
             }
@@ -2193,23 +2195,24 @@ export function useTurnEngine({
           return failRes(nextPlayers)
         }
 
-        const nextIdx = pickNextAliveIndex(nextPlayers, currIdx)
-        const nextTurnPlayerId = nextPlayers?.[nextIdx]?.id
-
         const nextRoundFlags =
           (roundFlagsRef?.current && typeof roundFlagsRef.current === 'object')
             ? roundFlagsRef.current
             : (typeof roundFlags === 'object' ? roundFlags : {})
 
-        pendingTurnDataRef.current = {
-          nextPlayers,
-          nextTurnIdx: nextIdx,
-          nextTurnPlayerId: nextTurnPlayerId != null ? String(nextTurnPlayerId) : null,
-          nextRound: currentRoundRef.current,
-          shouldIncrementRound: false,
-          nextRoundFlags,
-          meta: { kind: 'BANKRUPT', source: 'InsufficientFundsModal' },
-        }
+        pendingTurnDataRef.current = rebuildPendingAfterBankruptTurn({
+          players: nextPlayers,
+          initialPlayerCount: initialPlayerCountRef.current,
+          bankruptPlayerId: bankruptId,
+          turnSeq: turnSeqRef.current,
+          matchId: authoritativeMatchId,
+          round: currentRoundRef.current,
+          roundFlags: nextRoundFlags,
+          source: 'InsufficientFundsModal',
+        })
+
+        const kick = scheduleTurnCompletionTickRef.current
+        if (typeof kick === 'function') kick()
 
         return failRes(nextPlayers)
       } else {
@@ -4407,6 +4410,7 @@ export function useTurnEngine({
                 _commitKind: 'NORMAL_HANDOFF',
                 deferLocalUntilCommit: true,
                 includePlayerEconomy: false,
+                ...buildBankruptcyHandoffPatch(turnData, latestPlayers),
               }
               if (turnData.nextRoundFlags) patch.roundFlags = turnData.nextRoundFlags
               if (turnData.shouldIncrementRound) patch.round = roundToBroadcast
@@ -5050,6 +5054,8 @@ export function useTurnEngine({
       _expectTurnSeq: turnData.originTurnSeq,
       _commitKind: 'NORMAL_HANDOFF',
       deferLocalUntilCommit: true,
+      includePlayerEconomy: false,
+      ...buildBankruptcyHandoffPatch(turnData, latestPlayers),
     }
     if (turnData.nextRoundFlags) patch.roundFlags = turnData.nextRoundFlags
     if (turnData.shouldIncrementRound) patch.round = roundToBroadcast

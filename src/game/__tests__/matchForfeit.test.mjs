@@ -14,6 +14,7 @@ import {
   resolveAftermathAfterBankruptcy,
   commitBankruptcyAftermath,
   rebuildPendingAfterBankruptTurn,
+  buildBankruptcyHandoffPatch,
 } from '../matchForfeit.js'
 
 const p = (id, over = {}) => ({
@@ -29,12 +30,20 @@ const p = (id, over = {}) => ({
 })
 
 test('applyBankruptcyState zera recursos e marca falido', () => {
-  const next = applyBankruptcyState(p('A', { loanPending: { loanId: 'x' } }))
+  const next = applyBankruptcyState(p('A', {
+    loanPending: { loanId: 'x' },
+    humanTurnEffects: { crossedStart: true },
+    humanLuckPending: { cardId: 'luck-1' },
+    botTurnEffects: { settled: false },
+  }))
   assert.equal(next.bankrupt, true)
   assert.equal(next.cash, 0)
   assert.equal(next.bens, 0)
   assert.equal(next.clients, 0)
   assert.equal(next.loanPending, null)
+  assert.equal(next.humanTurnEffects, null)
+  assert.equal(next.humanLuckPending, null)
+  assert.equal(next.botTurnEffects, null)
   assert.equal(next.mixProdutos, 'D')
   assert.equal(next.erpLevel, 'D')
   assert.equal(next.id, 'A')
@@ -214,6 +223,34 @@ test('1 humano contra 1, 2 ou 3 máquinas sempre remove a máquina falida da rot
       if (botCount === 1) assert.equal(pending.nextTurnPlayerId, 'human')
     }
   }
+})
+
+test('falencia durante cobranca gera handoff atomico com delta do falido', () => {
+  const players = [
+    applyBankruptcyState(p('A', { humanTurnEffects: { crossedStart: true } })),
+    p('B'),
+    p('C'),
+  ]
+  const pending = rebuildPendingAfterBankruptTurn({
+    players,
+    initialPlayerCount: 3,
+    bankruptPlayerId: 'A',
+    turnSeq: 8,
+    matchId: 'match-charge',
+    round: 2,
+    source: 'InsufficientFundsModal',
+  })
+  const patch = buildBankruptcyHandoffPatch(pending, players)
+
+  assert.equal(pending.nextTurnPlayerId, 'B')
+  assert.equal(pending.originTurnPlayerId, 'A')
+  assert.equal(pending.originTurnSeq, 8)
+  assert.equal(pending.meta.source, 'InsufficientFundsModal')
+  assert.equal(pending.meta.bankruptPlayerId, 'A')
+  assert.equal(patch.lastAction, 'BANKRUPT')
+  assert.deepEqual(patch.playerDeltaIds, ['A'])
+  assert.equal(patch.playersDeltaById.A.bankrupt, true)
+  assert.equal(patch.playersDeltaById.A.humanTurnEffects, null)
 })
 
 test('App aplica forfeitMatch antes de leaveRoom no Sair para Lobbies', () => {
