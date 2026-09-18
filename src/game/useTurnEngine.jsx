@@ -83,7 +83,7 @@ import {
   resolveHumanLuckPayloadForScope,
   shouldBlockHumanHandoffForLuck,
 } from './humanLuckCredit.js'
-import { SORTE_REVES_CARDS } from '../modals/sorteRevesDeck.js'
+import { pickSorteRevesCard } from './sorteRevesCards.js'
 import { shouldRejectEngineBotTimerAutoPass } from './turnCommitValidation.js'
 import {
   buildDecisionHold,
@@ -2542,7 +2542,7 @@ export function useTurnEngine({
       ? Math.max(0, Math.floor(computeFaturamentoFor(nextMeHuman || cur)))
       : 0
     const frozenLuckCardId = landTileHuman === 'LUCK'
-      ? SORTE_REVES_CARDS[Math.floor(Math.random() * SORTE_REVES_CARDS.length)]?.id || null
+      ? pickSorteRevesCard(Math.random)?.id || null
       : null
     const humanEffectsPlan = buildHumanTurnEffectPlan({
       matchId: authoritativeMatchId,
@@ -2716,7 +2716,7 @@ export function useTurnEngine({
     const isClientsTile = landedTileType === 'CLIENTS'
     // Gestor
     const isManagerTile = landedTileType === 'MANAGER'
-    // Field Sales
+    // Canal Representantes
     const isFieldTile = landedTileType === 'FIELD'
     // Vendedores Comuns
     const isCommonSellersTile = landedTileType === 'COMMON'
@@ -2893,7 +2893,7 @@ export function useTurnEngine({
             if (r2.action === 'HIRE' || r2.action === 'BUY') {
               const deltas = buildFieldSalesPurchaseDeltas(r2)
               const payAbs = deltas.cashDelta < 0 ? -deltas.cashDelta : 0
-              if (payAbs > 0 && !requireFunds(curIdx, payAbs, 'contratar Canal representantes')) { setTurnLockBroadcast(false); return }
+              if (payAbs > 0 && !requireFunds(curIdx, payAbs, 'contratar Canal Representantes')) { setTurnLockBroadcast(false); return }
               setPlayers(ps => {
                 const upd = mapById(ps, ownerId, (p) => applyDeltas(p, deltas))
                 // ✅ CORREÇÃO: Usa turnIdx e round atuais para compras durante o turno
@@ -3172,7 +3172,7 @@ export function useTurnEngine({
         if (res && (res.action === 'HIRE' || res.action === 'BUY')) {
           const deltas = buildFieldSalesPurchaseDeltas(res)
           const payAbs = deltas.cashDelta < 0 ? -deltas.cashDelta : 0
-          if (payAbs > 0 && !requireFunds(curIdx, payAbs, 'contratar Canal representantes')) { setTurnLockBroadcast(false); return }
+          if (payAbs > 0 && !requireFunds(curIdx, payAbs, 'contratar Canal Representantes')) { setTurnLockBroadcast(false); return }
           setPlayers(ps => {
             const upd = mapById(ps, ownerId, (p) => applyDeltas(p, deltas))
             // ✅ CORREÇÃO: Usa turnIdx e round atuais para compras durante o turno
@@ -3806,7 +3806,7 @@ export function useTurnEngine({
                 broadcastState(localPlayers, turnIdxRef.current, currentRoundRef.current)
                 if (pendingTurnDataRef.current) pendingTurnDataRef.current.nextPlayers = localPlayers
               } else {
-                appendLog('Saldo insuficiente para contratar Canal representantes.')
+                appendLog('Saldo insuficiente para contratar Canal Representantes.')
               }
             }
             continue

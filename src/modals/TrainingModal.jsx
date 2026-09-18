@@ -28,8 +28,8 @@ const PRODUCTS = [
   },
   {
     id: 'fieldsales',
-    label: 'Curso Canal representantes Collab\nMultiplier Educação e\nCasagrande Consultores',
-    shortLabel: 'Canal representantes Collab',
+    label: 'Curso Canal Representantes Collab\nMultiplier Educação e\nCasagrande Consultores',
+    shortLabel: 'Canal Representantes Collab',
     price: TRAINING_PRICE,
     cert: 'amarelo',
     colors: { bg: '#3a3202', border: '#facc15', pill: '#fde047' }, // AMARELO
@@ -46,7 +46,7 @@ const PRODUCTS = [
 
 const VENDOR_TYPE_META = [
   { id: 'comum',  label: 'Vendedor Comum', shortBtn: 'Vend. Comum' },
-  { id: 'field',  label: 'Canal representantes', shortBtn: 'Canal representantes' },
+  { id: 'field',  label: 'Canal Representantes', shortBtn: 'Canal Representantes' },
   { id: 'inside', label: 'Inside Sales', shortBtn: 'Inside Sales' },
   { id: 'gestor', label: 'Gestor Comercial', shortBtn: 'Gestor' },
 ]

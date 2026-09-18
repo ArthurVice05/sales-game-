@@ -227,7 +227,7 @@ export default function HudDesktopSidebar({
           <section className="hudCard">
             <h3 className="hudCardTitle">Estrutura comercial</h3>
             <StatRow label="Vendedor Comum" value={totals.vendedoresComuns ?? 0} />
-            <StatRow label="Canal representantes" value={totals.fieldSales ?? 0} />
+            <StatRow label="Canal Representantes" value={totals.fieldSales ?? 0} />
             <StatRow label="Inside Sales" value={totals.insideSales ?? 0} />
             <StatRow label="Gestores Comerciais" value={totals.gestores ?? totals.gestoresComerciais ?? 0} />
             <StatRow label="Clientes" value={totals.clientes ?? 0} />

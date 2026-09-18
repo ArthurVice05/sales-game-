@@ -99,7 +99,7 @@ export default function CompanySnapshotSummary({
               <ul className="companySnapshotRoster">
                 <RosterRow label="Vendedores Comuns" value={summary.vendedoresComuns} />
                 <RosterRow label="Inside Sales" value={summary.insideSales} />
-                <RosterRow label="Canal representantes" value={summary.fieldSales} />
+                <RosterRow label="Canal Representantes" value={summary.fieldSales} />
                 <RosterRow label="Gestores Comerciais" value={summary.gestores} />
                 {summary.erpLevel != null ? (
                   <li className="companySnapshotRosterRow">

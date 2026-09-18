@@ -22,7 +22,7 @@ const TYPE_LABELS = Object.freeze({
   INSIDE: 'Inside Sales',
   MANAGER: 'Gestor Comercial',
   TRAINING: 'Treinamento',
-  FIELD: 'Canal representantes',
+  FIELD: 'Canal Representantes',
   DIRECT_BUY: 'Direito de Compra',
   COMMON: 'Vendedor Comum',
   EXPENSES: 'Despesas Operacionais',

@@ -1,5 +1,5 @@
 /**
- * A2 — Field Sales ≠ Inside Sales
+ * A2 — Canal Representantes ≠ Inside Sales
  * Prova que os tipos deixaram de ser equivalentes.
  */
 import { describe, it } from 'node:test'
@@ -56,13 +56,13 @@ function vendorOnlyDesp(player) {
   return computeDespesasFor(player) - mixDesp - erpDesp - cart
 }
 
-describe('VENDOR_RULES A2 — Field ≠ Inside', () => {
-  it('1) Field cap = 4', () => {
-    assert.equal(VENDOR_RULES.field.cap, 4)
+describe('VENDOR_RULES A2 — Canal Representantes ≠ Inside', () => {
+  it('1) Canal Representantes cap = 6', () => {
+    assert.equal(VENDOR_RULES.field.cap, 6)
   })
 
-  it('2) Inside cap = 6', () => {
-    assert.equal(VENDOR_RULES.inside.cap, 6)
+  it('2) Inside cap = 5', () => {
+    assert.equal(VENDOR_RULES.inside.cap, 5)
   })
 
   it('3) Field baseFat = 2000', () => {
@@ -89,9 +89,9 @@ describe('VENDOR_RULES A2 — Field ≠ Inside', () => {
     assert.equal(VENDOR_RULES.inside.hire, 2500)
   })
 
-  it('capacidades no motor: 1 Field = 4, 1 Inside = 6', () => {
-    assert.equal(capacityAndAttendance(basePlayer({ fieldSales: 1 })).cap, 4)
-    assert.equal(capacityAndAttendance(basePlayer({ insideSales: 1 })).cap, 6)
+  it('capacidades no motor: 1 Canal Representantes = 6, 1 Inside = 5', () => {
+    assert.equal(capacityAndAttendance(basePlayer({ fieldSales: 1 })).cap, 6)
+    assert.equal(capacityAndAttendance(basePlayer({ insideSales: 1 })).cap, 5)
   })
 
   it('11) certificados: +500 fat / +100 desp (ambos)', () => {
@@ -102,28 +102,28 @@ describe('VENDOR_RULES A2 — Field ≠ Inside', () => {
 
     const field0 = basePlayer({
       fieldSales: 1,
-      clients: 4,
+      clients: 6,
       trainingsByVendor: { field: [] },
     })
     const field1 = basePlayer({
       fieldSales: 1,
-      clients: 4,
+      clients: 6,
       trainingsByVendor: { field: ['personalizado'] },
     })
-    assert.equal(vendorOnlyFat(field1) - vendorOnlyFat(field0), 500 * 4)
+    assert.equal(vendorOnlyFat(field1) - vendorOnlyFat(field0), 500 * 6)
     assert.equal(vendorOnlyDesp(field1) - vendorOnlyDesp(field0), 100)
 
     const inside0 = basePlayer({
       insideSales: 1,
-      clients: 6,
+      clients: 5,
       trainingsByVendor: { inside: [] },
     })
     const inside1 = basePlayer({
       insideSales: 1,
-      clients: 6,
+      clients: 5,
       trainingsByVendor: { inside: ['personalizado'] },
     })
-    assert.equal(vendorOnlyFat(inside1) - vendorOnlyFat(inside0), 500 * 6)
+    assert.equal(vendorOnlyFat(inside1) - vendorOnlyFat(inside0), 500 * 5)
     assert.equal(vendorOnlyDesp(inside1) - vendorOnlyDesp(inside0), 100)
   })
 
@@ -138,15 +138,15 @@ describe('VENDOR_RULES A2 — Field ≠ Inside', () => {
     assert.ok(fieldOp > insideOp)
   })
 
-  it('10) 7 clientes: Inside tem melhor resultado operacional que Field', () => {
+  it('10) 7 clientes: cada canal respeita sua nova capacidade', () => {
     const field = basePlayer({ fieldSales: 1, clients: 7 })
     const inside = basePlayer({ insideSales: 1, clients: 7 })
     const fieldOp = vendorOnlyFat(field) - vendorOnlyDesp(field)
     const insideOp = vendorOnlyFat(inside) - vendorOnlyDesp(inside)
-    // Field: 2000*4 - 2500 = 5500; Inside: 1200*6 - 1500 = 5700
-    assert.equal(fieldOp, 5500)
-    assert.equal(insideOp, 5700)
-    assert.ok(insideOp > fieldOp)
+    // Canal Representantes: 2000*6 - 2500 = 9500; Inside: 1200*5 - 1500 = 4500
+    assert.equal(fieldOp, 9500)
+    assert.equal(insideOp, 4500)
+    assert.ok(fieldOp > insideOp)
   })
 
   it('Field e Inside não são mais numericamente equivalentes', () => {
@@ -208,7 +208,7 @@ describe('12) previews e deltas usam os novos números', () => {
     assert.equal(impact.after.cash, 17500)
 
     const afterHire = basePlayer({ cash: 17500, insideSales: 1, clients: 1 })
-    assert.equal(capacityAndAttendance(afterHire).cap, 6)
+    assert.equal(capacityAndAttendance(afterHire).cap, 5)
     assert.equal(vendorOnlyDesp(afterHire), 1500)
   })
 })

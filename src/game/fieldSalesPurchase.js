@@ -1,5 +1,5 @@
 /**
- * Monta os deltas da contratação de Field Sales
+ * Monta os deltas da contratação do Canal Representantes
  * exatamente como o useTurnEngine já aplicava nos 4 caminhos.
  *
  * Fonte: payload do BuyFieldSalesModal → applyDeltas

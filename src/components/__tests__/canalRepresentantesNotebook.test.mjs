@@ -1,5 +1,5 @@
 /**
- * Regressão dos três pedidos: Canal representantes, StartScreen sem Tironi,
+ * Regressão dos três pedidos: Canal Representantes, StartScreen sem Tironi,
  * e reserva do botão Rolar no sidebar desktop sob altura de notebook.
  */
 import test from 'node:test'
@@ -12,10 +12,10 @@ import { BOARD_40_TYPE_VISUALS, BOARD_40_CONFIG, BOARD_40_TYPES } from '../../da
 const root = join(dirname(fileURLToPath(import.meta.url)), '../../..')
 const read = (rel) => readFileSync(join(root, rel), 'utf8')
 
-test('apresentação FIELD usa Canal representantes; ids internos preservados', () => {
+test('apresentação FIELD usa Canal Representantes; ids internos preservados', () => {
   assert.ok(BOARD_40_TYPES.includes('FIELD'))
   const fieldTile = BOARD_40_CONFIG.find((t) => t.type === 'FIELD')
-  assert.equal(fieldTile.label, 'Canal representantes')
+  assert.equal(fieldTile.label, 'Canal Representantes')
   assert.deepEqual([...BOARD_40_TYPE_VISUALS.FIELD.labelLines], ['CANAL', 'REPRESENTANTES'])
   assert.match(BOARD_40_TYPE_VISUALS.FIELD.icon, /field-sales\.png/)
 
@@ -23,13 +23,13 @@ test('apresentação FIELD usa Canal representantes; ids internos preservados', 
   assert.doesNotMatch(preview, /FIELD SALES|Field Sales/)
 
   const modal = read('src/modals/BuyFieldSalesModal.jsx')
-  assert.match(modal, /title="Canal representantes"/)
+  assert.match(modal, /title="Canal Representantes"/)
   assert.match(modal, /id: 'fieldsales'/)
-  assert.match(modal, /Canal representantes Collab/)
+  assert.match(modal, /Canal Representantes Collab/)
   assert.doesNotMatch(modal, /title="Field Sales"|contratar Field Sales/)
 
   const engine = read('src/game/useTurnEngine.jsx')
-  assert.match(engine, /contratar Canal representantes/)
+  assert.match(engine, /contratar Canal Representantes/)
   assert.match(engine, /BuyFieldSalesModal|FieldSalesModal|buildFieldSalesPurchaseDeltas/)
   assert.doesNotMatch(engine, /contratar Field Sales|Saldo insuficiente para contratar Field Sales/)
 })

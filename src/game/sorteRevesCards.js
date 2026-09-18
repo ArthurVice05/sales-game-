@@ -171,6 +171,8 @@ export function buildSorteRevesCatalog() {
 }
 
 export const SORTE_REVES_CARDS = buildSorteRevesCatalog()
+export const SORTE_CHANCE = 0.65
+export const REVES_CHANCE = 0.35
 
 export function resolveSorteRevesCard(card, player = {}) {
   const base = { action: 'APPLY_CARD', kind: card.kind, id: card.id, title: card.title }
@@ -192,7 +194,16 @@ export function pickSorteRevesCard(indexOrRng) {
   const cards = SORTE_REVES_CARDS
   let idx = 0
   if (typeof indexOrRng === 'function') {
-    idx = Math.min(cards.length - 1, Math.floor(indexOrRng() * cards.length))
+    const sorteCards = cards.filter((card) => card.kind === 'SORTE')
+    const revesCards = cards.filter((card) => card.kind === 'REVES')
+    const roll = Math.min(1 - Number.EPSILON, Math.max(0, Number(indexOrRng()) || 0))
+    const isSorte = roll < SORTE_CHANCE
+    const pool = isSorte ? sorteCards : revesCards
+    const positionInPool = isSorte
+      ? roll / SORTE_CHANCE
+      : (roll - SORTE_CHANCE) / REVES_CHANCE
+    idx = Math.min(pool.length - 1, Math.floor(positionInPool * pool.length))
+    return pool[idx]
   } else if (Number.isFinite(Number(indexOrRng))) {
     idx = Math.abs(Math.floor(Number(indexOrRng))) % cards.length
   }

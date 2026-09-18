@@ -39,14 +39,14 @@ test('kit inicial: despesas = 1150 e faturamento = 770', () => {
   assert.equal(computeFaturamentoFor(player), 770)
 })
 
-test('capacidade: comum×2 + field×4 + inside×6', () => {
+test('capacidade: comum×2 + Canal Representantes×6 + Inside×5', () => {
   const player = createTestPlayer({
     vendedoresComuns: 2,
     fieldSales: 1,
     insideSales: 1,
   })
   const { cap, inAtt } = capacityAndAttendance(player)
-  assert.equal(cap, 14)
+  assert.equal(cap, 15)
   assert.equal(inAtt, 1)
 })
 

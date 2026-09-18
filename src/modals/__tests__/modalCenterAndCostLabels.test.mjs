@@ -63,7 +63,7 @@ describe('rótulos de custo Common / Inside', () => {
     assert.doesNotMatch(src, /Custo por representante/)
   })
 
-  it('Canal representantes não é alterado por substituição global', () => {
+  it('Canal Representantes não é alterado por substituição global', () => {
     const field = read('modals/BuyFieldSalesModal.jsx')
     assert.match(field, /Custo por representante/)
   })

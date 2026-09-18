@@ -10,10 +10,10 @@ export const VENDOR_RULES = {
   // Observação: `cap` (capacidade de atendimento) já existia no gameMath e é uma regra numérica.
   // Mantemos aqui para evitar divergência futura, sem mudar o schema do estado.
   comum:  { cap: 2, baseFat:  600, incFat: 100, baseDesp: 1000, incDesp: 100 },
-  // A2: Field = ticket alto / menos carteira; Inside = volume / custo menor.
+  // A2: Canal Representantes = ticket alto; Inside = custo menor.
   // `hire` = CAPEX de contratação (não entra no gameMath mensal).
-  inside: { cap: 6, baseFat: 1200, incFat: 500, baseDesp: 1500, incDesp: 100, hire: 2500 },
-  field:  { cap: 4, baseFat: 2000, incFat: 500, baseDesp: 2500, incDesp: 100, hire: 4000 },
+  inside: { cap: 5, baseFat: 1200, incFat: 500, baseDesp: 1500, incDesp: 100, hire: 2500 },
+  field:  { cap: 6, baseFat: 2000, incFat: 500, baseDesp: 2500, incDesp: 100, hire: 4000 },
 
   // Gestor não gera faturamento direto; ele afeta o faturamento dos colaboradores via boost.
   // Mantemos os campos por consistência e para uso no cálculo de despesas.

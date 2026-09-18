@@ -26,7 +26,7 @@ const TIP_KINDS = Object.freeze([
 export const TILE_TIP_SHORT = Object.freeze({
   CLIENTS: 'Carteira: compre clientes; sem capacidade, o excedente não fatura.',
   COMMON: 'Vendedor Comum: contrate e aumente a capacidade de atendimento.',
-  FIELD: 'Canal representantes: contrate representantes externos.',
+  FIELD: 'Canal Representantes: contrate representantes externos.',
   INSIDE: 'Inside Sales: contrate vendedores internos.',
   MANAGER: 'Gestor Comercial: impulsiona o time (não atende clientes).',
   ERP: 'ERP: escolha um nível A–D; impacto por colaborador.',

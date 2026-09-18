@@ -101,13 +101,13 @@ describe('CERT_EFFECTS P2-A2 — multiplicadores', () => {
 })
 
 describe('Field × Inside A2 preservado', () => {
-  it('Field cap 4 / baseFat 2000 / baseDesp 2500', () => {
-    assert.equal(VENDOR_RULES.field.cap, 4)
+  it('Canal Representantes cap 6 / baseFat 2000 / baseDesp 2500', () => {
+    assert.equal(VENDOR_RULES.field.cap, 6)
     assert.equal(VENDOR_RULES.field.baseFat, 2000)
     assert.equal(VENDOR_RULES.field.baseDesp, 2500)
   })
-  it('Inside cap 6 / baseFat 1200 / baseDesp 1500', () => {
-    assert.equal(VENDOR_RULES.inside.cap, 6)
+  it('Inside cap 5 / baseFat 1200 / baseDesp 1500', () => {
+    assert.equal(VENDOR_RULES.inside.cap, 5)
     assert.equal(VENDOR_RULES.inside.baseFat, 1200)
     assert.equal(VENDOR_RULES.inside.baseDesp, 1500)
   })

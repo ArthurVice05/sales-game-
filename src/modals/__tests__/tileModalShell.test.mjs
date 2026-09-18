@@ -80,7 +80,7 @@ test('todas as famílias do escopo usam o shell visual', () => {
   assert.doesNotMatch(luck, /const CARDS = \[/)
 })
 
-test('Field Sales mantém contratos e certificações só informativas', () => {
+test('Canal Representantes mantém contratos e certificações só informativas', () => {
   assert.match(field, /TileModalShell/)
   assert.match(field, /action:\s*'BUY'/)
   assert.match(field, /action:\s*'SKIP'/)

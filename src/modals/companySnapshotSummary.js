@@ -8,7 +8,7 @@ import { CERT_EFFECTS } from '../game/gameRules.js'
 
 const VENDOR_CERT_LABELS = Object.freeze({
   comum: 'Vendedores Comuns',
-  field: 'Canal representantes',
+  field: 'Canal Representantes',
   inside: 'Inside Sales',
   gestor: 'Gestores Comerciais',
 })

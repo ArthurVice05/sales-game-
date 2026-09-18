@@ -11,7 +11,7 @@ import TileModalShell from './TileModalShell.jsx'
 import { useRegisterDecisionBuyer } from './decisionBuyerContext.jsx'
 
 /**
- * Modal de compra de Field Sales (Representantes Comerciais)
+ * Modal de compra do Canal Representantes
  *
  * Props:
  *  - onResolve: function(payload)
@@ -98,7 +98,7 @@ export default function BuyFieldSalesModal({
   const baseRevenue = VENDOR_RULES.field.baseFat
   const certRows = [
     { id: 'personalizado', label: 'Azul (personalizado)' },
-    { id: 'fieldsales', label: 'Amarelo (Canal representantes Collab)' },
+    { id: 'fieldsales', label: 'Amarelo (Canal Representantes Collab)' },
     { id: 'imersaomultiplier', label: 'Roxo (Imersões)' },
   ].map((row) => {
     const d = certDeltaForVendor('field', row.id)
@@ -131,7 +131,7 @@ export default function BuyFieldSalesModal({
         <InsufficientFundsModal
           requiredAmount={totalHire}
           currentCash={cashNow}
-          title="Saldo insuficiente para contratar Canal representantes"
+          title="Saldo insuficiente para contratar Canal Representantes"
           message="Você não possui saldo suficiente para concluir esta contratação."
           okLabel="Entendi"
         />
@@ -183,7 +183,7 @@ export default function BuyFieldSalesModal({
 
   return (
     <TileModalShell
-      title="Canal representantes"
+      title="Canal Representantes"
       onClose={handleClose}
       closeRef={closeRef}
       footer={(
@@ -211,10 +211,10 @@ export default function BuyFieldSalesModal({
       <TileContextHint kind="FIELD" />
 
       <p className="purchasePreviewHint">
-        O Canal representantes aumenta a capacidade de atendimento em {attendsUpTo} clientes,
+        O Canal Representantes aumenta a capacidade de atendimento em {attendsUpTo} clientes,
         gera faturamento e adiciona uma despesa mensal. Cada cor de certificado tem
         efeito financeiro diferente. Gestores certificados podem potencializar o
-        faturamento dos vendedores. Base de despesa: × quantidade de representantes do Canal representantes.
+        faturamento dos vendedores. Base de despesa: × quantidade de representantes do Canal Representantes.
         Base de faturamento: × quantidade máxima de clientes que cada vendedor pode
         atender. Cada vendedor atende até {attendsUpTo} clientes. Efeitos de cor
         acumulam; capacidade não muda.
@@ -241,7 +241,7 @@ export default function BuyFieldSalesModal({
               placeholder="0"
               value={qty}
               onChange={(e) => setBoundedQty(e.target.value)}
-              aria-label="Quantidade de representantes do Canal representantes"
+              aria-label="Quantidade de representantes do Canal Representantes"
             />
             <button
               type="button"

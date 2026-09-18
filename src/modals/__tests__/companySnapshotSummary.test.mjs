@@ -64,12 +64,12 @@ test('buildCompanySnapshotSummary usa capacityAndAttendance e não inventa zeros
       },
     },
   })
-  assert.equal(rich.capacity, 2 * 2 + 1 * 6 + 1 * 4)
+  assert.equal(rich.capacity, 2 * 2 + 1 * 5 + 1 * 6)
   assert.equal(rich.inAttendance, 6)
   assert.equal(rich.spareCapacity, Math.max(0, rich.capacity - 6))
   assert.equal(rich.fieldSales, 1)
   assert.ok(Array.isArray(rich.certifications))
-  assert.ok(rich.certifications.some((r) => r.label === 'Canal representantes'))
+  assert.ok(rich.certifications.some((r) => r.label === 'Canal Representantes'))
   assert.ok(rich.certifications.some((r) => r.certLabels.includes('Amarelo')))
 })
 
@@ -91,7 +91,7 @@ test('BuyClientsModal integra resumo sem mudar payloads BUY/SKIP/BACK', () => {
 test('CompanySnapshotSummary é somente leitura e reutilizável', () => {
   assert.match(summaryUi, /Minha empresa agora/)
   assert.match(summaryUi, /O que já tenho/)
-  assert.match(summaryUi, /Canal representantes/)
+  assert.match(summaryUi, /Canal Representantes/)
   assert.match(summaryUi, /Capacidade/)
   assert.match(summaryUi, /details|aria-expanded|companySnapshotExpand/)
   assert.doesNotMatch(summaryUi, /onResolve|action:\s*'BUY'|setPlayers/)
