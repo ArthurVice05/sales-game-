@@ -27,7 +27,6 @@ import FinalWinners from './components/FinalWinners.jsx'
 import TutorialModal, { shouldAutoOpenTutorial } from './components/TutorialModal.jsx'
 import TurnTimer from './components/TurnTimer.jsx'
 import BankruptOverlay from './modals/BankruptOverlay.jsx'
-import DebugPanel from './components/DebugPanel.jsx'
 import GameSoundToggle from './components/GameSoundToggle.jsx'
 import { ModalProvider, useModal } from './modals/ModalContext'
 import ConfirmModal from './modals/ConfirmModal.jsx'
@@ -41,7 +40,7 @@ import {
   computeFaturamentoFor,
   capacityAndAttendance
 } from './game/gameMath'
-import { debugMode, validateGameState, validateCalculations } from './game/debugMode.js'
+import { validateGameState, validateCalculations } from './game/debugMode.js'
 import { initCashAudit, captureCashDiff } from './debug/cashAudit.js'
 // ✅ CORREÇÃO: Imports de testes apenas em DEV (carregamento dinâmico)
 if (import.meta.env.DEV) {
@@ -4310,7 +4309,6 @@ export default function App() {
         turnLock={turnLock}
         timerPaused={!!turnLock || (gameMode === GAME_MODE.LOCAL && !localTurnReady)}
       >
-        <DebugPanel players={players} turnIdx={turnIdx} round={round} gameOver={gameOver} winner={winner} />
         <GameSoundToggle className="gameSoundToggle--header" />
       </GameDesktopHeader>
       ) : (
@@ -4363,7 +4361,6 @@ export default function App() {
             <span>Possib. Atendimento: <b>{meHudLive.possibAt ?? 0}</b></span>
             <span>Clientes em Atendimento: <b>{meHudLive.clientsAt ?? 0}</b></span>
           </div>
-          <DebugPanel players={players} turnIdx={turnIdx} round={round} gameOver={gameOver} winner={winner} />
         </div>
 
         <div className="status topbarSecondary">
