@@ -2035,11 +2035,13 @@ export function useTurnEngine({
 
               const currIdx = Number(turnIdxRef.current ?? turnIdx) || 0
               const basePlayers = Array.isArray(playersRef.current) ? playersRef.current : currentPlayers
-              const bankruptId = basePlayers?.[currIdx]?.id
+              // ownerId foi capturado da identidade autoritativa do turno.
+              // O índice pode apontar para outro jogador se um snapshot reordenar o roster.
+              const bankruptId = ownerId || basePlayers?.[currIdx]?.id
 
               const nextPlayers = (basePlayers || []).map(p => {
                 if (!p) return p
-                if (p.id !== bankruptId) return p
+                if (String(p.id) !== String(bankruptId)) return p
                 return applyBankruptcyState(p)
               })
 
@@ -2143,11 +2145,13 @@ export function useTurnEngine({
 
         const currIdx = Number(turnIdxRef.current ?? turnIdx) || 0
         const basePlayers = Array.isArray(playersRef.current) ? playersRef.current : currentPlayers
-        const bankruptId = basePlayers?.[currIdx]?.id
+        // A declaração pertence ao dono autoritativo da jogada, não ao item que
+        // por acaso ocupa turnIdx no snapshot atual.
+        const bankruptId = ownerId || basePlayers?.[currIdx]?.id
 
         const nextPlayers = (basePlayers || []).map(p => {
           if (!p) return p
-          if (p.id !== bankruptId) return p
+          if (String(p.id) !== String(bankruptId)) return p
           return applyBankruptcyState(p)
         })
 

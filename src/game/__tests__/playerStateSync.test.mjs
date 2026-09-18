@@ -134,6 +134,30 @@ describe('CASH / MERGE', () => {
     assert.equal(merged.cash, 12000)
   })
 
+  it('10c. snapshot atrasado não ressuscita falido durante a troca de turno', () => {
+    const localLiveRoster = [
+      { id: 'arthur', cash: 0, bankrupt: true, pos: 8 },
+      { id: 'teste-1', cash: 12000, bankrupt: false, pos: 3 },
+      { id: 'teste-2', cash: 12000, bankrupt: false, pos: 1 },
+    ]
+    const staleRoomSnapshot = [
+      { id: 'arthur', cash: 500, bankrupt: false, pos: 8 },
+      { id: 'teste-1', cash: 12000, bankrupt: false, pos: 3 },
+      { id: 'teste-2', cash: 12000, bankrupt: false, pos: 1 },
+    ]
+
+    const plan = planRosterApply({
+      incomingPlayers: staleRoomSnapshot,
+      currentPlayers: localLiveRoster,
+      hydrated: true,
+      isStart: false,
+    })
+
+    const arthur = plan.players.find((player) => player.id === 'arthur')
+    assert.equal(plan.action, 'merge')
+    assert.equal(arthur.bankrupt, true)
+  })
+
   it('11. roster parcial não zera jogadores ausentes', () => {
     const current = [
       { id: 'a', cash: 1000 },

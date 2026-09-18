@@ -253,6 +253,19 @@ test('falencia durante cobranca gera handoff atomico com delta do falido', () =>
   assert.equal(patch.playersDeltaById.A.humanTurnEffects, null)
 })
 
+test('despesas do mês aplica falência pelo ownerId, sem depender do índice do roster', () => {
+  const root = join(dirname(fileURLToPath(import.meta.url)), '../../..')
+  const engine = readFileSync(join(root, 'src/game/useTurnEngine.jsx'), 'utf8')
+  const start = engine.indexOf("} else if (recoveryRes.action === 'BANKRUPT')")
+  const end = engine.indexOf("} else {", start + 1)
+  assert.ok(start > 0 && end > start)
+  const insufficientFundsBankruptcy = engine.slice(start, end)
+
+  assert.match(insufficientFundsBankruptcy, /const bankruptId = ownerId \|\|/)
+  assert.match(insufficientFundsBankruptcy, /String\(p\.id\) !== String\(bankruptId\)/)
+  assert.match(insufficientFundsBankruptcy, /source: 'InsufficientFundsModal'/)
+})
+
 test('App aplica forfeitMatch antes de leaveRoom no Sair para Lobbies', () => {
   const root = join(dirname(fileURLToPath(import.meta.url)), '../../..')
   const app = readFileSync(join(root, 'src/App.jsx'), 'utf8')

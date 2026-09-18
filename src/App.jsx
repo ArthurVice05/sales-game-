@@ -396,12 +396,17 @@ export default function App() {
   const [players, _setPlayers] = useState([
     applyStarterKit({ id: meId, name: '', cash: MANUAL_CONSTANTS.startCash, pos: 0, color: '#FFD600', bens: MANUAL_CONSTANTS.startBens })
   ])
+  // Mantém o roster realmente mais recente disponível também entre renders.
+  // É importante durante falência: um snapshot remoto anterior não pode usar
+  // playersBeforeRef (baseline de diff) para desfazer um bankrupt recém-aplicado.
+  const livePlayersRef = useRef(players)
 
   // ====== Cash Audit (instrumentação de saldo) ======
   // Wrapper do setPlayers: captura diffs de cash sem mudar schema do estado.
   const setPlayers = React.useCallback((updater, meta = {}) => {
     _setPlayers((prev) => {
       const next = (typeof updater === 'function') ? updater(prev) : updater
+      livePlayersRef.current = next
       // meta pode ser setado via `setCashAuditContext()` por qualquer fluxo (ex.: useTurnEngine).
       captureCashDiff(prev, next, null)
 
@@ -1008,7 +1013,9 @@ export default function App() {
                 return {
                   ...localPlayer,
                   pos: syncedPlayer.pos,
-                  bankrupt: syncedPlayer.bankrupt ?? localPlayer.bankrupt,
+                  // Falência é monotônica dentro da partida. Só um START pode
+                  // criar um roster novo com bankrupt=false.
+                  bankrupt: !!(localPlayer.bankrupt || syncedPlayer.bankrupt),
                   loanTakenInMatch: !!syncedPlayer.loanTakenInMatch,
 
                   ...(loanStateChanged
@@ -1030,6 +1037,7 @@ export default function App() {
               // ⚠️ Nunca usar Math.max em cash/recursos aqui, senão multas/pagamentos "voltam" em testes com múltiplas abas.
               return {
                 ...syncedPlayer, // Aceita estado sincronizado autoritativo (pos, bankrupt, etc)
+                bankrupt: !!(localPlayer.bankrupt || syncedPlayer.bankrupt),
                 // Recursos autoritativos (do snapshot recebido)
                 cash: Number(syncedPlayer.cash || 0),
                 clients: remoteClients,
@@ -1057,6 +1065,7 @@ export default function App() {
             // Para outros jogadores, aceita o snapshot autoritativo mas preserva certificados locais (caso existam)
             return {
               ...syncedPlayer, // Aceita estado sincronizado autoritativo
+              bankrupt: !!(localPlayer.bankrupt || syncedPlayer.bankrupt),
               az: localPlayer.az || syncedPlayer.az || 0,
               am: localPlayer.am || syncedPlayer.am || 0,
               rox: localPlayer.rox || syncedPlayer.rox || 0,
@@ -1766,9 +1775,13 @@ export default function App() {
 
     // --- aplica players (merge seguro; [] não apaga; parcial não zera ausentes) ---
     if (np && !humanPending) {
+      // Use o estado local vivo como base do merge. playersBeforeRef é apenas
+      // baseline para montar deltas e pode estar deliberadamente uma ação atrás.
+      // Usá-lo aqui permitia que um snapshot atrasado com bankrupt=false
+      // reativasse quem acabara de declarar falência.
       const localRoster =
-        (Array.isArray(playersBeforeRef.current) && playersBeforeRef.current.length > 0)
-          ? playersBeforeRef.current
+        (Array.isArray(livePlayersRef.current) && livePlayersRef.current.length > 0)
+          ? livePlayersRef.current
           : (Array.isArray(players) ? players : [])
 
       const plan = planRosterApply({
