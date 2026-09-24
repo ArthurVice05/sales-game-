@@ -281,6 +281,7 @@ export default function BuyFieldSalesModal({
           <span>base</span>
         </div>
         <div className="tileCertEffect">
+          <div className="tileCertEffectRow"><span>Contratação</span><strong>{money(priceHire)}</strong></div>
           <div className="tileCertEffectRow"><span>Despesa mensal</span><strong>{money(baseExpense)}</strong></div>
           <div className="tileCertEffectRow"><span>Faturamento mensal</span><strong>{money(baseRevenue)} / cliente-cap</strong></div>
         </div>
