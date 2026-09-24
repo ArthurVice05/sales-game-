@@ -90,7 +90,7 @@ export function buildTourGlossary() {
     {
       id: 'certs',
       title: 'Treinamentos (medalhinhas coloridas)',
-      note: `Na casa de Treinamento você compra “medalhinhas” por ${money(c.trainingPrice)} cada. É como mandar o time para um cursinho: elas melhoram Comum, Field e Inside. Amarelo ajuda a vender sem aumentar a despesa do incremento; Roxo é mais forte nos dois lados.`,
+      note: `Na casa de Treinamento você compra “medalhinhas” por ${money(c.trainingPrice)} cada. É como mandar o time para um cursinho: elas melhoram Vendedor Comum, Canal Representantes e Inside Sales. Amarelo ajuda a vender sem aumentar a despesa do incremento; Roxo é mais forte nos dois lados.`,
       bullets: [
         'Azul, Amarelo e Roxo são tipos diferentes de melhoria.',
         'Você escolhe para qual tipo de vendedor (ou gestor) a medalhinha vai.',
@@ -140,7 +140,7 @@ export function buildTourGlossary() {
     {
       id: 'erp',
       title: 'ERP / Sistemas (o computador A–D)',
-      note: 'O ERP é o “computador inteligente” da empresa. Também é um nível por vez (A–D). Os valores são POR COLABORADOR (Comuns + Field + Inside + Gestores), não por cliente. Mais gente no time = mais efeito (e mais custo) do ERP.',
+      note: 'O ERP é o “computador inteligente” da empresa. Também é um nível por vez (A–D). Os valores são POR COLABORADOR (Vendedores Comuns + Canal Representantes + Inside Sales + Gestores), não por cliente. Mais gente no time = mais efeito (e mais custo) do ERP.',
       bullets: [
         'Compra = preço para instalar/subir o nível.',
         'Fat / colab. = quanto aquele nível ajuda a vender por pessoa do time.',
