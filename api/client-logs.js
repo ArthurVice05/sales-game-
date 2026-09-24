@@ -48,6 +48,25 @@ function normalizeEvent(entry, legacy = false) {
   }
 }
 
+function normalizeClient(client) {
+  if (!client || typeof client !== 'object' || Array.isArray(client)) return undefined
+  return {
+    schemaVersion: Math.max(1, Math.floor(finiteNumber(client.schemaVersion, 1))),
+    clientType: text(client.clientType, 30),
+    runtime: text(client.runtime, 40),
+    platform: text(client.platform, 30),
+    browser: text(client.browser, 30),
+    clientVersion: text(client.clientVersion, 100),
+    appVersion: text(client.appVersion, 100) || null,
+    webVersion: text(client.webVersion, 100) || null,
+    releaseSha: text(client.releaseSha, 100) || null,
+    sessionId: text(client.sessionId, 100),
+    userAgent: text(client.userAgent, 500),
+    viewport: normalizeDetails(client.viewport),
+    screen: normalizeDetails(client.screen),
+  }
+}
+
 export function normalizeClientLogPayload(body) {
   const input = body && typeof body === 'object' ? body : {}
   const hasStructuredEvents = Array.isArray(input.events)
@@ -60,10 +79,12 @@ export function normalizeClientLogPayload(body) {
     source: 'sales-game-browser',
     sessionId: text(input.sessionId, 100),
     room: text(input.room, 100) || null,
+    playerId: text(input.playerId, 100) || null,
     page: text(input.page, 500),
     userAgent: text(input.userAgent, 300),
     release: text(input.release, 100) || text(process.env.VERCEL_GIT_COMMIT_SHA, 100) || null,
     environment: text(input.environment, 30) || text(process.env.VERCEL_ENV, 30) || null,
+    client: normalizeClient(input.client),
     metrics: normalizeDetails(input.metrics),
     events: sourceEvents.map(entry => normalizeEvent(entry, !hasStructuredEvents)),
   }

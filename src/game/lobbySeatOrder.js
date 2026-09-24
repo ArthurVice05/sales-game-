@@ -74,5 +74,6 @@ export function normalizeLobbyPlayersForStart(lobbyRows) {
     name: p.player_name ?? p.name,
     index: i,
     joined_at: p.joined_at ?? p.joinedAt ?? null,
+    clientInfo: p.client_info ?? p.clientInfo ?? null,
   }))
 }

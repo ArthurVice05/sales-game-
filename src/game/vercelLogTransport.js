@@ -1,3 +1,5 @@
+import { collectClientEnvironment } from '../lib/clientEnvironment.js'
+
 const FLUSH_INTERVAL_MS = 15000
 const MAX_BATCH_EVENTS = 25
 const MAX_QUEUED_EVENTS = 100
@@ -128,17 +130,22 @@ export function startVercelLogTransport(capture, options = {}) {
     occurrences: 1,
   })
 
-  const payloadFor = events => ({
-    schemaVersion: 2,
-    sessionId: logSessionId,
-    page: window.location.pathname.slice(0, 500),
-    room: new URLSearchParams(window.location.search).get('room')?.slice(0, 100) || null,
-    userAgent: String(window.navigator?.userAgent || '').slice(0, 300),
-    release: String(import.meta.env?.VITE_VERCEL_GIT_COMMIT_SHA || '').slice(0, 100),
-    environment: String(import.meta.env?.VITE_VERCEL_ENV || 'production').slice(0, 30),
-    metrics: { ...metrics },
-    events,
-  })
+  const payloadFor = events => {
+    const client = collectClientEnvironment()
+    return ({
+      schemaVersion: 2,
+      sessionId: logSessionId,
+      page: window.location.pathname.slice(0, 500),
+      room: new URLSearchParams(window.location.search).get('room')?.slice(0, 100) || null,
+      playerId: String(window.__MY_UID || '').slice(0, 100) || null,
+      userAgent: String(window.navigator?.userAgent || '').slice(0, 300),
+      release: String(client.releaseSha || client.webVersion || '').slice(0, 100),
+      environment: String(import.meta.env?.VITE_VERCEL_ENV || 'production').slice(0, 30),
+      client,
+      metrics: { ...metrics },
+      events,
+    })
+  }
 
   const flush = async ({ beacon = false } = {}) => {
     if (sending || queue.length === 0) return

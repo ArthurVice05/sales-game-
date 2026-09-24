@@ -4142,6 +4142,7 @@ export default function App() {
               seat: i,
               joinOrder: i,
               joined_at: p.joined_at ?? p.joinedAt ?? p.created_at ?? p.createdAt ?? null,
+              clientInfo: p.clientInfo ?? p.client_info ?? null,
             })
           )
           const roster = botsFeatureOn

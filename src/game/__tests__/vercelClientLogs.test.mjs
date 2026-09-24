@@ -97,6 +97,7 @@ test('endpoint estrutura eventos, limita lotes e remove credenciais', () => {
     schemaVersion: 2,
     sessionId: 'session-1',
     room: 'ABCD',
+    playerId: 'player-1',
     release: 'commit-123',
     events: Array.from({ length: 30 }, (_, index) => ({
       severity: index === 0 ? 'error' : 'info',
@@ -111,8 +112,28 @@ test('endpoint estrutura eventos, limita lotes e remove credenciais', () => {
   assert.equal(payload.events[0].severity, 'error')
   assert.equal(payload.events[0].code, 'RUNTIME_FAILURE')
   assert.equal(payload.release, 'commit-123')
+  assert.equal(payload.playerId, 'player-1')
   assert.match(payload.events[0].message, /\[REDACTED\]/)
   assert.doesNotMatch(payload.events[0].message, /secret-token|eyJabc/)
+})
+
+test('endpoint preserva classificação e versões do cliente', () => {
+  const payload = normalizeClientLogPayload({
+    client: {
+      clientType: 'app',
+      runtime: 'android_webview',
+      platform: 'android',
+      clientVersion: '3.7.1',
+      appVersion: '3.7.1',
+      webVersion: 'commit-web',
+      sessionId: 'client-session',
+      viewport: { width: 412, height: 915 },
+    },
+    events: [{ code: 'CLIENT_MONITORING_STARTED', message: 'ok' }],
+  })
+  assert.equal(payload.client.clientType, 'app')
+  assert.equal(payload.client.clientVersion, '3.7.1')
+  assert.deepEqual(payload.client.viewport, { width: 412, height: 915 })
 })
 
 test('roll context reaches the endpoint and keeps the complete room UUID', () => {

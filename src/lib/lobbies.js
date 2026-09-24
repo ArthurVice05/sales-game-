@@ -4,6 +4,7 @@ import { findUniqueRecoverableSeatByName } from '../game/resumeSeatRecovery.js'
 // ✅ CORREÇÃO: Usa o client Supabase unificado
 import { supabase } from './supabaseClient.js'
 import { createUuidV4 } from './uuid.js'
+import { clientEnvironmentColumns } from './clientEnvironment.js'
 import {
   planEmptyLobbyDeletion,
   canSafelyDeleteLobby,
@@ -138,6 +139,8 @@ async function joinLobbyLegacy({ lobbyId, playerId, playerName, ready }) {
     )
   if (e3) throw e3
 
+  await persistClientEnvironment({ lobbyId, playerId })
+
   if (!lobby.host_id) {
     await supabase.from('lobbies').update({ host_id: playerId }).eq('id', lobbyId)
   }
@@ -154,7 +157,10 @@ export async function joinLobby({ lobbyId, playerId, playerName, ready = false }
       p_player_name: playerName,
       p_ready: !!ready,
     })
-    if (!error) return
+    if (!error) {
+      await persistClientEnvironment({ lobbyId, playerId })
+      return
+    }
     if (!isMissingRpc(error)) throw error
     console.warn('[lobby] RPC join_lobby_atomic indisponível; usando compatibilidade temporária.')
   }
@@ -201,11 +207,18 @@ export async function leaveLobby({ lobbyId, playerId }) {
 }
 
 export async function listLobbyPlayers(lobbyId) {
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('lobby_players')
-    .select('player_id, player_name, ready, joined_at')
+    .select('player_id, player_name, ready, joined_at, client_type, client_version, client_session_id, client_info, client_updated_at')
     .eq('lobby_id', lobbyId)
     .order('joined_at', { ascending: true })
+  if (isClientTelemetrySchemaMissing(error)) {
+    ;({ data, error } = await supabase
+      .from('lobby_players')
+      .select('player_id, player_name, ready, joined_at')
+      .eq('lobby_id', lobbyId)
+      .order('joined_at', { ascending: true }))
+  }
   if (error) throw error
   return data || []
 }
@@ -288,10 +301,17 @@ export async function getLobby(lobbyId) {
 
 /** Registro do início da partida (retorna o id do match) */
 async function startMatchLegacy({ lobbyId, hostPlayerId }) {
-  const { data: players } = await supabase
+  let { data: players, error: playersError } = await supabase
     .from('lobby_players')
-    .select('player_id, player_name, ready')
+    .select('player_id, player_name, ready, client_type, client_version, client_session_id, client_info, client_updated_at')
     .eq('lobby_id', lobbyId)
+  if (isClientTelemetrySchemaMissing(playersError)) {
+    ;({ data: players, error: playersError } = await supabase
+      .from('lobby_players')
+      .select('player_id, player_name, ready')
+      .eq('lobby_id', lobbyId))
+  }
+  if (playersError) throw playersError
 
   const { data, error } = await supabase
     .from('matches')
@@ -650,6 +670,22 @@ export const GAME_PRESENCE_POLL_INTERVAL_MS = 5_000
 /** Violação de chave estrangeira: o lobby sumiu entre a checagem e a escrita. */
 const FK_VIOLATION = '23503'
 
+function isClientTelemetrySchemaMissing(error) {
+  return ['42703', 'PGRST204'].includes(String(error?.code || ''))
+    || /client_(?:type|version|session_id|info|updated_at).*does not exist|schema cache/i.test(String(error?.message || ''))
+}
+
+async function persistClientEnvironment({ lobbyId, playerId }) {
+  const { error } = await supabase
+    .from('lobby_players')
+    .update(clientEnvironmentColumns())
+    .match({ lobby_id: lobbyId, player_id: playerId })
+  if (error && !isClientTelemetrySchemaMissing(error)) {
+    console.warn('[client-telemetry] falha ao registrar ambiente:', error?.message || error)
+  }
+  return !error
+}
+
 /**
  * Atualiza last_seen do jogador.
  * - Caminho normal: UPDATE
@@ -687,12 +723,22 @@ export async function touchLobbyPlayer({
   if (cancelled()) return { ok: false, skipped: true, cancelled: true }
 
   const nowIso = new Date(gameNow()).toISOString()
-  const { data, error } = await supabase
+  const heartbeatPayload = { last_seen: nowIso, ...clientEnvironmentColumns() }
+  let { data, error } = await supabase
     .from('lobby_players')
-    .update({ last_seen: nowIso })
+    .update(heartbeatPayload)
     .eq('lobby_id', lobbyId)
     .eq('player_id', playerId)
     .select('player_id')
+
+  if (isClientTelemetrySchemaMissing(error)) {
+    ;({ data, error } = await supabase
+      .from('lobby_players')
+      .update({ last_seen: nowIso })
+      .eq('lobby_id', lobbyId)
+      .eq('player_id', playerId)
+      .select('player_id'))
+  }
 
   if (error) {
     console.warn('[hb] falha ao atualizar last_seen:', error?.message || error)
@@ -732,19 +778,28 @@ export async function touchLobbyPlayer({
       ? seated.name.trim()
       : 'Jogador'
 
-  const { error: upsertErr } = await supabase
+  const restoredPayload = {
+    lobby_id: lobbyId,
+    player_id: playerId,
+    player_name: playerName,
+    ready: true,
+    joined_at: nowIso,
+    last_seen: nowIso,
+    ...clientEnvironmentColumns(),
+  }
+  let { error: upsertErr } = await supabase
     .from('lobby_players')
     .upsert(
-      {
-        lobby_id: lobbyId,
-        player_id: playerId,
-        player_name: playerName,
-        ready: true,
-        joined_at: nowIso,
-        last_seen: nowIso,
-      },
+      restoredPayload,
       { onConflict: 'lobby_id,player_id' }
     )
+
+  if (isClientTelemetrySchemaMissing(upsertErr)) {
+    const { client_type, client_version, client_session_id, client_info, client_updated_at, ...legacyPayload } = restoredPayload
+    ;({ error: upsertErr } = await supabase
+      .from('lobby_players')
+      .upsert(legacyPayload, { onConflict: 'lobby_id,player_id' }))
+  }
 
   if (upsertErr) {
     // Lobby excluído no meio da corrida: não recria o lobby e não repete.
