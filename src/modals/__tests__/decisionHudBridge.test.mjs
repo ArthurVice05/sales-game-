@@ -31,6 +31,9 @@ test('CSS eleva somente a região informativa do HUD, não o sidebar inteiro', (
   assert.match(css, /turnPrimaryActions/)
   assert.match(css, /pointer-events:\s*none/)
   assert.match(css, /padding-right|sgModalOverlay/)
+  // O ancestral precisa receber o hit-test; só os irmãos do HUD são bloqueados.
+  assert.match(css, /\.content > \.side\s*\{[^}]*pointer-events:\s*auto/)
+  assert.match(css, /\.content > \.side > :not\(\.hudConsultRegion\)\s*\{[^}]*pointer-events:\s*none/)
 })
 
 test('CSS da decisão mobile torna o hudDesktop visível fora do breakpoint desktop', () => {

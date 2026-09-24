@@ -164,16 +164,32 @@ async function main() {
     for (const [w, h] of DESKTOP) {
       await setViewport(page, w, h)
       await pause(600)
+      const hit = await page.evaluate(`(() => {
+        const tab = [...document.querySelectorAll('[data-hud-consult-region="desktop"] [role="tab"]')]
+          .find((el) => /Comercial/i.test(el.textContent || ''))
+        if (!tab) return null
+        const rect = tab.getBoundingClientRect()
+        const x = rect.left + rect.width / 2
+        const y = rect.top + rect.height / 2
+        const target = document.elementFromPoint(x, y)
+        return { x, y, target: target?.outerHTML?.slice(0, 180), tabHit: target === tab || tab.contains(target) }
+      })()`)
+      if (hit) {
+        await page.call('Input.dispatchMouseEvent', { type: 'mousePressed', x: hit.x, y: hit.y, button: 'left', clickCount: 1 })
+        await page.call('Input.dispatchMouseEvent', { type: 'mouseReleased', x: hit.x, y: hit.y, button: 'left', clickCount: 1 })
+      }
+      await pause(100)
       const snap = await page.evaluate(`(() => {
         const region = document.querySelector('[data-hud-consult-region="desktop"]')
         const tabs = [...(region?.querySelectorAll('[role="tab"]') || [])].map((t) => t.textContent.trim())
-        ;[...(region?.querySelectorAll('[role="tab"]') || [])].find((t) => /Comercial/i.test(t.textContent || ''))?.click()
+        const selectedTab = region?.querySelector('[role="tab"][aria-selected="true"]')?.textContent?.trim() || ''
         const roll = document.querySelector('.btn.go')
         const rollDisabled = !roll || roll.disabled || roll.getAttribute('aria-disabled') === 'true'
           || !!roll.closest('[inert]')
         return {
           hasRegion: !!region,
           tabs,
+          selectedTab,
           rollDisabled,
           turnInert: !!document.querySelector('.turnPrimaryActions[inert]'),
           qty: document.querySelector('[data-modal-top="true"] input[type="number"]')?.value || '',
@@ -184,7 +200,9 @@ async function main() {
       report.captures.push(await shot(page, `desktop-${w}x${h}`))
       report.desktop[`${w}x${h}`] = {
         ...snap,
+        hit,
         ok: snap.hasRegion && snap.tabs.length >= 4 && snap.qty === '2' && !snap.internal && !snap.hasToggle
+          && hit?.tabHit && snap.selectedTab === 'Comercial'
           && (snap.rollDisabled || snap.turnInert),
       }
     }

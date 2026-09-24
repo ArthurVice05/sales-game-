@@ -22,8 +22,9 @@ html[data-sg-modal-depth="4"] .hudConsultRegion {
 
 /*
  * Desktop: a coluna .side precisa atravessar o stacking do overlay para que
- * .hudConsultRegion (o único alvo interativo) fique clicável. O restante da
- * coluna fica pointer-events:none — não libera gameplay.
+ * .hudConsultRegion fique clicável. Bloqueie os outros filhos diretamente;
+ * desativar eventos no ancestral e reativá-los no HUD depende de hit-testing
+ * através de um pai com pointer-events:none.
  */
 @media (min-width: 1200px) {
   html[data-sg-modal-depth="1"] .sgModalOverlay,
@@ -126,6 +127,10 @@ html[data-sg-modal-depth="4"] .hudConsultRegion {
 
   html[data-sg-modal-depth="1"] .page[data-game-shell] .content > .side {
     z-index: 10050;
+    pointer-events: auto;
+  }
+
+  html[data-sg-modal-depth="1"] .page[data-game-shell] .content > .side > :not(.hudConsultRegion) {
     pointer-events: none;
   }
 
