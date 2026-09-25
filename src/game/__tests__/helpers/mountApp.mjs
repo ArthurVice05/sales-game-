@@ -139,7 +139,10 @@ export async function mountRoot ({ supabase, search = '', tabPlayerId, quiet = t
   const dom = installDomShim({ search })
   const originalFetch = globalThis.fetch
   // Transport double for the same-origin clock endpoint; no real HTTP in tests.
-  globalThis.fetch = async () => new Response(null, { status: 200, headers: { date: new Date().toUTCString() } })
+  globalThis.fetch = async () => new Response(JSON.stringify({ now: Date.now() }), {
+    status: 200,
+    headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
+  })
   // O app é falante; o teste guarda os logs em vez de despejá-los no relatório.
   const consoleLog = []
   const originalConsole = {}

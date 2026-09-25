@@ -213,10 +213,14 @@ export function useTurnTimerAutoPass({
             })
             const exp = raw && typeof raw.then === 'function' ? await raw : raw
             if (exp?.ok) {
-              markPendingSharedSkipKey(curTurnId, curTurnSeq)
-              if (!lobbyId) confirmSharedSkipKey(curTurnId, curTurnSeq)
               devLog('[turn-timer] local decision expire ok category=' + (exp.category || ''))
-              return
+              // Antes do dado não há pipeline de eventos/tick para concluir
+              // a vez: fecha a modal e segue para o AUTO_PASS normal.
+              if (exp.phase !== 'pre-roll') {
+                // Fechar a modal não confirma o handoff. Se o tick falhar,
+                // o próximo poll precisa continuar apto a recuperar o turno.
+                return
+              }
             }
             if (exp?.reason === 'unsupported-category') {
               devLog('[turn-timer] decision expire unsupported category=' + (exp.category || ''))

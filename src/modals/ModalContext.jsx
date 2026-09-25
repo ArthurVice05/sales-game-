@@ -3,7 +3,6 @@ import { createModalProtocol } from './modalProtocol.js'
 import { applyModalFocusRestore } from './modalFocusRestore.js'
 import {
   aggregateDecisionHoldCategory,
-  DECISION_TIMEOUT_CATEGORY,
   expirationPayloadForKind,
 } from '../game/decisionTimeoutPolicy.js'
 import { inferBotDecisionKindFromElement } from '../game/bots/botDecisionKind.js'
@@ -32,6 +31,14 @@ export function ModalProvider({ children }) {
   const [stack, setStack] = useState([]) // [{id, el, returnFocusTo}]
   const stackRef = useRef(stack)
   stackRef.current = stack
+  const decisionTypeIndexRef = useRef(new Map())
+  const registerDecisionTypes = React.useCallback((index) => {
+    if (index instanceof Map) decisionTypeIndexRef.current = index
+  }, [])
+  const decisionKindFor = React.useCallback(
+    (element) => inferBotDecisionKindFromElement(element, decisionTypeIndexRef.current),
+    [],
+  )
 
   /**
    * Transporte das respostas. A Promise de cada abertura nasce ANTES de o
@@ -113,30 +120,25 @@ export function ModalProvider({ children }) {
     const layers = [...stackRef.current].reverse()
     if (!layers.length) return { ok: false, reason: 'empty-stack' }
 
-    const kinds = layers.map((m) => inferBotDecisionKindFromElement(m.el))
+    const kinds = layers.map((m) => decisionKindFor(m.el))
     const category = aggregateDecisionHoldCategory(kinds)
-    if (
-      category === DECISION_TIMEOUT_CATEGORY.MANDATORY ||
-      category === DECISION_TIMEOUT_CATEGORY.UNKNOWN
-    ) {
+    // Valida a pilha inteira antes de fechar qualquer camada: uma decisão
+    // obrigatória sem resultado seguro não pode deixar a pilha meio resolvida.
+    const payloads = layers.map((layer, i) =>
+      expirationPayloadForKind(kinds[i], { reason, element: layer.el }),
+    )
+    const missing = payloads.findIndex((payload) => payload == null)
+    if (missing >= 0) {
       return { ok: false, reason: 'unsupported-category', category, kinds }
     }
 
-    for (let i = 0; i < layers.length; i += 1) {
-      const layer = layers[i]
-      const kind = kinds[i]
-      const payload = expirationPayloadForKind(kind, { reason })
-      if (!payload) {
-        return { ok: false, reason: 'missing-payload', kind }
-      }
-      closeById(layer.id, payload)
-    }
+    layers.forEach((layer, i) => closeById(layer.id, payloads[i]))
     return { ok: true, category, kinds }
-  }, [closeById])
+  }, [closeById, decisionKindFor])
 
   const peekOpenDecisionKinds = React.useCallback(() => {
-    return stackRef.current.map((m) => inferBotDecisionKindFromElement(m.el))
-  }, [])
+    return stackRef.current.map((m) => decisionKindFor(m.el))
+  }, [decisionKindFor])
 
   // ✅ API exigida pelo engine: fecha a modal do topo e resolve (se houver)
   const closeTop = React.useCallback((payload) => {
@@ -217,6 +219,7 @@ export function ModalProvider({ children }) {
       closeAll,
       expireOpenDecisions,
       peekOpenDecisionKinds,
+      registerDecisionTypes,
     }),
     [
       stack,
@@ -232,6 +235,7 @@ export function ModalProvider({ children }) {
       closeAll,
       expireOpenDecisions,
       peekOpenDecisionKinds,
+      registerDecisionTypes,
     ]
   )
 

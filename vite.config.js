@@ -6,8 +6,39 @@ const buildVersion = process.env.VERCEL_GIT_COMMIT_SHA
   || process.env.GITHUB_SHA
   || packageJson.version
 
+// O Vite serve os assets locais sem executar a função serverless api/clock.js.
+// Responder o mesmo relógio no desenvolvimento mantém o auto-pass testável.
+function localClockApi() {
+  return {
+    name: 'salesgame-local-clock-api',
+    apply: 'serve',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const pathname = new URL(req.url || '/', 'http://localhost').pathname
+        if (pathname !== '/api/clock') return next()
+        res.setHeader('Cache-Control', 'no-store, max-age=0')
+        res.setHeader('CDN-Cache-Control', 'no-store')
+        res.setHeader('Vercel-CDN-Cache-Control', 'no-store')
+        if (req.method !== 'GET' && req.method !== 'HEAD') {
+          res.setHeader('Allow', 'GET, HEAD')
+          res.statusCode = 405
+          res.end()
+          return
+        }
+        if (req.method === 'HEAD') {
+          res.statusCode = 204
+          res.end()
+          return
+        }
+        res.setHeader('Content-Type', 'application/json; charset=utf-8')
+        res.end(JSON.stringify({ now: Date.now() }))
+      })
+    },
+  }
+}
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), localClockApi()],
   define: {
     __SALES_GAME_BUILD_VERSION__: JSON.stringify(buildVersion),
   },

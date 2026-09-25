@@ -10,6 +10,7 @@
  */
 
 import { inferBotDecisionKindByTypeName } from './bots/botDecisionKind.js'
+import { SORTE_REVES_CARDS, resolveCardEffect } from '../modals/sorteRevesDeck.js'
 
 export const DECISION_TIMEOUT_CATEGORY = Object.freeze({
   OPTIONAL: 'optional',
@@ -78,7 +79,7 @@ export function categoryForModalTypeName(name) {
 /**
  * Payload que fecha a modal sem compra e sem inventar escolha econômica.
  */
-export function expirationPayloadForKind(kind, { reason = 'AUTO_PASS_TIMER' } = {}) {
+export function expirationPayloadForKind(kind, { reason = 'AUTO_PASS_TIMER', element = null } = {}) {
   const k = String(kind || '')
   const category = categoryForDecisionKind(k)
   if (category === DECISION_TIMEOUT_CATEGORY.OPTIONAL) {
@@ -89,6 +90,7 @@ export function expirationPayloadForKind(kind, { reason = 'AUTO_PASS_TIMER' } = 
     }
   }
   if (k === 'INSUFFICIENT_FUNDS') {
+    if (element?.props?.showRecoveryOptions || element?.props?.canClose === false) return null
     return {
       action: 'CLOSE',
       reason,
@@ -109,6 +111,16 @@ export function expirationPayloadForKind(kind, { reason = 'AUTO_PASS_TIMER' } = 
       source: { via: 'decision-timeout', kind: k, modal: 'DespesasOperacionaisModal' },
     }
   }
+  if (k === 'LUCK') {
+    const cardId = element?.props?.cardId
+    if (cardId == null) return null // nunca sorteia uma segunda carta no timeout
+    const card = SORTE_REVES_CARDS.find((item) => String(item.id) === String(cardId))
+    if (!card) return null
+    return resolveCardEffect(card, element?.props?.player || {}).payload
+  }
+  // Ações abertas voluntariamente podem ser canceladas sem alterar patrimônio.
+  if (k === 'RECOVERY' && element?.props?.canClose !== false) return false
+  if (k === 'BANKRUPT') return false
   return null
 }
 
@@ -149,17 +161,17 @@ export function shouldAttemptLocalDecisionExpire({
 } = {}) {
   if (gameOver) return { ok: false, reason: 'game-over' }
   if (diceBusy) return { ok: false, reason: 'dice-busy' }
-  if (!turnLock) return { ok: false, reason: 'not-locked' }
   const locks = Math.max(0, Number(modalLocks) || 0)
   if (locks <= 0 && !hasOpenModals) return { ok: false, reason: 'no-open-decision' }
   const lrk = lastRollTurnKey != null ? String(lastRollTurnKey) : ''
   const seq = String(Number(turnSeq) || 0)
-  if (!lrk || lrk !== seq) return { ok: false, reason: 'not-post-roll' }
+  const postRoll = !!lrk && lrk === seq
+  if (turnLock && !postRoll) return { ok: false, reason: 'not-post-roll' }
   const deadline = Number(turnDeadlineAt)
   if (!Number.isFinite(deadline)) return { ok: false, reason: 'no-deadline' }
   const t = Number.isFinite(Number(now)) ? Number(now) : Date.now()
   if (t < deadline) return { ok: false, reason: 'not-expired' }
-  return { ok: true, reason: 'expire-open-decision' }
+  return { ok: true, reason: 'expire-open-decision', phase: postRoll ? 'post-roll' : 'pre-roll' }
 }
 
 /**

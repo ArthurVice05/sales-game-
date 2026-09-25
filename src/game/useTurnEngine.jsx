@@ -292,7 +292,11 @@ export function useTurnEngine({
   const popModal = modalApi?.popModal
   const expireOpenDecisions = modalApi?.expireOpenDecisions
   const peekOpenDecisionKinds = modalApi?.peekOpenDecisionKinds
+  const registerDecisionTypes = modalApi?.registerDecisionTypes
   const closeAll = modalApi?.closeAll
+  React.useEffect(() => {
+    registerDecisionTypes?.(BOT_MODAL_TYPE_INDEX)
+  }, [registerDecisionTypes])
   const safeCloseTop = React.useCallback((payload) => {
     try {
       if (typeof closeTop === 'function') return closeTop(payload)
@@ -715,6 +719,7 @@ export function useTurnEngine({
   // helper: abrir modal e "travar"/"destravar" o contador
   // ✅ CORREÇÃO OBRIGATÓRIA 1: Serialização via fila + decremento único no finally
   const openModalAndWait = React.useCallback((element) => {
+    registerDecisionTypes?.(BOT_MODAL_TYPE_INDEX)
     const roster = Array.isArray(playersRef.current) ? playersRef.current : []
     const turnId = turnPlayerIdRef.current != null ? String(turnPlayerIdRef.current) : ''
     const actor = roster.find((p) => String(p?.id) === turnId)
@@ -759,7 +764,7 @@ export function useTurnEngine({
           const kinds = typeof peekOpenDecisionKinds === 'function'
             ? peekOpenDecisionKinds()
             : []
-          const openedKind = inferBotDecisionKindFromElement(element)
+          const openedKind = inferBotDecisionKindFromElement(element, BOT_MODAL_TYPE_INDEX)
           publishDecisionHold([...(kinds || []), openedKind].filter(Boolean))
         } catch {}
         console.log('[DEBUG] openModalAndWait - ABRINDO modal, modalLocks ->', nextOpen, 'openingModalRef:', openingModalRef.current)
@@ -812,7 +817,7 @@ export function useTurnEngine({
     const p = modalQueueRef.current.then(job, job)
     modalQueueRef.current = p.catch(() => {})
     return p
-  }, [pushModal, awaitTop, openAndWait, safeCloseTop, peekOpenDecisionKinds, publishDecisionHold])
+  }, [pushModal, awaitTop, openAndWait, safeCloseTop, peekOpenDecisionKinds, publishDecisionHold, registerDecisionTypes])
 
   const expireOpenTurnDecisions = React.useCallback(({
     expectedTurnPlayerId,
@@ -834,10 +839,10 @@ export function useTurnEngine({
       return { ok: false, reason: 'seq-changed' }
     }
     if (gameOverRef.current) return { ok: false, reason: 'game-over' }
-    if (!turnLockRef.current) return { ok: false, reason: 'not-locked' }
     if (modalLocksRef.current <= 0) return { ok: false, reason: 'no-open-decision' }
     const lrk = lastRollTurnKeyRef.current != null ? String(lastRollTurnKeyRef.current) : ''
-    if (!lrk || lrk !== String(expectSeq)) return { ok: false, reason: 'not-post-roll' }
+    const postRoll = !!lrk && lrk === String(expectSeq)
+    if (turnLockRef.current && !postRoll) return { ok: false, reason: 'not-post-roll' }
 
     if (typeof expireOpenDecisions !== 'function') {
       return { ok: false, reason: 'no-expire-api' }
@@ -845,7 +850,7 @@ export function useTurnEngine({
     const result = expireOpenDecisions({ reason })
     if (!result?.ok) return result
     // Não chama skipAbsentTurn: o pipeline (tick) avança após SKIP/OK.
-    return { ok: true, via: 'local-modal-expire', category: result.category }
+    return { ok: true, via: 'local-modal-expire', category: result.category, phase: postRoll ? 'post-roll' : 'pre-roll' }
   }, [expireOpenDecisions])
 
   const enqueueBotEconomicEffects = React.useCallback((opts = {}) => {

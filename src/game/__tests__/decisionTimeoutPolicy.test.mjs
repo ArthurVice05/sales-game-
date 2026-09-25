@@ -10,6 +10,7 @@ import {
   shouldAllowRemoteAutoPassThroughLock,
   buildDecisionHold,
 } from '../decisionTimeoutPolicy.js'
+import { SORTE_REVES_CARDS, resolveCardEffect } from '../../modals/sorteRevesDeck.js'
 
 test('compras opcionais classificam como optional e expiram em SKIP', () => {
   for (const kind of ['CLIENTS', 'ERP', 'TRAINING', 'DIRECT_BUY', 'COMMON', 'MIX']) {
@@ -28,13 +29,29 @@ test('faturamento/despesas/saldo insuficiente são ack (fecham sem inventar econ
   assert.equal(expirationPayloadForKind('REVENUE').action, 'OK')
   assert.equal(expirationPayloadForKind('EXPENSES').action, 'OK')
   assert.equal(expirationPayloadForKind('INSUFFICIENT_FUNDS').action, 'CLOSE')
+  assert.equal(expirationPayloadForKind('INSUFFICIENT_FUNDS', {
+    element: { props: { showRecoveryOptions: true } },
+  }), null)
 })
 
-test('sorte/recuperação/falência são mandatory sem payload automático', () => {
-  for (const kind of ['LUCK', 'RECOVERY', 'BANKRUPT']) {
+test('Sorte aplica a carta congelada no timeout; sem id não faz novo sorteio', () => {
+  const card = SORTE_REVES_CARDS[0]
+  const player = { cash: 10000, clients: 2 }
+  const payload = expirationPayloadForKind('LUCK', {
+    element: { props: { cardId: card.id, player } },
+  })
+  assert.deepEqual(payload, resolveCardEffect(card, player).payload)
+  assert.equal(expirationPayloadForKind('LUCK'), null)
+})
+
+test('recuperação voluntária e confirmação de falência são canceladas; dívida obrigatória fica protegida', () => {
+  for (const kind of ['RECOVERY', 'BANKRUPT']) {
     assert.equal(categoryForDecisionKind(kind), DECISION_TIMEOUT_CATEGORY.MANDATORY)
-    assert.equal(expirationPayloadForKind(kind), null)
+    assert.equal(expirationPayloadForKind(kind), false)
   }
+  assert.equal(expirationPayloadForKind('RECOVERY', {
+    element: { props: { canClose: false } },
+  }), null)
 })
 
 test('agrega pilha: mandatory vence optional', () => {
@@ -48,7 +65,7 @@ test('agrega pilha: mandatory vence optional', () => {
   )
 })
 
-test('expire local só pós-roll com deadline vencido e modal aberta', () => {
+test('expire local cobre modal antes e depois do dado com prazo vencido', () => {
   const base = {
     now: 10_000,
     turnDeadlineAt: 5_000,
@@ -61,10 +78,11 @@ test('expire local só pós-roll com deadline vencido e modal aberta', () => {
     hasOpenModals: true,
   }
   assert.equal(shouldAttemptLocalDecisionExpire(base).ok, true)
+  assert.equal(shouldAttemptLocalDecisionExpire(base).phase, 'post-roll')
   assert.equal(shouldAttemptLocalDecisionExpire({ ...base, diceBusy: true }).reason, 'dice-busy')
   assert.equal(shouldAttemptLocalDecisionExpire({ ...base, lastRollTurnKey: null }).reason, 'not-post-roll')
   assert.equal(shouldAttemptLocalDecisionExpire({ ...base, now: 1_000 }).reason, 'not-expired')
-  assert.equal(shouldAttemptLocalDecisionExpire({ ...base, turnLock: false }).reason, 'not-locked')
+  assert.equal(shouldAttemptLocalDecisionExpire({ ...base, turnLock: false, lastRollTurnKey: null }).phase, 'pre-roll')
 })
 
 test('remoto atravessa lock só com decisionHold optional alinhado ao turno', () => {
