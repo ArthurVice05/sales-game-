@@ -146,8 +146,43 @@
   box-shadow: 0 10px 28px rgba(167, 139, 250, 0.35);
 }
 
+.start .startBtn--calc {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  text-decoration: none;
+  background: #164b7c;
+  box-shadow: 0 10px 28px rgba(4, 28, 55, .35);
+  font-size: 15px;
+}
+.start .startBtn--calc small { font-size: 11px; font-weight: 500; letter-spacing: 0; opacity: .9; }
+
+.start .startVideoTutorial {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--start-border);
+}
+
+.start .startVideoTutorial h3 {
+  margin: 0 0 10px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.start .startVideoTutorial video {
+  display: block;
+  width: 100%;
+  max-height: 260px;
+  aspect-ratio: 16 / 9;
+  border-radius: 10px;
+  background: #020817;
+}
+
 .start .startInput:focus-visible,
 .start .startBtn:focus-visible,
+.start .startBtn--calc:focus-visible,
 .start .startBtnSecondary:focus-visible {
   outline: 2px solid #93c5fd;
   outline-offset: 2px;

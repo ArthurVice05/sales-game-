@@ -1,0 +1,15 @@
+{
+  "SG_LAB_URL": "https://homologacao.example.invalid/",
+  "SG_LAB_SUPABASE_ORIGIN": "https://supabase-teste.example.invalid",
+  "SG_LAB_TEST_BACKEND": "exclusive-test",
+  "SG_LAB_RUN_ID": "validacao-20260909-a",
+  "SG_LAB_SEED": "salesgame-lab-1",
+  "SG_LAB_ENTRY_INTERVAL_MS": "500",
+  "SG_LAB_REACTION_MS": "600",
+  "SG_LAB_WINDOW_MS": "900000",
+  "SG_LAB_RAMP_MS": "120000",
+  "SG_LAB_DRAIN_MS": "300000",
+  "SG_LAB_IDLE_MS": "120000",
+  "SG_LAB_OUTPUT": "results",
+  "SG_LAB_CHANNEL": "chrome"
+}

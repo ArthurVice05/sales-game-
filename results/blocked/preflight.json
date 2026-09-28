@@ -1,0 +1,8 @@
+{
+  "status": "BLOCKED",
+  "at": "2026-09-09T12:54:38.101Z",
+  "reason": "Execute primeiro smoke; --smoke-proof=.../results.json é obrigatório para ampliar ou injetar falhas",
+  "browsersOpened": 0,
+  "roomsCreated": 0,
+  "capacityApproved": false
+}

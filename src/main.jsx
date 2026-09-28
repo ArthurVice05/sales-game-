@@ -2,6 +2,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
+import SalesGameCalc from './calc/SalesGameCalc.jsx'
 import AppErrorBoundary from './components/AppErrorBoundary.jsx'
 import GameNetProvider from './net/GameNetProvider.jsx'
 
@@ -155,10 +156,12 @@ const rootElement = typeof document !== 'undefined'
   : null
 
 if (rootElement) {
+  const isCalcRoute = window.location.pathname.replace(/\/+$/, '') === '/calc'
+  if (isCalcRoute) document.documentElement.classList.add('sg-calc-route')
   ReactDOM.createRoot(rootElement).render(
     <React.StrictMode>
       <AppErrorBoundary>
-        <Root />
+        {isCalcRoute ? <SalesGameCalc /> : <Root />}
       </AppErrorBoundary>
     </React.StrictMode>
   )

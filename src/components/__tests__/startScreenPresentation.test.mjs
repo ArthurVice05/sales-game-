@@ -8,6 +8,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '../../..')
 const start = readFileSync(join(root, 'src/components/StartScreen.jsx'), 'utf8')
 const startCssPath = join(root, 'src/components/start-screen.css')
 const bgPath = join(root, 'public/images/start/salesgame-background.jpg')
+const tutorialVideoPath = join(root, 'public/media/sales-game-tutorial.mp4')
 
 test('StartScreen usa o novo fundo estável e o logo original', () => {
   assert.match(start, /images\/start\/salesgame-background\.(jpg|png|webp)/)
@@ -32,6 +33,16 @@ test('StartScreen agrupa logo e formulário sem remontar o input', () => {
   // Um único campo controlado — redimensionar não remonta outro input
   const inputs = start.match(/id=["']playerName["']/g) || []
   assert.equal(inputs.length, 1)
+})
+
+test('StartScreen oferece o tutorial em vídeo abaixo da calculadora com mídia pública real', () => {
+  const calcPosition = start.indexOf('Sales Game Calc</span>')
+  const videoPosition = start.indexOf('Tutorial em vídeo')
+  assert.ok(calcPosition >= 0 && videoPosition > calcPosition, 'tutorial deve aparecer depois da calculadora')
+  assert.match(start, /<video[^>]*controls[^>]*>/)
+  assert.match(start, /<source[^>]*src="\/media\/sales-game-tutorial\.mp4"[^>]*type="video\/mp4"/)
+  assert.ok(existsSync(tutorialVideoPath), 'vídeo deve ser publicado com o aplicativo')
+  assert.ok(statSync(tutorialVideoPath).size > 1_000_000, 'vídeo publicado não deve estar vazio')
 })
 
 test('start-screen.css restringe apresentação ao .start', () => {

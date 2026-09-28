@@ -94,6 +94,17 @@ export default function StartScreen({ onEnter, onLocal, onlineDisabledReason = '
               >
                 Como jogar
               </button>
+              <a className="startBtn startBtn--calc" href="/calc">
+                <span>Sales Game Calc</span>
+                <small>Calculadora para o tabuleiro físico</small>
+              </a>
+              <div className="startVideoTutorial">
+                <h3>Tutorial em vídeo</h3>
+                <video controls preload="none" playsInline aria-label="Tutorial em vídeo do Sales Game">
+                  <source src="/media/sales-game-tutorial.mp4" type="video/mp4" />
+                  Seu navegador não suporta a reprodução deste vídeo.
+                </video>
+              </div>
             </div>
           </div>
         </div>
