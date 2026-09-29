@@ -291,7 +291,7 @@ export function recoverCalcTurn(turn, recovery, round) {
   } else if (recovery.action === 'REDUCE') {
     const option = getCalcReduceOptions(player).find((item) => item.group === recovery.group && item.level === recovery.level)
     if (!option) throw new Error('Este nível não pode ser reduzido.')
-    const result = applyRecoveryPayloadToPlayer(player, { type: 'REDUCE', items: [{ ...option, selected: true }] }, { round })
+    const result = applyRecoveryPayloadToPlayer(calcReduceCandidate(player, option.group, option.level), { type: 'REDUCE', items: [{ ...option, selected: true }] }, { round })
     if (!result.applied) throw new Error('Não foi possível reduzir este nível.')
     player = result.player
     label = `Reduziu ${option.group} nível ${option.level}: R$ ${option.credit.toLocaleString('pt-BR')}`
@@ -305,13 +305,25 @@ export function recoverCalcTurn(turn, recovery, round) {
   return { ...turn, player, actions: [...turn.actions, { kind: 'RECOVERY', label, cashDelta: Number(player.cash) - Number(turn.player.cash) }] }
 }
 
+function calcReduceCandidate(player, group, level) {
+  const isMix = group === 'MIX'
+  const current = String(isMix ? player.mixProdutos || 'D' : player.erpLevel || player.erpSistemas || 'D').toUpperCase()
+  const existing = isMix ? player.mixOwned || player.mix || {} : player.erpOwned || player.erp || {}
+  const levels = ['A', 'B', 'C', 'D']
+  const hasOwned = levels.some((item) => existing[item] === true)
+  const owned = hasOwned ? { ...existing } : Object.fromEntries(levels.map((item, index) => [item, index >= levels.indexOf(current)]))
+  // The human recovery modal allows selling any owned level. Adapt that selection
+  // to the shared bot helper, which expects the selected level to be current.
+  // Explicit ownership lets the helper restore the highest remaining level.
+  return { ...player, [isMix ? 'mixOwned' : 'erpOwned']: owned, [isMix ? 'mixProdutos' : 'erpLevel']: level }
+}
+
 export function getCalcReduceOptions(player) {
-  return ['MIX', 'ERP'].flatMap((group) => {
-    const level = String(group === 'MIX' ? player.mixProdutos || 'D' : player.erpLevel || 'D').toUpperCase()
+  return ['MIX', 'ERP'].flatMap((group) => ['A', 'B', 'C'].flatMap((level) => {
     const price = group === 'MIX' ? MIX_PURCHASE_PRICES[level] : ERP_RULES[level]?.price
     const option = { group, level, credit: Math.floor(Number(price || 0) * MANUAL_CONSTANTS.recoveryCreditRatio) }
-    return validateReduceSelection(player, option).ok ? [option] : []
-  })
+    return validateReduceSelection(calcReduceCandidate(player, group, level), option).ok ? [option] : []
+  }))
 }
 
 export function finishCalcTurn(game, turn) {

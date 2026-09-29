@@ -197,7 +197,7 @@ export function Recovery({ turn, round, onRecover, onCancel }) {
     </div>
     {reduceOptions.length > 0 && <div className="calcRecoveryReductions">
       <strong>Reduzir investimento</strong>
-      {reduceOptions.map((option) => <button key={option.group} type="button" className="calcButton calcButtonGhost"
+      {reduceOptions.map((option) => <button key={`${option.group}-${option.level}`} type="button" className="calcButton calcButtonGhost"
         onClick={() => run({ action: 'REDUCE', group: option.group, level: option.level })}>
         Reduzir {option.group === 'MIX' ? 'Mix' : 'ERP'} nível {option.level} · +{money(option.credit)}
       </button>)}

@@ -20,7 +20,7 @@ const TRAINING_PRICE = MANUAL_CONSTANTS.trainingPrice
 const PRODUCTS = [
   {
     id: 'personalizado',
-    label: 'Treinamento de venda personalizado\nCasagrande Consultores',
+    label: 'Treinamento de venda personalizado\nCasagrande Treinamentos',
     shortLabel: 'Treinamento de venda personalizado',
     price: TRAINING_PRICE,
     cert: 'azul',
@@ -28,7 +28,7 @@ const PRODUCTS = [
   },
   {
     id: 'fieldsales',
-    label: 'Curso Canal Representantes Collab\nMultiplier Educação e\nCasagrande Consultores',
+    label: 'Curso Canal Representantes Collab\nMultiplier Educação e\nCasagrande Treinamentos',
     shortLabel: 'Canal Representantes Collab',
     price: TRAINING_PRICE,
     cert: 'amarelo',
