@@ -72,18 +72,18 @@ function expectedUnitDesp(type, certIds) {
 }
 
 describe('CERT_EFFECTS P2-A2 — multiplicadores', () => {
-  it('Azul 1.00/1.00, Amarelo 1.00/0, Roxo 1.20/1.50', () => {
+  it('Azul 1.10/0.50, Amarelo 1.20/0.30, Roxo 1.50/0.10', () => {
     assert.deepEqual(
       { f: CERT_EFFECTS.personalizado.multFat, d: CERT_EFFECTS.personalizado.multDesp },
-      { f: 1, d: 1 }
+      { f: 1.1, d: 0.5 }
     )
     assert.deepEqual(
       { f: CERT_EFFECTS.fieldsales.multFat, d: CERT_EFFECTS.fieldsales.multDesp },
-      { f: 1, d: 0 }
+      { f: 1.2, d: 0.3 }
     )
     assert.deepEqual(
       { f: CERT_EFFECTS.imersaomultiplier.multFat, d: CERT_EFFECTS.imersaomultiplier.multDesp },
-      { f: 1.2, d: 1.5 }
+      { f: 1.5, d: 0.1 }
     )
   })
 
@@ -95,8 +95,8 @@ describe('CERT_EFFECTS P2-A2 — multiplicadores', () => {
 
   it('preço de treino permanece 500 (catálogo UI — constante de produto)', () => {
     // Preço vive no TrainingModal; aqui garantimos que a regra econômica não embute preço.
-    assert.equal(certDeltaForVendor('field', IDS.azul).fat, 500)
-    assert.equal(VENDOR_RULES.field.incFat * CERT_EFFECTS.personalizado.multFat, 500)
+    assert.equal(certDeltaForVendor('field', IDS.azul).fat, 550)
+    assert.equal(VENDOR_RULES.field.incFat * CERT_EFFECTS.personalizado.multFat, 550)
   })
 })
 
@@ -140,29 +140,29 @@ for (const type of ['comum', 'field', 'inside']) {
       })
     }
 
-    it('só Amarelo: +100% fat e +0 desp vs base', () => {
+    it('só Amarelo: +120% fat e +30% desp vs base', () => {
       const base = playerFor(type, [], clients)
       const am = playerFor(type, [IDS.amarelo], clients)
       assert.equal(
         vendorRateForType(am, type) - vendorRateForType(base, type),
-        VENDOR_RULES[type].incFat
+        VENDOR_RULES[type].incFat * 1.2
       )
       assert.equal(
         vendorUnitDespForType(am, type) - vendorUnitDespForType(base, type),
-        0
+        VENDOR_RULES[type].incDesp * 0.3
       )
     })
 
-    it('só Roxo: +120% fat e +150% desp vs base', () => {
+    it('só Roxo: +150% fat e +10% desp vs base', () => {
       const base = playerFor(type, [], clients)
       const rx = playerFor(type, [IDS.roxo], clients)
       assert.equal(
         vendorRateForType(rx, type) - vendorRateForType(base, type),
-        VENDOR_RULES[type].incFat * 1.2
+        VENDOR_RULES[type].incFat * 1.5
       )
       assert.equal(
         vendorUnitDespForType(rx, type) - vendorUnitDespForType(base, type),
-        VENDOR_RULES[type].incDesp * 1.5
+        VENDOR_RULES[type].incDesp * 0.1
       )
     })
   })

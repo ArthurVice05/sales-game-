@@ -73,9 +73,9 @@ export function managerBoostPct(certCount = 0) {
  *  - imersaomultiplier  → Roxo
  */
 export const CERT_EFFECTS = {
-  personalizado:     { multFat: 1.0, multDesp: 1.0, color: 'azul',    label: 'Azul' },
-  fieldsales:        { multFat: 1.0, multDesp: 0.0, color: 'amarelo', label: 'Amarelo' },
-  imersaomultiplier: { multFat: 1.2, multDesp: 1.5, color: 'roxo',    label: 'Roxo' },
+  personalizado:     { multFat: 1.1, multDesp: 0.5, color: 'azul',    label: 'Azul' },
+  fieldsales:        { multFat: 1.2, multDesp: 0.3, color: 'amarelo', label: 'Amarelo' },
+  imersaomultiplier: { multFat: 1.5, multDesp: 0.1, color: 'roxo',    label: 'Roxo' },
 }
 
 /** Soma dos multiplicadores dos IDs únicos (Set). IDs desconhecidos = 1.0/1.0 (compat). */

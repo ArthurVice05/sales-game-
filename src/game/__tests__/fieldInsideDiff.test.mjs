@@ -94,7 +94,7 @@ describe('VENDOR_RULES A2 — Canal Representantes ≠ Inside', () => {
     assert.equal(capacityAndAttendance(basePlayer({ insideSales: 1 })).cap, 5)
   })
 
-  it('11) certificados: +500 fat / +100 desp (ambos)', () => {
+  it('11) certificado azul: +550 fat / +50 desp (ambos)', () => {
     assert.equal(VENDOR_RULES.field.incFat, 500)
     assert.equal(VENDOR_RULES.inside.incFat, 500)
     assert.equal(VENDOR_RULES.field.incDesp, 100)
@@ -110,8 +110,8 @@ describe('VENDOR_RULES A2 — Canal Representantes ≠ Inside', () => {
       clients: 6,
       trainingsByVendor: { field: ['personalizado'] },
     })
-    assert.equal(vendorOnlyFat(field1) - vendorOnlyFat(field0), 500 * 6)
-    assert.equal(vendorOnlyDesp(field1) - vendorOnlyDesp(field0), 100)
+    assert.equal(vendorOnlyFat(field1) - vendorOnlyFat(field0), 550 * 6)
+    assert.equal(vendorOnlyDesp(field1) - vendorOnlyDesp(field0), 50)
 
     const inside0 = basePlayer({
       insideSales: 1,
@@ -123,8 +123,8 @@ describe('VENDOR_RULES A2 — Canal Representantes ≠ Inside', () => {
       clients: 5,
       trainingsByVendor: { inside: ['personalizado'] },
     })
-    assert.equal(vendorOnlyFat(inside1) - vendorOnlyFat(inside0), 500 * 5)
-    assert.equal(vendorOnlyDesp(inside1) - vendorOnlyDesp(inside0), 100)
+    assert.equal(vendorOnlyFat(inside1) - vendorOnlyFat(inside0), 550 * 5)
+    assert.equal(vendorOnlyDesp(inside1) - vendorOnlyDesp(inside0), 50)
   })
 
   it('9) 3 clientes: Field tem melhor resultado operacional que Inside', () => {

@@ -314,8 +314,8 @@ export default function TrainingModal({
         Cada cor tem efeito financeiro diferente no profissional treinado (exceto o Gestor,
         cujo boost depende só da quantidade de certificados). Treinamentos não aumentam a
         capacidade de atendimento e não contratam novos profissionais. Cores também entram
-        em Sorte &amp; Revés. Azul: 100% fat / 100% desp · Amarelo: 100% fat / 0% desp ·
-        Roxo: 120% fat / 150% desp (sobre o incremento do tipo). Preço: $ {TRAINING_PRICE.toLocaleString()} cada.
+        em Sorte &amp; Revés. Azul: 110% fat / 50% desp · Amarelo: 120% fat / 30% desp ·
+        Roxo: 150% fat / 10% desp (sobre o incremento do tipo). Preço: $ {TRAINING_PRICE.toLocaleString()} cada.
       </p>
 
       <div className="trainingSupportRow">
