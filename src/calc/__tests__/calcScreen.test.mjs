@@ -49,17 +49,19 @@ test('an unaffordable purchase exposes recovery instead of forcing a skip', () =
 test('recovery screen offers official level reduction when owned', () => {
   const player = previewCalcPurchase(createCalcGame(['Ana', 'Bruno']).players[0], 'MIX', { level: 'A' }).afterPlayer
   const html = renderToStaticMarkup(React.createElement(Recovery, {
-    turn: { player }, round: 1, onRecover: () => {}, onCancel: () => {},
+    player, onRecover: () => {}, onBack: () => {}, backLabel: 'Voltar para Jogar',
   }))
   assert.match(html, /Reduzir Mix nível A/)
   assert.match(html, /R\$\s*6\.000/)
 })
 
-test('training can target the only owned employee type', () => {
-  const player = { ...createCalcGame(['Ana', 'Bruno']).players[0], vendedoresComuns: 0, fieldSales: 1 }
+test('training renders toggle buttons for professionals and certificates, not selects', () => {
+  const player = { ...createCalcGame(['Ana', 'Bruno']).players[0], vendedoresComuns: 1, fieldSales: 1, insideSales: 0, gestores: 0 }
   const html = renderToStaticMarkup(React.createElement(PurchaseChoice, {
     player, event: { kind: 'TRAINING' }, onResolve: () => {}, onOpenRecovery: () => {}, error: '', setError: () => {},
   }))
-  assert.match(html, /Confirmar compra de Treinamento/)
-  assert.doesNotMatch(html, /disabled=""[^>]*>Confirmar compra de Treinamento/)
+  assert.doesNotMatch(html, /Para qual colaborador/)
+  assert.doesNotMatch(html, /<select/)
+  for (const label of ['Vendedor Comum', 'Inside Sales', 'Canal Representantes', 'Gestor', 'Azul', 'Amarelo', 'Roxo']) assert.match(html, new RegExp(label))
+  assert.match(html, /0 treinamentos selecionados/)
 })

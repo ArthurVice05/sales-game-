@@ -150,11 +150,11 @@ test('insufficient expenses can be recovered with official loan before applying'
 
 test('training previews do not mutate certificates and purchase applies them', () => {
   const player = fresh().players[0]
-  const preview = previewCalcPurchase(player, 'TRAINING', { vendorType: 'comum', certId: 'personalizado' })
+  const preview = previewCalcPurchase(player, 'TRAINING', { vendorTypes: ['comum'], certIds: ['personalizado'] })
   assert.equal(preview.cost, 500)
   assert.equal(player.trainingsByVendor, undefined)
   assert.deepEqual(preview.afterPlayer.trainingsByVendor.comum, ['personalizado'])
-  assert.throws(() => previewCalcPurchase(preview.afterPlayer, 'TRAINING', { vendorType: 'comum', certId: 'personalizado' }), /indisponível/)
+  assert.throws(() => previewCalcPurchase(preview.afterPlayer, 'TRAINING', { vendorTypes: ['comum'], certIds: ['personalizado'] }), /indisponível/)
 })
 
 test('loan is charged with interest at expenses after a revenue crossing', () => {

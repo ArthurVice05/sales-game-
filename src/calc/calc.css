@@ -141,3 +141,12 @@
   .calcImpactRow { align-items: start; }
   .calcImpactRow span:last-child { max-width: 60%; }
 }
+
+
+.calcToggleGroup{display:flex;flex-wrap:wrap;gap:8px}
+.calcToggleGroup button{min-height:44px;padding:8px 14px;border-radius:10px;border:1px solid currentColor;background:transparent;color:inherit;font:inherit;cursor:pointer}
+.calcToggleGroup button.isSelected{background:#1f6feb;color:#fff;border-color:#1f6feb}
+.calcToggleGroup button:disabled{opacity:.45;cursor:not-allowed}
+.calcTrainingTotal{margin:8px 0}
+.calcNotice{margin:8px 0;font-weight:600}
+.calcRecovery section{margin:12px 0}
