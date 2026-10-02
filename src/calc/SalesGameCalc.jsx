@@ -10,6 +10,9 @@ import {
   getCalcReduceOptions,
   getCalcTurnProgress,
   getCalcPlayerMetrics,
+  getCalcRecoveryOverview,
+  recoverCalcGame,
+  CALC_TRACK_LEN,
   getCalcRanking,
   parseCalcSession,
   planCalcTurn,
@@ -21,8 +24,7 @@ import {
 } from './calcModel.js'
 import { MAX_ROUNDS_LIMIT, MIN_ROUNDS, DEFAULT_MAX_ROUNDS } from '../game/roundConfig.js'
 import { MANUAL_CONSTANTS } from '../game/manualConstants.js'
-import { CERT_EFFECTS } from '../game/gameRules.js'
-import { clampLoanAmount, canTakeLoan } from '../game/loanCycle.js'
+import { TRAINING_PRODUCTS, TRAINING_VENDOR_LABELS, TRAINING_VENDOR_TYPES, buildCalcTrainingPayload, getTrainableTypes, ownedTrainings, staffCount } from './calcTraining.js'
 import { markCalcBootReady } from './calcBoot.js'
 import './calc.css'
 
@@ -111,17 +113,19 @@ export function PurchaseChoice({ player, event, onResolve, onOpenRecovery, error
   const [target, setTarget] = useState('')
   const [qty, setQty] = useState(1)
   const [level, setLevel] = useState('')
-  const [vendorType, setVendorType] = useState('comum')
-  const [certId, setCertId] = useState('personalizado')
-  const staff = { comum: player.vendedoresComuns, inside: player.insideSales, field: player.fieldSales, gestor: player.gestores }
-  const validStaff = Object.entries(staff).filter(([, quantity]) => Number(quantity) > 0)
-  const selectedVendorType = validStaff.some(([type]) => type === vendorType) ? vendorType : validStaff[0]?.[0] || ''
+  const [pickedVendors, setPickedVendors] = useState(null)
+  const [certIds, setCertIds] = useState([])
+  const trainable = getTrainableTypes(player)
+  const vendorTypes = (pickedVendors ?? trainable.slice(0, 1)).filter((type) => trainable.includes(type))
+  const toggle = (list, value) => (list.includes(value) ? list.filter((item) => item !== value) : [...list, value])
+  const certTaken = (id) => vendorTypes.some((type) => ownedTrainings(player, type).includes(id))
   const kind = event.kind === 'DIRECT_BUY' ? target : event.kind
-  const selection = { qty: Number(qty), level, vendorType: selectedVendorType, certId, target }
+  const selection = { qty: Number(qty), level, vendorTypes, certIds: certIds.filter((id) => !certTaken(id)), target }
+  const trainingApplications = kind === 'TRAINING' ? (buildCalcTrainingPayload(player, vendorTypes, selection.certIds)?.applications || 0) : 0
   const preview = useMemo(() => {
     if (!kind) return null
     try { return previewCalcPurchase(player, kind, selection) } catch { return null }
-  }, [player, kind, qty, level, selectedVendorType, certId])
+  }, [player, kind, qty, level, vendorTypes.join(), certIds.join()])
   const canBuy = preview && preview.cost <= Number(player.cash)
   return <div className="calcDecision">
     {event.kind === 'DIRECT_BUY' && <label className="calcField">O que deseja adquirir?
@@ -139,23 +143,28 @@ export function PurchaseChoice({ player, event, onResolve, onOpenRecovery, error
         onClick={() => setLevel(item)}>Nível {item}</button>)}
     </div>}
     {kind === 'TRAINING' && <div className="calcTrainingFields">
-      <label className="calcField">Para qual colaborador?
-        <select value={selectedVendorType} onChange={(e) => setVendorType(e.target.value)}>
-          {validStaff.map(([type]) => <option key={type} value={type}>{({ comum: 'Vendedor Comum', inside: 'Inside Sales', field: 'Canal Representantes', gestor: 'Gestor' })[type]}</option>)}
-        </select>
-      </label>
-      <label className="calcField">Certificação
-        <select value={certId} onChange={(e) => setCertId(e.target.value)}>
-          {Object.entries(CERT_EFFECTS).map(([id, value]) => <option key={id} value={id}>{value.label}</option>)}
-        </select>
-      </label>
+      <div className="calcField"><span className="calcFieldTitle">Profissional</span>
+        <div className="calcToggleGroup" role="group" aria-label="Quem será treinado?">
+          {TRAINING_VENDOR_TYPES.map((type) => <button key={type} type="button" className={vendorTypes.includes(type) ? 'isSelected' : ''}
+            aria-pressed={vendorTypes.includes(type)} disabled={!trainable.includes(type)}
+            onClick={() => setPickedVendors(toggle(vendorTypes, type))}>{TRAINING_VENDOR_LABELS[type]}{staffCount(player, type) ? ` · ${staffCount(player, type)}` : ''}</button>)}
+        </div>
+      </div>
+      <div className="calcField"><span className="calcFieldTitle">Certificações</span>
+        <div className="calcToggleGroup" role="group" aria-label="Certificações">
+          {TRAINING_PRODUCTS.map((product) => <button key={product.id} type="button" className={selection.certIds.includes(product.id) ? 'isSelected' : ''}
+            aria-pressed={selection.certIds.includes(product.id)} disabled={certTaken(product.id)}
+            onClick={() => setCertIds(toggle(certIds, product.id))}>{selection.certIds.includes(product.id) ? '✓ ' : ''}{product.label}</button>)}
+        </div>
+      </div>
       <small>Investimento por treinamento: {money(MANUAL_CONSTANTS.trainingPrice)}</small>
+      <p className="calcTrainingTotal"><strong>{`${trainingApplications} ${trainingApplications === 1 ? 'treinamento selecionado' : 'treinamentos selecionados'}`}</strong>{` · Total: ${money(trainingApplications * MANUAL_CONSTANTS.trainingPrice)}`}</p>
     </div>}
     {preview && <><p className="calcPrice">Investimento imediato <strong>{money(preview.cost)}</strong></p>
       <Impact impact={preview.impact} /></>}
     {preview && !canBuy && <p className="calcError">Caixa insuficiente para esta compra.</p>}
     {preview && !canBuy && <button type="button" className="calcButton calcButtonGhost" onClick={onOpenRecovery}>Abrir recuperação financeira</button>}
-    {kind === 'TRAINING' && !validStaff.length && <p className="calcMuted">É preciso ter um colaborador para treinar.</p>}
+    {kind === 'TRAINING' && !trainable.length && <p className="calcMuted">Nenhum colaborador disponível para treinamento.</p>}
     <div className="calcActions">
       <button type="button" className="calcButton calcButtonGhost" onClick={() => onResolve({ action: 'SKIP' })}>Não comprar e encerrar evento</button>
       <button type="button" className="calcButton" disabled={!canBuy} onClick={() => onResolve({ action: 'BUY', ...selection })}>Confirmar compra de {KIND_LABELS[kind] || 'recurso'}</button>
@@ -164,49 +173,53 @@ export function PurchaseChoice({ player, event, onResolve, onOpenRecovery, error
   </div>
 }
 
-export function Recovery({ turn, round, onRecover, onCancel }) {
+export function Recovery({ player, onRecover, onBack, backLabel }) {
   const [amount, setAmount] = useState(0)
   const [vendorType, setVendorType] = useState('comum')
   const [qty, setQty] = useState(1)
   const [error, setError] = useState('')
-  const maxLoan = clampLoanAmount(Number.MAX_SAFE_INTEGER, turn.player.bens)
-  const staff = { comum: turn.player.vendedoresComuns, field: turn.player.fieldSales, inside: turn.player.insideSales, gestor: turn.player.gestores }
-  const availableStaff = Object.entries(staff).filter(([, n]) => Number(n) > 0)
+  const [notice, setNotice] = useState('')
+  const view = getCalcRecoveryOverview(player)
+  const availableStaff = Object.entries(view.staff).filter(([, n]) => Number(n) > 0)
   const selectedVendorType = availableStaff.some(([type]) => type === vendorType) ? vendorType : availableStaff[0]?.[0] || ''
-  const reduceOptions = getCalcReduceOptions(turn.player)
   function run(choice) {
-    try { onRecover(choice); setError('') } catch (issue) { setError(issue.message) }
+    try { setNotice(onRecover(choice) || ''); setError('') } catch (issue) { setNotice(''); setError(issue.message) }
   }
   return <div className="calcRecovery">
-    <h4>Recuperação financeira</h4>
-    <p>Escolha como obter caixa para resolver este evento.</p>
-    {canTakeLoan(turn.player) && maxLoan > 0 && <div className="calcRecoveryRow">
-      <label className="calcField">Empréstimo (até {money(maxLoan)})
-        <input type="number" min="1" max={maxLoan} value={amount} onChange={(e) => setAmount(e.target.value)} />
-      </label>
-      <button type="button" className="calcButton" onClick={() => run({ action: 'LOAN', amount: Number(amount) })}>Contratar empréstimo</button>
-    </div>}
-    <div className="calcRecoveryRow">
-      <label className="calcField">Demitir
-        <select value={selectedVendorType} onChange={(e) => setVendorType(e.target.value)}>
-          {availableStaff.map(([type, n]) => <option key={type} value={type}>{type} · {n}</option>)}
-        </select>
-      </label>
-      <label className="calcField">Quantidade<input type="number" min="1" value={qty} onChange={(e) => setQty(e.target.value)} /></label>
-      <button type="button" className="calcButton calcButtonGhost" disabled={!availableStaff.length} onClick={() => run({ action: 'FIRE', vendorType: selectedVendorType, qty: Number(qty) })}>Demitir e recuperar</button>
-    </div>
-    {reduceOptions.length > 0 && <div className="calcRecoveryReductions">
-      <strong>Reduzir investimento</strong>
-      {reduceOptions.map((option) => <button key={`${option.group}-${option.level}`} type="button" className="calcButton calcButtonGhost"
+    <span className="calcEyebrow">Recuperação financeira</span>
+    <h2>{player.name}</h2>
+    <p className="calcPlayerMoney"><span>Caixa atual</span> <strong>{money(player.cash)}</strong></p>
+    <section className="calcRecoveryRow"><h4>Empréstimo</h4>
+      {view.loan.canTake ? <>
+        <label className="calcField">Valor (até {money(view.loan.maxAmount)})
+          <input type="number" min="1" max={view.loan.maxAmount} value={amount} onChange={(e) => setAmount(e.target.value)} />
+        </label>
+        <button type="button" className="calcButton" onClick={() => run({ action: 'LOAN', amount: Number(amount) })}>Contratar empréstimo</button>
+      </> : <><p><strong>Empréstimo indisponível</strong></p><p className="calcMuted">{view.loan.reason}</p></>}
+    </section>
+    <section className="calcRecoveryRow"><h4>Demitir colaboradores</h4>
+      {availableStaff.length ? <>
+        <label className="calcField">Colaborador
+          <select value={selectedVendorType} onChange={(e) => setVendorType(e.target.value)}>
+            {availableStaff.map(([type, n]) => <option key={type} value={type}>{TRAINING_VENDOR_LABELS[type]} · {n}</option>)}
+          </select>
+        </label>
+        <label className="calcField">Quantidade<input type="number" min="1" value={qty} onChange={(e) => setQty(e.target.value)} /></label>
+        <button type="button" className="calcButton calcButtonGhost" onClick={() => run({ action: 'FIRE', vendorType: selectedVendorType, qty: Number(qty) })}>Demitir e recuperar</button>
+      </> : <p className="calcMuted">Nenhum colaborador disponível para demissão.</p>}
+    </section>
+    <section className="calcRecoveryReductions"><h4>Reduzir investimentos</h4>
+      {view.reduceOptions.length ? view.reduceOptions.map((option) => <button key={`${option.group}-${option.level}`} type="button" className="calcButton calcButtonGhost"
         onClick={() => run({ action: 'REDUCE', group: option.group, level: option.level })}>
         Reduzir {option.group === 'MIX' ? 'Mix' : 'ERP'} nível {option.level} · +{money(option.credit)}
-      </button>)}
-    </div>}
-    <div className="calcActions">
-      <button type="button" className="calcButton calcButtonGhost" onClick={onCancel}>Voltar ao evento</button>
-      <button type="button" className="calcButton calcButtonDanger" onClick={() => { if (window.confirm('Declarar falência? A decisão encerra o turno deste jogador.')) run({ action: 'BANKRUPT' }) }}>Declarar falência</button>
-    </div>
+      </button>) : <p className="calcMuted">Nenhum investimento disponível para redução.</p>}
+    </section>
+    <section className="calcRecoveryRow"><h4>Declarar falência</h4>
+      <button type="button" className="calcButton calcButtonDanger" onClick={() => { if (window.confirm('Declarar falência? A decisão tira este jogador da partida.')) run({ action: 'BANKRUPT' }) }}>Declarar falência</button>
+    </section>
+    {notice && <p className="calcNotice" role="status">{notice}</p>}
     {error && <p className="calcError" role="alert">{error}</p>}
+    <div className="calcActions"><button type="button" className="calcButton calcButtonGhost" onClick={onBack}>{backLabel}</button></div>
   </div>
 }
 
@@ -216,7 +229,6 @@ export default function SalesGameCalc({ initialGame = null }) {
   const [turn, setTurn] = useState(null)
   const [tab, setTab] = useState('Jogar')
   const [error, setError] = useState('')
-  const [recoverOpen, setRecoverOpen] = useState(false)
   const [correctionOpen, setCorrectionOpen] = useState(false)
   const [correctionHouse, setCorrectionHouse] = useState(1)
   const [cardNumber, setCardNumber] = useState('')
@@ -230,6 +242,7 @@ export default function SalesGameCalc({ initialGame = null }) {
   }, [game, turn])
 
   const player = game?.players?.[game.currentPlayerIndex]
+  const activePlayer = turn?.player ?? player
   const event = turn?.events?.[turn.eventIndex]
   const eventPreview = turn && game ? getCalcEventPreview(turn, game.round) : null
 
@@ -239,14 +252,17 @@ export default function SalesGameCalc({ initialGame = null }) {
       setTurn(next)
       setError('')
       setCardNumber('')
-      setRecoverOpen(false)
     } catch (issue) { setError(issue.message) }
   }
   function recover(choice) {
-    const next = recoverCalcTurn(turn, choice, game.round)
-    setTurn(next)
-    setRecoverOpen(false)
-    setError('')
+    if (turn) {
+      const next = recoverCalcTurn(turn, choice, game.round)
+      setTurn(next)
+      return next.actions.at(-1)?.label
+    }
+    const next = recoverCalcGame(game, choice)
+    setGame(next)
+    return next.history.at(-1)?.actions?.[0]?.label
   }
   function finish() {
     try {
@@ -285,9 +301,9 @@ export default function SalesGameCalc({ initialGame = null }) {
         </li>)}</ol>
         <button className="calcButton" onClick={() => { if (window.confirm('Começar outra partida? A partida atual será substituída.')) { setGame(null); setTurn(null); setSavedSession(null); window.localStorage.removeItem(CALC_STORAGE_KEY) } }}>Nova partida</button>
       </main> : <>
-        <nav className="calcTabs" aria-label="Áreas da calculadora">{['Jogar', 'Placar', 'Histórico'].map((item) => <button type="button" key={item}
+        <nav className="calcTabs" aria-label="Áreas da calculadora">{['Jogar', 'Recuperação', 'Placar', 'Histórico'].map((item) => <button type="button" key={item}
           className={tab === item ? 'isActive' : ''} aria-current={tab === item ? 'page' : undefined} onClick={() => setTab(item)}>{item}</button>)}</nav>
-        {tab === 'Jogar' && <main className="calcGameGrid">
+        <main className="calcGameGrid" hidden={tab !== 'Jogar'}>
           <div className="calcMainColumn">
             <section className="calcCard calcPlayerCard">
               <div><span className="calcEyebrow">Jogador da vez</span><h2>{player.name}</h2><p>Casa {player.pos + 1} · {game.round}ª rodada</p></div>
@@ -307,7 +323,7 @@ export default function SalesGameCalc({ initialGame = null }) {
               {correctionOpen && <div className="calcCorrection">
                 <label className="calcField">Casa da peça no tabuleiro
                   <select value={correctionHouse} onChange={(e) => setCorrectionHouse(Number(e.target.value))}>
-                    {Array.from({ length: 40 }, (_, i) => i + 1).map((house) => <option key={house} value={house}>Casa {house}</option>)}
+                    {Array.from({ length: CALC_TRACK_LEN }, (_, i) => i + 1).map((house) => <option key={house} value={house}>Casa {house}</option>)}
                   </select>
                 </label>
                 <div className="calcActions"><button type="button" className="calcButton calcButtonGhost" onClick={() => setCorrectionOpen(false)}>Cancelar</button>
@@ -324,7 +340,7 @@ export default function SalesGameCalc({ initialGame = null }) {
                   <p className="calcAmount">{event.kind === 'REVENUE' ? '+' : '−'} {money(eventPreview.amount)}</p>
                   {eventPreview.loanCharge > 0 && <p>Inclui {money(eventPreview.loanCharge)} de quitação do empréstimo.</p>}
                   <p>Caixa: {money(turn.player.cash)} → {money(eventPreview.cashAfter)}</p>
-                  {event.kind === 'EXPENSES' && eventPreview.cashAfter < 0 ? <button className="calcButton" onClick={() => setRecoverOpen(true)}>Abrir recuperação financeira</button>
+                  {event.kind === 'EXPENSES' && eventPreview.cashAfter < 0 ? <button className="calcButton" onClick={() => setTab('Recuperação')}>Abrir recuperação financeira</button>
                     : <button className="calcButton" onClick={() => resolve({ action: 'APPLY' })}>Aplicar {event.kind === 'REVENUE' ? 'faturamento' : 'despesas'} e continuar</button>}
                 </> : event.kind === 'LUCK' ? <>
                   <p>Pegue uma carta física e encontre o título abaixo. O número indica a ordem do catálogo digital.</p>
@@ -336,10 +352,9 @@ export default function SalesGameCalc({ initialGame = null }) {
                   </label>
                   {cardNumber !== '' && <p className="calcCardDescription">{SORTE_REVES_CARDS[Number(cardNumber)]?.text}</p>}
                   <button className="calcButton" disabled={cardNumber === ''} onClick={() => resolve({ cardId: SORTE_REVES_CARDS[Number(cardNumber)]?.id })}>Aplicar efeito da carta</button>
-                  {error.includes('Caixa insuficiente') && <button className="calcButton calcButtonGhost" onClick={() => setRecoverOpen(true)}>Abrir recuperação financeira</button>}
+                  {error.includes('Caixa insuficiente') && <button className="calcButton calcButtonGhost" onClick={() => setTab('Recuperação')}>Abrir recuperação financeira</button>}
                   {error && <p className="calcError" role="alert">{error}</p>}
-                </> : <PurchaseChoice key={`${turn.playerId}-${turn.eventIndex}`} player={turn.player} event={event} onResolve={resolve} onOpenRecovery={() => setRecoverOpen(true)} error={error} setError={setError} />}
-                {recoverOpen && <Recovery turn={turn} round={game.round} onRecover={recover} onCancel={() => setRecoverOpen(false)} />}
+                </> : <PurchaseChoice key={`${turn.playerId}-${turn.eventIndex}`} player={turn.player} event={event} onResolve={resolve} onOpenRecovery={() => setTab('Recuperação')} error={error} setError={setError} />}
                 {error && !['LUCK'].includes(event.kind) && ['REVENUE', 'EXPENSES'].includes(event.kind) && <p className="calcError" role="alert">{error}</p>}
               </div> : <div className="calcTurnDone"><span className="calcEyebrow">Turno concluído</span>
                 <h3>{player.name} · Casa {turn.startPosition} → {turn.destination}</h3>
@@ -347,13 +362,16 @@ export default function SalesGameCalc({ initialGame = null }) {
                 <ul>{turn.actions.map((action, i) => <li key={i}>{action.label}</li>)}</ul>
                 <button className="calcButton" onClick={finish}>Confirmar turno e passar ao próximo jogador</button>
               </div>}
-              <button className="calcTextButton" onClick={() => { if (window.confirm('Descartar este turno sem alterar a partida?')) { setTurn(null); setError(''); setRecoverOpen(false) } }}>Descartar turno</button>
+              <button className="calcTextButton" onClick={() => { if (window.confirm('Descartar este turno sem alterar a partida?')) { setTurn(null); setError('') } }}>Descartar turno</button>
             </section>}
           </div>
           <aside className="calcCard calcAside"><h3>Placar rápido</h3>{game.players.map((item, index) => <div className="calcMiniPlayer" key={item.id}>
             <strong>{item.name}{index === game.currentPlayerIndex ? <em>NA VEZ</em> : null}</strong>
             <span>Casa {item.pos + 1} · {money(item.cash)}</span>
           </div>)}</aside>
+        </main>
+        {tab === 'Recuperação' && <main className="calcCard calcList">
+          <Recovery key={activePlayer.id} player={activePlayer} onRecover={recover} onBack={() => setTab('Jogar')} backLabel={turn && event ? 'Voltar ao evento' : 'Voltar para Jogar'} />
         </main>}
         {tab === 'Placar' && <main className="calcCard calcList"><h2>Placar</h2>{game.players.map((item, index) => {
           const metrics = getCalcPlayerMetrics(item)
@@ -368,8 +386,8 @@ export default function SalesGameCalc({ initialGame = null }) {
         {tab === 'Histórico' && <main className="calcCard calcList"><h2>Histórico</h2>
           {!game.history.length && <p>Os turnos confirmados aparecerão aqui.</p>}
           {[...game.history].reverse().map((entry, index) => <article className="calcHistoryRow" key={`${entry.at}-${index}`}>
-            <strong>{entry.playerName} · {entry.kind === 'CORRECTION' ? 'Correção de posição' : `Dado ${entry.dice}`}</strong>
-            <span>Casa {entry.from} → {entry.to}{entry.kind === 'TURN' && ` · Caixa ${money(entry.cashBefore)} → ${money(entry.cashAfter)}`}</span>
+            <strong>{entry.playerName} · {entry.kind === 'CORRECTION' ? 'Correção de posição' : entry.kind === 'RECOVERY' ? 'Recuperação financeira' : `Dado ${entry.dice}`}</strong>
+            <span>Casa {entry.from} → {entry.to}{entry.kind !== 'CORRECTION' && ` · Caixa ${money(entry.cashBefore)} → ${money(entry.cashAfter)}`}</span>
             {entry.actions?.map((action, i) => <small key={i}>{action.label}</small>)}
           </article>)}
           <button className="calcButton calcButtonGhost" disabled={!game.history.length || !!turn} onClick={undo}>Desfazer última jogada</button>

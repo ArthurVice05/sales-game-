@@ -4,22 +4,16 @@ import { createInitialPlayerState } from '../game/createInitialPlayer.js'
 import { resolveFinalRoundMove } from '../game/resolveFinalRoundMove.js'
 import {
   applyDeltas,
-  applyTrainingPurchase,
   capacityAndAttendance,
   computeDespesasFor,
   computeFaturamentoFor,
 } from '../game/gameMath.js'
 import { previewPurchaseImpact } from '../game/purchasePreview.js'
+import { buildPurchaseDeltasForKind, LEVEL_PURCHASE_KINDS, QTY_PURCHASE_KINDS } from './calcPurchases.js'
+import { buildCalcTrainingPayload, previewCalcTraining } from './calcTraining.js'
 import { computePatrimonio, rankPlayersByPatrimonio } from '../game/patrimonio.js'
-import { VENDOR_RULES, ERP_RULES, MIX_RULES, CERT_EFFECTS } from '../game/gameRules.js'
+import { getErpPrice } from '../game/gameRules.js'
 import { MANUAL_CONSTANTS, MIX_PURCHASE_PRICES } from '../game/manualConstants.js'
-import { buildClientsPurchaseDeltas } from '../game/clientsPurchase.js'
-import { buildInsideSalesPurchaseDeltas } from '../game/insideSalesPurchase.js'
-import { buildFieldSalesPurchaseDeltas } from '../game/fieldSalesPurchase.js'
-import { buildCommonSellersPurchaseDeltas } from '../game/commonSellersPurchase.js'
-import { buildManagerPurchaseDeltas } from '../game/managersPurchase.js'
-import { buildErpPurchaseDeltas } from '../game/erpPurchase.js'
-import { buildMixPurchaseDeltas } from '../game/productMixPurchase.js'
 import { SORTE_REVES_CARDS, resolveSorteRevesCard } from '../game/sorteRevesCards.js'
 import { applySorteRevesPayloadToPlayer } from '../game/sorteRevesApply.js'
 import { applyMonthlyRevenueCredit } from '../game/revenueCredit.js'
@@ -38,6 +32,7 @@ import {
 } from '../game/loanCycle.js'
 import { DEFAULT_MAX_ROUNDS, normalizeMaxRounds } from '../game/roundConfig.js'
 
+export const CALC_TRACK_LEN = getBoardDefinition(getNewGameBoardVersion()).trackLen
 export const CALC_STORAGE_KEY = 'sg:physical-calc:v1'
 const BOARD = getBoardDefinition(getNewGameBoardVersion())
 const DIRECT_BUY_KINDS = BOARD_40_TYPES.filter((kind) => !['START_REVENUE', 'DIRECT_BUY', 'EXPENSES', 'LUCK'].includes(kind))
@@ -110,89 +105,41 @@ export function planCalcTurn(game, dice) {
 }
 
 export function previewCalcPurchase(player, kind, selection = {}) {
+  if (kind === 'TRAINING') {
+    const payload = buildCalcTrainingPayload(player, selection.vendorTypes || [], selection.certIds || [])
+    if (!payload) throw new Error('Treinamento indisponível para essa seleção.')
+    const { afterPlayer, ...impact } = previewCalcTraining(player, payload)
+    return { cost: payload.grandTotal, deltas: null, payload, impact, afterPlayer, label: `${payload.applications} treinamento(s)` }
+  }
   const qty = Number(selection.qty ?? 1)
   const level = String(selection.level || '').toUpperCase()
-  let cost = 0
-  let deltas = null
-  let afterPlayer = null
-  let impact = null
-  let label = ''
-  if (['CLIENTS', 'FIELD', 'INSIDE', 'COMMON', 'MANAGER'].includes(kind)) {
+  if (QTY_PURCHASE_KINDS.includes(kind)) {
     if (!Number.isInteger(qty) || qty < 1) throw new RangeError('Escolha uma quantidade válida.')
-    const prices = {
-      CLIENTS: MANUAL_CONSTANTS.clientPrice,
-      FIELD: VENDOR_RULES.field.hire,
-      INSIDE: VENDOR_RULES.inside.hire,
-      COMMON: MANUAL_CONSTANTS.commonHire,
-      MANAGER: MANUAL_CONSTANTS.managerHire,
-    }
-    cost = qty * prices[kind]
-    const vendorRule = { FIELD: VENDOR_RULES.field, COMMON: VENDOR_RULES.comum, MANAGER: VENDOR_RULES.gestor }[kind]
-    const payload = {
-      qty, headcount: qty, totalCost: cost, totalHire: cost,
-      totalExpense: qty * (vendorRule?.baseDesp || 0),
-      expenseDelta: qty * (vendorRule?.baseDesp || 0),
-      revenueDelta: qty * (vendorRule?.baseFat || 0),
-      total: cost,
-    }
-    if (kind === 'CLIENTS') {
-      payload.maintenanceDelta = qty * MANUAL_CONSTANTS.clientPortfolioDesp
-      payload.bensDelta = cost
-      deltas = buildClientsPurchaseDeltas(payload)
-      label = `${qty} cliente(s)`
-    } else if (kind === 'FIELD') {
-      deltas = buildFieldSalesPurchaseDeltas(payload)
-      label = `${qty} representante(s)`
-    } else if (kind === 'INSIDE') {
-      deltas = buildInsideSalesPurchaseDeltas(payload)
-      label = `${qty} Inside Sales`
-    } else if (kind === 'COMMON') {
-      deltas = buildCommonSellersPurchaseDeltas(payload)
-      label = `${qty} vendedor(es) comum(ns)`
-    } else {
-      deltas = buildManagerPurchaseDeltas(payload)
-      label = `${qty} gestor(es)`
-    }
-  } else if (kind === 'ERP' || kind === 'MIX') {
+  } else if (LEVEL_PURCHASE_KINDS.includes(kind)) {
     if (!['A', 'B', 'C', 'D'].includes(level)) throw new RangeError('Selecione um nível válido.')
     const current = String(kind === 'ERP' ? player.erpLevel : player.mixProdutos || 'D').toUpperCase()
     if (level === current) throw new Error('Esse nível já está em uso.')
-    if (kind === 'ERP') {
-      cost = ERP_RULES[level].price
-      deltas = buildErpPurchaseDeltas({ level, values: { compra: cost } })
-    } else {
-      cost = MIX_PURCHASE_PRICES[level]
-      deltas = buildMixPurchaseDeltas({ level, compra: cost, despesa: MIX_RULES[level].despPerClient, faturamento: MIX_RULES[level].fatPerClient })
-    }
-    label = `${kind === 'ERP' ? 'ERP' : 'Mix'} nível ${level}`
-  } else if (kind === 'TRAINING') {
-    const vendorType = String(selection.vendorType || '')
-    const certId = String(selection.certId || '')
-    const owned = player.trainingsByVendor?.[vendorType] || []
-    const staff = { comum: player.vendedoresComuns, inside: player.insideSales, field: player.fieldSales, gestor: player.gestores }
-    if (!CERT_EFFECTS[certId] || !Number(staff[vendorType]) || owned.includes(certId)) {
-      throw new Error('Treinamento indisponível para esse colaborador.')
-    }
-    cost = MANUAL_CONSTANTS.trainingPrice
-    const payload = { purchases: [{ vendorType, items: [{ id: certId, price: cost }] }], grandTotal: cost }
-    afterPlayer = applyTrainingPurchase(player, payload)
-    const metrics = (value) => ({
-      cash: Number(value.cash || 0),
-      revenue: computeFaturamentoFor(value),
-      expenses: computeDespesasFor(value),
-      capacity: capacityAndAttendance(value).cap,
-      patrimonio: computePatrimonio(value),
-    })
-    impact = { current: metrics(player), after: metrics(afterPlayer), immediateCost: cost }
-    label = `Treinamento ${CERT_EFFECTS[certId].label}`
   } else {
     throw new Error('Compra indisponível nesta casa.')
   }
-  if (!afterPlayer) {
-    impact = previewPurchaseImpact({ player, deltas, immediateCost: cost })
-    afterPlayer = applyDeltas(player, deltas)
+  const { deltas, cost } = buildPurchaseDeltasForKind(kind, { qty, level })
+  return {
+    cost,
+    deltas,
+    impact: previewPurchaseImpact({ player, deltas, immediateCost: cost }),
+    afterPlayer: applyDeltas(player, deltas),
+    label: PURCHASE_LABELS[kind](kind === 'ERP' || kind === 'MIX' ? level : qty),
   }
-  return { cost, deltas, impact, afterPlayer, label }
+}
+
+const PURCHASE_LABELS = {
+  CLIENTS: (qty) => `${qty} cliente(s)`,
+  FIELD: (qty) => `${qty} representante(s)`,
+  INSIDE: (qty) => `${qty} Inside Sales`,
+  COMMON: (qty) => `${qty} vendedor(es) comum(ns)`,
+  MANAGER: (qty) => `${qty} gestor(es)`,
+  ERP: (level) => `ERP nível ${level}`,
+  MIX: (level) => `Mix nível ${level}`,
 }
 
 export function getCalcEventPreview(turn, round) {
@@ -320,10 +267,46 @@ function calcReduceCandidate(player, group, level) {
 
 export function getCalcReduceOptions(player) {
   return ['MIX', 'ERP'].flatMap((group) => ['A', 'B', 'C'].flatMap((level) => {
-    const price = group === 'MIX' ? MIX_PURCHASE_PRICES[level] : ERP_RULES[level]?.price
+    const price = group === 'MIX' ? MIX_PURCHASE_PRICES[level] : getErpPrice(level)
     const option = { group, level, credit: Math.floor(Number(price || 0) * MANUAL_CONSTANTS.recoveryCreditRatio) }
     return validateReduceSelection(calcReduceCandidate(player, group, level), option).ok ? [option] : []
   }))
+}
+
+/** Situação de recuperação financeira de um jogador (somente leitura; ações via recoverCalcTurn/recoverCalcGame). */
+export function getCalcRecoveryOverview(player) {
+  const staff = { comum: player.vendedoresComuns, field: player.fieldSales, inside: player.insideSales, gestor: player.gestores }
+  const maxAmount = clampLoanAmount(Number.MAX_SAFE_INTEGER, player.bens)
+  let reason = ''
+  if (player.loanTakenInMatch) reason = 'O empréstimo desta partida já foi utilizado.'
+  else if (!canTakeLoan(player)) reason = 'Há um empréstimo pendente de quitação.'
+  else if (maxAmount <= 0) reason = 'Os bens atuais não permitem um empréstimo.'
+  return {
+    cash: player.cash,
+    bens: player.bens,
+    loan: { canTake: !reason, maxAmount, reason, pending: player.loanPending || null },
+    staff,
+    reduceOptions: getCalcReduceOptions(player),
+  }
+}
+
+/**
+ * Recuperação sem turno em andamento: aplica ao jogador atual da partida.
+ * Não consome dado, casa, rodada nem jogador — exceto falência, que tira o jogador da vez.
+ */
+export function recoverCalcGame(game, recovery) {
+  const index = game.currentPlayerIndex
+  const player = game.players[index]
+  const before = snapshot(game)
+  const pseudo = { playerId: player.id, player, events: [], eventIndex: 0, actions: [], dice: 0, path: [], startPosition: player.pos + 1, destination: player.pos + 1 }
+  const result = recoverCalcTurn(pseudo, recovery, game.round)
+  const action = result.actions.at(-1)
+  const entry = { kind: 'RECOVERY', at: new Date().toISOString(), playerId: player.id, playerName: player.name, from: player.pos + 1, to: player.pos + 1, cashBefore: player.cash, cashAfter: result.player.cash, actions: [action], before }
+  if (result.player.bankrupt) {
+    const finished = finishCalcTurn(game, result)
+    return { ...finished, history: [...game.history, entry] }
+  }
+  return { ...game, players: game.players.map((item, i) => (i === index ? result.player : item)), history: [...game.history, entry] }
 }
 
 export function finishCalcTurn(game, turn) {
